@@ -285,11 +285,13 @@ static int lws_lua_log (lua_State *L) {
 	level = lua_gettop(L) > 1 ? luaL_checkoption(L, index++, "err", lws_lua_log_levels) + 1
 			: NGX_LOG_ERR;
 	msg.data = (u_char *)luaL_checklstring(L, index, &msg.len);
-	if (level == NGX_LOG_DEBUG) {
-		level |= NGX_LOG_DEBUG_HTTP;
-	}
 	lctx = lws_lua_get_request_ctx(L);
-	ngx_log_error(level, lctx->ctx->r->connection->log, 0, "[LWS] %V", &msg);
+	if (level != NGX_LOG_DEBUG) {
+		ngx_log_error(level, lctx->ctx->r->connection->log, 0, "[LWS] %V", &msg);
+	} else {
+		level |= NGX_LOG_DEBUG_HTTP;
+		ngx_log_debug(level, lctx->ctx->r->connection->log, 0, "[LWS] %V", &msg);
+	}
 	return 0;
 }
 

@@ -358,6 +358,8 @@ static lws_file_status_e lws_get_file_status (ngx_http_request_t *r, ngx_str_t *
 	lmcf = ngx_http_get_module_main_conf(r, lws);
 	if (lmcf->stat_cache) {
 		fs = (uintptr_t)lws_table_get(lmcf->stat_cache, filename);
+		ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+				"[LWS] stat_cache get filename:%V fs:%d", filename, fs);
 		if (fs != LWS_FS_UNKNOWN) {
 			return fs;
 		}
@@ -367,6 +369,8 @@ static lws_file_status_e lws_get_file_status (ngx_http_request_t *r, ngx_str_t *
 			? LWS_FS_FOUND : LWS_FS_NOT_FOUND;
 	if (lmcf->stat_cache) {
 		lws_table_set(lmcf->stat_cache, filename, (void *)fs);
+		ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+				"[LWS] stat_cache set filename:%V fs:%d", filename, fs);
 	}
 	return fs;
 }
@@ -424,7 +428,7 @@ static ngx_int_t lws_handler (ngx_http_request_t *r) {
 		ngx_log_error(NGX_LOG_ERR, log, 0, "[LWS] failed to evaluate main filename");
 		return NGX_HTTP_INTERNAL_SERVER_ERROR;
 	}
-	ngx_log_debug1(NGX_LOG_DEBUG_HTTP, log, 0, "[LWS] main: %V", &main);
+	ngx_log_debug1(NGX_LOG_DEBUG_HTTP, log, 0, "[LWS] main filename:%V", &main);
 	if (lws_get_file_status(r, &main) == LWS_FS_NOT_FOUND) {
 		return NGX_HTTP_NOT_FOUND;
 	}

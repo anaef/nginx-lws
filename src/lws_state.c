@@ -129,15 +129,13 @@ lws_state_t *lws_create_state (ngx_http_request_t *r) {
 	/* push traceback */
 	lua_pushcfunction(state->L, lws_lua_traceback);
 
-	ngx_log_debug2(NGX_LOG_DEBUG_HTTP, log, 0, "[LWS] %s state created (%p)", LUA_VERSION,
-			state->L);
+	ngx_log_error(NGX_LOG_INFO, log, 0, "[LWS] %s state created L:%p", LUA_VERSION, state->L);
 	return state;
 }
 
 void lws_close_state (lws_state_t *state, ngx_log_t *log) {
 	lua_close(state->L);
-	ngx_log_debug2(NGX_LOG_DEBUG_HTTP, log, 0, "[LWS] %s state closed (%p)", LUA_VERSION,
-			state->L);
+	ngx_log_error(NGX_LOG_INFO, log, 0, "[LWS] %s state closed L:%p", LUA_VERSION, state->L);
 	ngx_free(state);
 }
 

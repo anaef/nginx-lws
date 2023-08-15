@@ -287,8 +287,8 @@ static int lws_table_rehash (lws_table_t *t, size_t alloc) {
 	if ((alloc_new = lws_table_size(t, alloc)) == (size_t)-1) {
 		return -1;
 	}
-	ngx_log_debug2(NGX_LOG_DEBUG_HTTP, t->log, 0, "[LWS] table rehash old:%z new:%z", t->alloc,
-			alloc_new);
+	ngx_log_debug3(NGX_LOG_DEBUG_HTTP, t->log, 0, "[LWS] table rehash t:%p old:%z new:%z", t,
+			t->alloc, alloc_new);
 	entries_new = ngx_calloc(alloc_new * sizeof(lws_table_entry_t), t->log);
 	if (!entries_new) {
 		return -1;
