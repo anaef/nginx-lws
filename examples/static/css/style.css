@@ -1,0 +1,13 @@
+html {
+	font-family: sans-serif;
+}
+body {
+	max-width: 600px;
+	margin: auto;
+}
+.row {
+	margin-bottom: 1rem;
+}
+label {
+	margin-right: 0.5rem;
+}
