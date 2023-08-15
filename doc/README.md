@@ -3,3 +3,4 @@
 The documentation is split into these sections:
 
 - [Getting Started](GettingStarted.md)
+- [Configuration Directives](ConfigurationDirectives.md)
