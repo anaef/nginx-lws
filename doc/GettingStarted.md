@@ -9,7 +9,7 @@ this repository.
 The configuration provided with the examples is called `lws-examples.conf` and looks similar to
 this:
 
-```
+```nginx
 server {
 	listen localhost:8080;
 	
@@ -84,7 +84,7 @@ the examples.
 
 The first example is a classical "Hello, world!" example. Its source code looks like this:
 
-```
+```lua
 -- Say hello
 response.body:write("Hello, world, from ", _VERSION, "!")
 
