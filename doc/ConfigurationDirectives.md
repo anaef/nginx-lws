@@ -5,9 +5,20 @@
 
 Context: location
 
-Sets the filename of a main Lua chunk with optional path info. This directive enables the LWS
-handler for *main*, passing optional *path_info*. Both values can contain variables. This is useful
-for operating a group of Lua services at a location.
+Enables the LWS handler for the main Lua chunk with filename *main*. The optional *path_info*
+is passed in the request context. Both *main* and *path_info* can contain variables. This is useful
+for including captures from the location URI.
+
+Example:
+```nginx
+server {
+	...
+        location ~ /services/(\w+)(/.*)? {
+                lws /var/www/lws-examples/services/$1.lua $2;
+		...
+	}
+}
+```
 
 
 ## lws_init *init*
@@ -21,7 +32,7 @@ Sets the filename of an init Lua chunk. This chunk initializes Lua states at the
 
 Context: location
 
-Sets the filename of a pre" Lua chunk. This chunk is run before each request at the location.
+Sets the filename of a pre Lua chunk. This chunk is run before each request at the location.
 
 
 ## lws_post *post*
@@ -52,10 +63,10 @@ Lua C path.
 
 Context: location
 
-Sets a memory limit in bytes for each Lua state. If a Lua state exceeds the limit, a memory error
-is generated. A value of `0` disables this check. The default value for *memory_limit* is `0`
-When setting *memory_limit*, you can use the `k` and `m` suffixes to set kilobytes or megabytes,
-respectively.
+Sets a memory limit in bytes for each Lua state. If a Lua state exceeds the limit, a Lua memory
+error is generated. A value of `0` disables this check. The default value for *memory_limit* is
+`0`.  When setting *memory_limit*, you can use the `k` and `m` suffixes to set kilobytes or
+megabytes, respectively.
 
 
 ## lws_lifecycles *lifecycles*
@@ -83,6 +94,6 @@ Context: http
 Sets the parameters of the stat cache. The stat cache maintains file existence information for
 speeding up request processing. It maintains up to `cap` entries for a duration of `timeout`
 seconds using a least recently used (LRU) algorithm. The default values for *cap* and *timeout* are
-`1024` and `30`. You can use the `k` and `m` suffixes with *cap* to set kilobytes or
-megabytes, respectively, and you can use the `s`, `m`, `h`, `d`, `w`, `M`, and `y` suffixes
-with *timeout* to set seconds, minutes, hours, days, weeks, months, and years, respectively.
+`1024` and `30`. You can use the `k` and `m` suffixes with *cap* to set multiples of 1024 or
+1024², respectively, and you can use the `s`, `m`, `h`, `d`, `w`, `M`, and `y` suffixes
+with *timeout* to set seconds, minutes, hours, days, weeks, months, or years, respectively.

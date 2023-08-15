@@ -1,4 +1,4 @@
-## LWS Request Processing
+# LWS Request Processing
 
 This document describes the general HTTP request processing logic of LWS.
 
@@ -30,33 +30,33 @@ manage information pertinent to the HTTP request.
 
 ### `request` Value
 
-| Field | Description |
-| --- | --- |
-| method | HTTP request method |
-| uri | HTTP request URI |
-| path_info | Path info, as defined with the `lws` directive |
-| args | HTTP request query arguments |
-| headers | HTTP request headers (case-insensitive keys, read-only) |
-| body | HTTP request body (Lua file handle interface, read-only) |
+| Key | Type | Description |
+| --- | --- | --- |
+| `method` | `string` | HTTP request method |
+| `uri` | `string` | HTTP request URI |
+| `path_info` | `string` | Path info, as defined with the `lws` directive |
+| `args` | `string` | HTTP request query arguments |
+| `headers` | `table`-like | HTTP request headers (case-insensitive keys, read-only) |
+| `body` | `file` | HTTP request body (Lua file handle interface, read-only) |
 
 
 ### `response` Value
 
-| Field | Description |
-| --- | --- |
-| status | HTTP response status (defaults to 200) |
-| headers | HTTP response headers (case-insensitive keys) |
-| body | HTTP response body (Lua file handle interface, write-only) |
+| Key | Type | Description |
+| --- | --- | --- |
+| `status` | `integer` | HTTP response status (defaults to 200) |
+| `headers` | `table`-like | HTTP response headers (case-insensitive keys) |
+| `body` | `file` | HTTP response body (Lua file handle interface, write-only) |
 
 
 ## Chunk Result
 
 A chunk must return no value, `nil`, or an integer as its result. No value, nil, and `0` indicate
-success. A negative integer indicates failure and generates a Lua error. Results with a bad type are
-processed as `-1`.
+success. A negative integer indicates failure and generates a Lua error. Results with a bad type
+are processed as `-1`.
 
-For the main chunk only, a positive integer between 100 and 599 inclusive causes the web server to
-render a default response page for the corresponding HTTP status code. 
+For the main chunk only, a positive integer between 100 and 599 causes the web server to render a
+default response page for the corresponding HTTP status code.
 
 > [!NOTE]
 > Most main chunks produce a response body directly and must set `response.status` rather than
@@ -79,6 +79,7 @@ Lua states are kept open to handle subsequent requests when a request completes.
 > global environment or the Lua registry. Any request-specific state should be constrained to
 > the request environment, and local variables.
 
-Lua states read the Lua chunks from the file systems only once for performance.
+Lua states read the Lua chunks from the file system only once for performance. The resulting
+function is then cached.
 
 You can control the closing of Lua states with the `lws_lifecycles` directive.

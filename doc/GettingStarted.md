@@ -36,21 +36,24 @@ server {
 
 This configuration defines a web server with three locations:
 - A root location that serves static content from the `static` subfolder.
-- A `/services` location that provides the services implemented in Lua.
-- A `/internal` location that is only accessible via internal redirects.
+- A `/services/` location that provides the services implemented in Lua.
+- A `/internal/` location that is only accessible via internal redirects.
 
-The `/services` location uses the central `lws` directive to enable LWS. The directive matches
-URIs to files with Lua chunks. Specifically, the URI `/services/{name}` is mapped to the Lua chunk
-`/var/www/lws-examples/services/{name}.lua`. The variable `$1` represents the first capture group
-of the location. Extra path information following the service name is provided as path info to the
-Lua code via the 2nd capture group and the corresponding `$2` variable.
+The `/services` location uses the central `lws` directive to enable the LWS handler. The directive
+maps URIs to files with main Lua chunks that provide a service. Specifically, the URI
+`/services/{name}` is mapped to the main Lua chunk `/var/www/lws-examples/services/{name}.lua`
+using variable `$1` which corresponds to the first capture group of the location URI, i.e.,
+`(\w+)`. Optional extra path information following the service name is provided as path info to
+the Lua code using variable `$2` which corresponds to the 2nd capture group of the location URI,
+i.e., `(/.*)?`.
 
 Further used directives include:
 
 - `lws_init`, which refers to a Lua chunk that initializes the state. This is run once per state.
-- `lws_pre`, which refers to a Lua chunk that prepares a state for a particular request. This is
-run once per request.
-- `lws_path`, which extends the Lua path where Lua searches for packages with another folder.
+- `lws_pre`, which refers to a Lua chunk that prepares a state for a request. This is run per
+request, before the main Lua chunk.
+- `lws_path`, which sets the Lua path where Lua searches for packages. Due to the `+` sign, the
+set path is appended to the default Lua path.
 
 
 ## Enabling the Examples Website
@@ -74,6 +77,7 @@ Finally, you must instruct NGINX to reload the configuration, by issuing a comma
 ```
 sudo service nginx reload
 ```
+
 If the website does not launch, it is advisable to check the error log of NGINX.
 
 
