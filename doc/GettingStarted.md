@@ -4,7 +4,7 @@ LWS comes with a website containing examples. You can find the site in the `/exa
 this repository.
 
 
-## Examples Web Site Configuration
+## Examples Website Configuration
 
 The configuration provided with the examples is called `lws-examples.conf` and looks similar to
 this:
@@ -53,7 +53,7 @@ run once per request.
 - `lws_path`, which extends the Lua path where Lua searches for packages with another folder.
 
 
-## Enabling the Examples Web Site
+## Enabling the Examples Website
 
 The exact steps to enable the website with the examples depend on the specifics of your NGINX
 installation.
@@ -74,7 +74,27 @@ Finally, you must instruct NGINX to reload the configuration, by issuing a comma
 ```
 sudo service nginx reload
 ```
-Once these steps are completed, you can point a browser to `http://localhost:8080/` and explore
-the exsamples.
-
 If the website does not launch, it is advisable to check the error log of NGINX.
+
+
+## Exploring the Examples Website
+
+Once these steps are completed, you can point a browser to `http://localhost:8080/` and explore
+the examples.
+
+The first example is a classical "Hello, world!" example. Its source code looks like this:
+
+```
+-- Say hello
+response.body:write("Hello, world, from ", _VERSION, "!")
+
+-- Finish
+response.status = lws.status.OK
+response.headers["Content-Type"] = "text/plain; charset=UTF-8"
+```
+
+This Lua chunk instructs the web browser to display text similar to this:
+
+```
+Hello, world, from Lua 5.3!
+```
