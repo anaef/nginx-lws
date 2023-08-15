@@ -276,22 +276,20 @@ static const char *const lws_lua_log_levels[] = {
 };
 
 static int lws_lua_log (lua_State *L) {
-	ngx_uint_t              level;
-	ngx_log_t              *log;
+	int                     index;
 	ngx_str_t               msg;
+	ngx_uint_t              level;
 	lws_lua_request_ctx_t  *lctx;
 
-	level = luaL_checkoption(L, 1, "info", lws_lua_log_levels) + 1;
-	msg.data = (u_char *)luaL_checklstring(L, 2, &msg.len);
-	lctx = lws_lua_get_request_ctx(L);
-	log = lctx->ctx->r->connection->log;
-	if (level != NGX_LOG_DEBUG) {
-		ngx_log_error(level, log, 0, "%V", &msg);
-	} else {
-#ifdef NGX_DEBUG
-		ngx_log_debug1(NGX_LOG_DEBUG_HTTP, log, 0, "%V", &msg);
-#endif
+	index = 1;
+	level = lua_gettop(L) > 1 ? luaL_checkoption(L, index++, "err", lws_lua_log_levels) + 1
+			: NGX_LOG_ERR;
+	msg.data = (u_char *)luaL_checklstring(L, index, &msg.len);
+	if (level == NGX_LOG_DEBUG) {
+		level |= NGX_LOG_DEBUG_HTTP;
 	}
+	lctx = lws_lua_get_request_ctx(L);
+	ngx_log_error(level, lctx->ctx->r->connection->log, 0, "[LWS] %V", &msg);
 	return 0;
 }
 

@@ -4,11 +4,11 @@ The LWS library provides functions and other values for implementing web service
 library is loaded automatically.
 
 
-## log(severity, message)
+## log([level,] message)
 
 Logs a message in the error log of the web server. The argument *message* must be a string value,
-and the argument *severity* can take the values `emerg`, `alert`, `crit`, `err`, `warn`, `notice`,
-`info`, and `debug`; it defaults to `info`.
+and the optional argument *level* can take the values `emerg`, `alert`, `crit`, `err`, `warn`,
+`notice`, `info`, and `debug`; it defaults to `err`.
 
 
 ## redirect(location [, args])
