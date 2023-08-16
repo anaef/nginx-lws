@@ -12,6 +12,7 @@
 
 
 static ngx_str_t *lws_lua_strdup(lua_State *L, ngx_str_t *str, ngx_log_t *log);
+static void lws_lua_unescape_url(u_char **dest, u_char **src, size_t n);
 
 static lws_lua_request_ctx_t *lws_lua_create_request_ctx(lua_State *L);
 static int lws_lua_request_ctx_tostring(lua_State *L);
@@ -56,6 +57,69 @@ static ngx_str_t *lws_lua_strdup (lua_State *L, ngx_str_t *str, ngx_log_t *log) 
 	ngx_memcpy(dup->data, str->data, str->len);
 	dup->len = str->len;
 	return dup;
+}
+
+static void lws_lua_unescape_url (u_char **dest, u_char **src, size_t n) {
+	int      state;
+	u_char  *d, *s, *end, c;
+
+	d = *dest;
+	s = *src;
+	end = s + n;
+	c = 0;
+	state = 0;
+	while (s < end) {
+		switch (state) {
+		case 0:
+			switch (*s) {
+			case '+':
+				*d++ = ' ';
+				s++;
+				break;
+
+			case '%':
+				s++;
+				state = 1;
+				break;
+
+			default:
+				*d++ = *s++;
+			}
+			break;
+
+		case 1: /* expect first hex digit */
+			if (*s >= '0' && *s <= '9') {
+				c = (*s++ - '0') * 16;
+				state = 2;
+			} else if (*s >= 'a' && *s <= 'f') {
+				c = (*s++ - 'a' + 10) * 16;
+				state = 2;
+			} else if (*s >= 'A' && *s <= 'F') {
+				c = (*s++ - 'A' + 10) * 16;
+				state = 2;
+			} else {
+				*d++ = '%';
+				state = 0;
+			}
+			break;
+
+		case 2: /* expect second hex digit */
+			if (*s >= '0' && *s <= '9') {
+				*d++ = c + (*s++ - '0');
+			} else if (*s >= 'a' && *s <= 'f') {
+				*d++ = c + (*s++ - 'a' + 10);
+			} else if (*s >= 'A' && *s <= 'F') {
+				*d++ = c + (*s++ - 'A' + 10);
+			} else {
+				*d++ = '%';
+				s--;
+			}
+			state = 0;
+			break;
+		}
+	}
+	*dest = d;
+	*src = s;
 }
 
 
@@ -352,7 +416,7 @@ static int lws_lua_parseargs (lua_State *L) {
 		if (n > 0) {
 			luaL_buffinit(L, &B);
 			u_start = u_pos = (u_char *)luaL_prepbuffsize(&B, n);
-			ngx_unescape_uri(&u_pos, &start, n, NGX_ESCAPE_ARGS);
+			lws_lua_unescape_url(&u_pos, &start, n);
 			luaL_addsize(&B, u_pos - u_start);
 			luaL_pushresult(&B);
 		} else {

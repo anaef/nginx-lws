@@ -21,8 +21,9 @@ chunk should return after scheduling an internal redirect.
 
 ## parseargs(args)
 
-Parses the query args in *args* and returns them as a table. For repeated keys, only the final value
-is provided.
+Parses the URL query parameters in *args* and returns them as a table. For repeated keys, only the
+final value is provided. The function also parses response bodies with a content type of
+`application/x-www-form-urlencoded`.
 
 
 ## status
