@@ -11,6 +11,7 @@ render_var("request.uri")
 render_var("request.path")
 render_var("request.path_info")
 render_var("request.args")
+render_var("request.ip")
 
 -- Render the headers
 response.body:write("\n\n", "* HTTP Request Headers", "\n\n")

@@ -39,6 +39,7 @@ manage information pertinent to the HTTP request.
 | `args` | `string` | HTTP request query parameters |
 | `headers` | `table`-like | HTTP request headers (case-insensitive keys, read-only) |
 | `body` | `file` | HTTP request body (Lua file handle interface, read-only) |
+| `ip` | `string`, `nil` | Remote IP address of the connection |
 
 
 ### `response` Value

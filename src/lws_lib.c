@@ -599,6 +599,7 @@ static void lws_lua_push_env (lws_request_ctx_t *ctx) {
 	lua_State           *L;
 	luaL_Stream         *request_body, *response_body;
 	lws_lua_table_t     *lt;
+	ngx_connection_t    *c;
 	ngx_http_request_t  *r;
 
 	/* create environment */
@@ -611,7 +612,7 @@ static void lws_lua_push_env (lws_request_ctx_t *ctx) {
 
 	/* request */
 	r = ctx->r;
-	lua_createtable(L, 0, 7);
+	lua_createtable(L, 0, 8);
 	lua_pushlstring(L, (const char *)r->method_name.data, r->method_name.len);
 	lua_setfield(L, -2, "method");
 	lua_pushlstring(L, (const char *)r->unparsed_uri.data, r->unparsed_uri.len);
@@ -630,6 +631,12 @@ static void lws_lua_push_env (lws_request_ctx_t *ctx) {
 	request_body = lws_lua_create_file(L);
 	request_body->f = ctx->request_body;
 	lua_setfield(L, -2, "body");
+	c = r->connection;
+	if ((c->sockaddr->sa_family == AF_INET || c->sockaddr->sa_family == AF_INET6)
+			&& c->addr_text.len) {
+		lua_pushlstring(L, (const char *)c->addr_text.data, c->addr_text.len);
+		lua_setfield(L, -2, "ip");
+	}
 	lua_setfield(L, -2, "request");
 
 	/* response */
