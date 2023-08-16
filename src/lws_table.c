@@ -15,7 +15,6 @@ static size_t lws_table_load(lws_table_t *t, size_t alloc);
 static int lws_table_rehash(lws_table_t *t, size_t alloc);
 static lws_table_entry_t *lws_table_find(lws_table_t *t, ngx_str_t *key, ngx_uint_t hash);
 static lws_table_entry_t *lws_table_insert(lws_table_t *t, ngx_str_t *key, ngx_uint_t hash);
-static lws_table_entry_t *lws_table_insert_brent(lws_table_t *t, ngx_str_t *key, ngx_uint_t hash);
 static void lws_table_remove(lws_table_t *t, lws_table_entry_t *entry);
 
 
@@ -56,7 +55,6 @@ lws_table_t *lws_table_create (size_t alloc, ngx_log_t *log) {
 		return NULL;
 	}
 	ngx_queue_init(&t->order);
-	lws_table_set_brent(t, 0);
 	return t;
 }
 
@@ -115,15 +113,6 @@ int lws_table_set_cap (lws_table_t *t, size_t cap) {
 	return 0;
 }
 
-int lws_table_set_brent (lws_table_t *t, int brent) {
-	if (t->count) {
-		return -1;
-	}
-	t->insert = brent ? lws_table_insert_brent : lws_table_insert;
-	t->brent = brent;
-	return 0;
-}
-
 void *lws_table_get (lws_table_t *t, ngx_str_t *key) {
 	ngx_uint_t          hash;
 	lws_table_entry_t  *entry;
@@ -150,9 +139,8 @@ int lws_table_set (lws_table_t *t, ngx_str_t *key, void *value) {
 	hash = lws_table_hash(t, key);
 	entry = lws_table_find(t, key, hash);
 	if (value) {
-		/* insert */
 		if (entry) {
-			/* update */
+			/* update existing */
 			if (t->capped) {
 				ngx_queue_remove(&entry->order);
 				ngx_queue_insert_tail(&t->order, &entry->order);
@@ -179,7 +167,7 @@ int lws_table_set (lws_table_t *t, ngx_str_t *key, void *value) {
 			}
 
 			/* new entry */
-			entry = t->insert(t, key, hash);
+			entry = lws_table_insert(t, key, hash);
 			ngx_queue_insert_tail(&t->order, &entry->order);
 			if (t->dup) {
 				entry->key.data = ngx_alloc(key->len, t->log);
@@ -275,7 +263,7 @@ static size_t lws_table_size (lws_table_t *t, size_t size) {
 }
 
 static size_t lws_table_load (lws_table_t *t, size_t alloc) {
-	return (alloc >> 1) + (alloc >> 2) + (t->brent ? (alloc >> 3) : 0);
+	return (alloc >> 1) + (alloc >> 2) + (alloc >> 3);
 }
 
 static int lws_table_rehash (lws_table_t *t, size_t alloc) {
@@ -306,7 +294,7 @@ static int lws_table_rehash (lws_table_t *t, size_t alloc) {
 	/* reinsert */
 	while (q != s) {
 		entry = ngx_queue_data(q, lws_table_entry_t, order);
-		entry_new = t->insert(t, &entry->key, entry->hash);
+		entry_new = lws_table_insert(t, &entry->key, entry->hash);
 		*entry_new = *entry;
 		ngx_queue_insert_head(&t->order, &entry_new->order);
 		q = ngx_queue_prev(q);
@@ -323,8 +311,8 @@ static lws_table_entry_t *lws_table_find (lws_table_t *t, ngx_str_t *key, ngx_ui
 	q = hash % (t->alloc - 2) + 1;
 	entry = &t->entries[h];
 	while (entry->state != LWS_TES_UNUSED) {
-		if (entry->hash == hash && entry->key.len == key->len
-				&& (t->ci ? ngx_strncasecmp(entry->key.data, key->data, key->len)
+		if (entry->hash == hash && entry->key.len == key->len && (t->ci
+				? ngx_strncasecmp(entry->key.data, key->data, key->len)
 				: ngx_strncmp(entry->key.data, key->data, key->len)) == 0) {
 			return entry;
 		}
@@ -338,20 +326,6 @@ static lws_table_entry_t *lws_table_find (lws_table_t *t, ngx_str_t *key, ngx_ui
 }
 
 static lws_table_entry_t *lws_table_insert (lws_table_t *t, ngx_str_t *key, ngx_uint_t hash) {
-	size_t              h, q;
-	lws_table_entry_t  *entry;
-
-	h = hash % t->alloc;
-	q = hash % (t->alloc - 2) + 1;
-	entry = &t->entries[h];
-	while (entry->state == LWS_TES_SET) {
-		h = (h + q) % t->alloc;
-		entry = &t->entries[h];
-	}
-	return entry;
-}
-
-static lws_table_entry_t *lws_table_insert_brent (lws_table_t *t, ngx_str_t *key, ngx_uint_t hash) {
 	size_t              h, q, len, l, q_m, h_m, l_m, entry_m_l;
 	lws_table_entry_t  *entry, *entry_m, *entry_m_old, *entry_m_new;
 
@@ -365,8 +339,8 @@ static lws_table_entry_t *lws_table_insert_brent (lws_table_t *t, ngx_str_t *key
 		entry = &t->entries[h];
 		len++;
 	}
-	if (len == 1) {
-		/* "worst" case is optimal */
+	if (len <= 2) {
+		/* "worst" case is optimal overall */
 		return entry;
 	}
 
@@ -376,7 +350,7 @@ static lws_table_entry_t *lws_table_insert_brent (lws_table_t *t, ngx_str_t *key
 	h = hash % t->alloc;
 	entry = &t->entries[h];
 	l = 1;
-	while (l < len - 1 && l < entry_m_l) {  /* last conflict would be zero-sum at best */
+	do {
 		q_m = entry->hash % (t->alloc - 2) + 1;
 		h_m = (h + q_m) % t->alloc;
 		entry_m = &t->entries[h_m];
@@ -389,7 +363,7 @@ static lws_table_entry_t *lws_table_insert_brent (lws_table_t *t, ngx_str_t *key
 				entry_m_l = l_m;
 				break;
 			}
-			if (l + l_m >= len - 1) {
+			if (l + l_m >= len - 1) {  /* zero-sum at best otherwise */
 				break;
 			}
 			h_m = (h_m + q_m) % t->alloc;
@@ -399,9 +373,10 @@ static lws_table_entry_t *lws_table_insert_brent (lws_table_t *t, ngx_str_t *key
 		h = (h + q) % t->alloc;
 		entry = &t->entries[h];
 		l++;
-	}
-	if (entry_m_old) {
-		/* optimize overall case by moving the selected entry down its chain */
+	} while (l < len - 1 && l < entry_m_l);  /* zero-sum at best otherwise */
+
+	/* move if a btter outcome was found */
+	if (entry_m_old) {  /* implied by l >= entry_m_l */
 		*entry_m_new = *entry_m_old;
 		entry_m_new->order.prev->next = &entry_m_new->order;
 		entry_m_new->order.next->prev = &entry_m_new->order;
