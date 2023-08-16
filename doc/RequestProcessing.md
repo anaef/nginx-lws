@@ -20,7 +20,7 @@ The pre, main, and post Lua chunks are run sequentially for each request. The op
 chunks provide the opportunity to perform common tasks for the main chunks at the location.
 
 The pre, main, and post Lua chunks run with a request environment that indexes the global
-environment for undefined values.
+environment for keys that are not present.
 
 
 ## Request Environment
@@ -28,17 +28,18 @@ environment for undefined values.
 The request environment provides the values `request` and `response`. These table values
 manage information pertinent to the HTTP request.
 
+
 ### `request` Value
 
 | Key | Type | Description |
 | --- | --- | --- |
 | `method` | `string` | HTTP request method |
 | `uri` | `string` | HTTP request URI (includes path and query parameters) |
-| `path` | `string` | HTTP request path (includes path info) |
-| `path_info` | `string` | Path info, as defined with the `lws` directive |
+| `path` | `string` | HTTP request path |
 | `args` | `string` | HTTP request query parameters |
 | `headers` | `table`-like | HTTP request headers (case-insensitive keys, read-only) |
 | `body` | `file` | HTTP request body (Lua file handle interface, read-only) |
+| `path_info` | `string` | Path info, as defined with the `lws` directive |
 | `ip` | `string`, `nil` | Remote IP address of the connection |
 
 
@@ -57,8 +58,10 @@ A chunk must return no value, `nil`, or an integer as its result. No value, nil,
 success. A negative integer indicates failure and generates a Lua error. Results with a bad type
 are processed as `-1`.
 
-For the main chunk only, a positive integer between 100 and 599 causes the web server to render a
-default response page for the corresponding HTTP status code.
+For the main chunk only, a positive integer between 100 and 599 instructs the web server to send
+a default response page for the corresponding HTTP status code. In NGINX, these pages are defined
+with the `error_page` directive. For example, returning `lws.status.NOT_FOUND` (or, equivalently,
+`404`), sends a "Not Found" page.
 
 > [!NOTE]
 > Most main chunks produce a response body directly and must set `response.status` rather than
@@ -77,11 +80,11 @@ aborted.
 Lua states are kept open to handle subsequent requests when a request completes.
 
 > [!WARNING]
-> Developers must be careful not to leak information from request to request, such as through the
-> global environment or the Lua registry. Any request-specific state should be constrained to
-> the request environment, and local variables.
+> Developers must be careful not to leak information among requests, such as through the global
+> environment or the Lua registry. Any request-specific state should be constrained to the request
+> environment, and local variables.
 
-Lua states read the Lua chunks from the file system only once for performance. The resulting
-function is then cached.
+Lua states read the Lua chunks from the file system only once. The resulting functions are then
+cached.
 
 You can control the closing of Lua states with the `lws_lifecycles` directive.

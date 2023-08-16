@@ -619,8 +619,6 @@ static void lws_lua_push_env (lws_request_ctx_t *ctx) {
 	lua_setfield(L, -2, "uri");
 	lua_pushlstring(L, (const char *)r->uri.data, r->uri.len);
 	lua_setfield(L, -2, "path");
-	lua_pushlstring(L, (const char *)ctx->path_info.data, ctx->path_info.len);
-	lua_setfield(L, -2, "path_info");
 	lua_pushlstring(L, (const char *)r->args.data, r->args.len);
 	lua_setfield(L, -2, "args");
 	lt = lws_lua_create_table(L);
@@ -631,6 +629,8 @@ static void lws_lua_push_env (lws_request_ctx_t *ctx) {
 	request_body = lws_lua_create_file(L);
 	request_body->f = ctx->request_body;
 	lua_setfield(L, -2, "body");
+	lua_pushlstring(L, (const char *)ctx->path_info.data, ctx->path_info.len);
+	lua_setfield(L, -2, "path_info");
 	c = r->connection;
 	if ((c->sockaddr->sa_family == AF_INET || c->sockaddr->sa_family == AF_INET6)
 			&& c->addr_text.len) {

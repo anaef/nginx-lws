@@ -1,7 +1,7 @@
 # Getting Started
 
-LWS comes with a website containing examples. You can find the site in the `/examples` folder of
-this repository.
+LWS comes with a website with examples. You can find the site in the `/examples` folder of this
+repository.
 
 
 ## Examples Website Configuration
@@ -36,22 +36,23 @@ server {
 
 This configuration defines a web server with three locations:
 - A root location that serves static content from the `static` subfolder.
-- A `/services/` location that provides the services implemented in Lua.
+- A `/services/` location that provides the web services implemented in Lua.
 - A `/internal/` location that is only accessible via internal redirects.
 
 The `/services` location uses the central `lws` directive to enable the LWS handler. The directive
-maps URIs to files with main Lua chunks that provide a service. Specifically, the URI
+maps paths to files with main Lua chunks that implement a web service. Specifically, the path
 `/services/{name}` is mapped to the main Lua chunk `/var/www/lws-examples/services/{name}.lua`
-using variable `$1` which corresponds to the first capture group of the location URI, i.e.,
+using variable `$1` which corresponds to the first capture group of the location path, i.e.,
 `(\w+)`. Optional extra path information following the service name is provided as path info to
-the Lua code using variable `$2` which corresponds to the 2nd capture group of the location URI,
+the Lua code using variable `$2` which corresponds to the 2nd capture group of the location path,
 i.e., `(/.*)?`.
 
 Further used directives include:
 
-- `lws_init`, which refers to a Lua chunk that initializes the state. This is run once per state.
-- `lws_pre`, which refers to a Lua chunk that prepares a state for a request. This is run per
-request, before the main Lua chunk.
+- `lws_init`, which refers to a Lua chunk that initializes the state. This chunk is run once per
+state.
+- `lws_pre`, which refers to a Lua chunk that prepares a state for a request. This chunk is run
+per request, before the main Lua chunk.
 - `lws_path`, which sets the Lua path where Lua searches for packages. Due to the `+` sign, the
 set path is appended to the default Lua path.
 
@@ -61,8 +62,8 @@ set path is appended to the default Lua path.
 The exact steps to enable the website with the examples depend on the specifics of your NGINX
 installation.
 
-As a first step, you must have completed the LWS installation, as described in the main
-[README](../README.md) document. In particular, the LWS module must be loaded in NGINX.
+As a first step, you must completed the LWS installation, as described in the
+[installation](Installation.md) document. In particular, the LWS module must be loaded in NGINX.
 
 Second, you must copy the files of the website to a suitable location. In the configuration shown
 above, that location is defined as `/var/www/lws-examples`. You can choose a different
@@ -72,7 +73,7 @@ Third, you must enable the configuration. On some systems, this can be done by c
 configuration to the `/etc/nginx/sites-available` folder and creating a corresponding symlink in
 `/etc/nginx/sites-enabled`. The particularities depend on your system and NGINX installation.
 
-Finally, you must instruct NGINX to reload the configuration, by issuing a command such as
+Finally, you must instruct NGINX to reload its configuration, by issuing a command such as
 
 ```
 sudo service nginx reload

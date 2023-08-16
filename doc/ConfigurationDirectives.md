@@ -1,5 +1,7 @@
 # LWS Configuration Directives
 
+This document describes the NGINX configuration directives provided by lws-nginx.
+
 
 ## lws *main* [, *path_info*]
 
@@ -7,7 +9,7 @@ Context: location
 
 Enables the LWS handler for the main Lua chunk with filename *main*. The optional *path_info*
 is passed in the request context. Both *main* and *path_info* can contain variables. This is useful
-for including captures from the location URI.
+for including captures from the location path.
 
 Example:
 ```nginx
@@ -23,28 +25,28 @@ server {
 
 ## lws_init *init*
 
-Context: location
+Context: server, location
 
 Sets the filename of an init Lua chunk. This chunk initializes Lua states at the location.
 
 
 ## lws_pre *pre*
 
-Context: location
+Context: server, location
 
 Sets the filename of a pre Lua chunk. This chunk is run before each request at the location.
 
 
 ## lws_post *post*
 
-Context: location
+Context: server, location
 
 Sets the filename of a post Lua chunk. This chunk is run after each request at the location.
 
 
 ## lws_path *path*
 
-Context: location
+Context: server, location
 
 
 Sets the Lua path. If the first character of *path* is `+`, *path* is appended to the default Lua
@@ -53,7 +55,7 @@ path.
 
 ## lws_cpath *cpath*
 
-Context: location
+Context: server, location
 
 Sets the Lua C path. If the first character of *cpath* is `+`, *cpath* is appended to the default
 Lua C path.
@@ -61,7 +63,7 @@ Lua C path.
 
 ## lws_memory_limit *memory_limit*
 
-Context: location
+Context: server, location
 
 Sets a memory limit in bytes for each Lua state. If a Lua state exceeds the limit, a Lua memory
 error is generated. A value of `0` disables this check. The default value for *memory_limit* is
@@ -71,7 +73,7 @@ megabytes, respectively.
 
 ## lws_lifecycles *lifecycles*
 
-Context: location
+Context: server, location
 
 Sets a limit on the number of lifecycles per Lua state. If a Lua state has serviced the set
 number of requests, it is closed. A value of `0` disables this logic. The default value for

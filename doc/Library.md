@@ -6,16 +6,16 @@ library is loaded automatically.
 
 ## log([level,] message)
 
-Logs a message in the error log of the web server. The argument *message* must be a string value,
-and the optional argument *level* can take the values `emerg`, `alert`, `crit`, `err`, `warn`,
-`notice`, `info`, and `debug`; it defaults to `err`.
+Logs a message in the error log of the server. The argument *message* must be a string value, and
+the optional argument *level* can take the values `debug`, `info`, `notice`, `warn`, `err`,
+`crit`, `alert`, and `emerg`; it defaults to `err`.
 
 
 ## redirect(location [, args])
 
 Schedules an internal redirect to *location*. If *location* starts with `@`, it refers to
-a named location. Otherwise, *location* refers to a path, and *args* are optional query parameters.
-The request becomes internal and can use locations marked with the `internal` directive. A Lua
+a named location. Otherwise, *location* is a path, and *args* are optional query parameters. The
+request becomes internal and can use locations marked with the `internal` directive. A Lua
 chunk should return after scheduling an internal redirect.
 
 
@@ -29,7 +29,7 @@ final value is provided. The function also parses response bodies with a content
 ## status
 
 Represents a table of common HTTP status codes with strings as keys and integers as values.
-Indexing this table is strict and generates a Lua error if a key is not found.
+Indexing this table is strict and generates a Lua error if a key is not present.
 
 | Key | Value |
 | --- | --- |
