@@ -33,9 +33,10 @@ manage information pertinent to the HTTP request.
 | Key | Type | Description |
 | --- | --- | --- |
 | `method` | `string` | HTTP request method |
-| `uri` | `string` | HTTP request URI |
+| `uri` | `string` | HTTP request URI (includes path and query parameters) |
+| `path` | `string` | HTTP request path (includes path info) |
 | `path_info` | `string` | Path info, as defined with the `lws` directive |
-| `args` | `string` | HTTP request query arguments |
+| `args` | `string` | HTTP request query parameters |
 | `headers` | `table`-like | HTTP request headers (case-insensitive keys, read-only) |
 | `body` | `file` | HTTP request body (Lua file handle interface, read-only) |
 

@@ -8,6 +8,7 @@ end
 response.body:write("* HTTP Request", "\n\n")
 render_var("request.method")
 render_var("request.uri")
+render_var("request.path")
 render_var("request.path_info")
 render_var("request.args")
 

@@ -14,7 +14,7 @@ and the optional argument *level* can take the values `emerg`, `alert`, `crit`, 
 ## redirect(location [, args])
 
 Schedules an internal redirect to *location*. If *location* starts with `@`, it refers to
-a named location. Otherwise, *location* refers to a path, and *args* are optional query arguments.
+a named location. Otherwise, *location* refers to a path, and *args* are optional query parameters.
 The request becomes internal and can use locations marked with the `internal` directive. A Lua
 chunk should return after scheduling an internal redirect.
 

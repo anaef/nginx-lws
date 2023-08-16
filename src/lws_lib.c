@@ -365,7 +365,7 @@ static int lws_lua_redirect (lua_State *L) {
 	lws_lua_request_ctx_t  *lctx;
 
 	redirect.data = (u_char *)luaL_checklstring(L, 1, &redirect.len);
-	luaL_argcheck(L, redirect.len > (redirect.data[0] == '@' ? 1 : 0), 1, "empty uri or name");
+	luaL_argcheck(L, redirect.len > (redirect.data[0] == '@' ? 1 : 0), 1, "empty path or name");
 	lctx = lws_lua_get_request_ctx(L);
 	log = lctx->ctx->r->connection->log;
 	lctx->ctx->redirect = lws_lua_strdup(L, &redirect, log);
@@ -611,11 +611,13 @@ static void lws_lua_push_env (lws_request_ctx_t *ctx) {
 
 	/* request */
 	r = ctx->r;
-	lua_createtable(L, 0, 6);
+	lua_createtable(L, 0, 7);
 	lua_pushlstring(L, (const char *)r->method_name.data, r->method_name.len);
 	lua_setfield(L, -2, "method");
-	lua_pushlstring(L, (const char *)r->uri.data, r->uri.len);
+	lua_pushlstring(L, (const char *)r->unparsed_uri.data, r->unparsed_uri.len);
 	lua_setfield(L, -2, "uri");
+	lua_pushlstring(L, (const char *)r->uri.data, r->uri.len);
+	lua_setfield(L, -2, "path");
 	lua_pushlstring(L, (const char *)ctx->path_info.data, ctx->path_info.len);
 	lua_setfield(L, -2, "path_info");
 	lua_pushlstring(L, (const char *)r->args.data, r->args.len);
@@ -631,7 +633,7 @@ static void lws_lua_push_env (lws_request_ctx_t *ctx) {
 	lua_setfield(L, -2, "request");
 
 	/* response */
-	lua_createtable(L, 0, 3);
+	lua_createtable(L, 0, 2);
 	luaL_getmetatable(L, LWS_LIB_RESPONSE);
 	lua_setmetatable(L, -2);
 	lt = lws_lua_create_table(L);

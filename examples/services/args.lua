@@ -2,7 +2,7 @@
 local function render_args (name, args)
 	response.body:write("* ", name, "\n\n")
 	if string.len(args) == 0 then
-		response.body:write("No arguments found.", "\n")
+		response.body:write("No parameters found.", "\n")
 	else
 		local parsed_args = lws.parseargs(args)
 		for key, value in pairs(parsed_args) do
@@ -16,12 +16,12 @@ end
 
 -- Renders content on GET
 local function content ()
-	render_args("HTTP Request URI Query Arguments", request.args)
+	render_args("HTTP Request Query Parameters", request.args)
 end
 
 -- Handles POST
 local function action ()
-	render_args("HTTP Request Body Arguments", request.body:read("*a"))
+	render_args("HTTP Request Body Parameters", request.body:read("*a"))
 end
 
 -- Handle methods
