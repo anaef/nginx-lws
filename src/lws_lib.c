@@ -36,6 +36,7 @@ static int lws_lua_close_file(lua_State *L);
 
 static int lws_lua_log(lua_State *L);
 static int lws_lua_redirect(lua_State *L);
+static int lws_lua_setcomplete(lua_State *L);
 static int lws_lua_parseargs(lua_State *L);
 
 static void lws_lua_push_env(lws_request_ctx_t *ctx);
@@ -379,6 +380,14 @@ static int lws_lua_redirect (lua_State *L) {
 	return 0;
 }
 
+static int lws_lua_setcomplete (lua_State *L) {
+	lws_lua_request_ctx_t  *lctx;
+
+	lctx = lws_lua_get_request_ctx(L);
+	lctx->ctx->complete = 1;
+	return 0;
+}
+
 static int lws_lua_parseargs (lua_State *L) {
 	int          nrec, state;
 	size_t       n;
@@ -449,6 +458,7 @@ static int lws_lua_parseargs (lua_State *L) {
 static luaL_Reg lws_lua_functions[] = {
 	{ "log", lws_lua_log },
 	{ "redirect", lws_lua_redirect },
+	{ "setcomplete", lws_lua_setcomplete },
 	{ "parseargs", lws_lua_parseargs },
 	{ NULL, NULL }
 };
@@ -698,6 +708,9 @@ static int lws_lua_call (lws_request_ctx_t *ctx, ngx_str_t *filename, const char
 	if (result < 0) {
 		luaL_error(L, "%s: %s chunk failed (%d)", lua_tostring(L, -2), chunk, result);
 	}
+	if (env && result > 0) {
+		ctx->complete = 1;
+	}
 
 	/* finish */
 	lua_pop(L, 2);  /* [] */
@@ -738,7 +751,8 @@ int lws_lua_run (lua_State *L) {
 
 	/* pre-handler */
 	if (ctx->llcf->pre.len) {
-		if ((result = lws_lua_call(ctx, &ctx->llcf->pre, "pre", 1)) > 0 || ctx->complete) {
+		result = lws_lua_call(ctx, &ctx->llcf->pre, "pre", 1);
+		if (ctx->complete) {
 			goto post;
 		}  /* result is invariably 0 at this point */
 	}

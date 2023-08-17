@@ -14,16 +14,24 @@ the optional argument *level* can take the values `debug`, `info`, `notice`, `wa
 ## redirect(location [, args])
 
 Schedules an internal redirect to *location*. If *location* starts with `@`, it refers to
-a named location. Otherwise, *location* is a path, and *args* are optional query parameters. The
-request becomes internal and can use locations marked with the `internal` directive. A Lua
-chunk should return after scheduling an internal redirect.
+a named location. Otherwise, *location* is a path, and *args* are optional query parameters. Both
+*location* and *args* must be strings. The request becomes internal and can use locations marked
+with the `internal` directive. The function also marks the request as complete. A Lua chunk should
+return after scheduling an internal redirect.
+
+
+## setcomplete()
+
+Marks the request as complete. If called in the pre chunk, processing skips the main chunk and
+proceeeds to the post chunk, if any. A Lua chunk should return after marking the request as
+complete.
 
 
 ## parseargs(args)
 
-Parses the URL query parameters in *args* and returns them as a table. For repeated keys, only the
-final value is provided. The function also parses response bodies with a content type of
-`application/x-www-form-urlencoded`.
+Parses the request query parameters in *args* and returns them as a table. For repeated keys,
+only the final value is provided. The function also parses request bodies with a content type of
+`application/x-www-form-urlencoded`, i.e., HTML form submissions with the `POST` method.
 
 
 ## status

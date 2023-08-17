@@ -11,7 +11,7 @@ post chunk.
 The init Lua chunk is run only once per Lua state. It provides the opportunity to initialize a Lua
 state and set up shared resources for requests, such as database connections.
 
-The init Lua chunk runs with the global environment of the Lua state.
+The init Lua chunk runs with the *global* environment of the Lua state.
 
 
 ## Pre, Main, and Post Lua Chunks
@@ -19,13 +19,14 @@ The init Lua chunk runs with the global environment of the Lua state.
 The pre, main, and post Lua chunks are run sequentially for each request. The optional pre and post
 chunks provide the opportunity to perform common tasks for the main chunks at the location.
 
-The pre, main, and post Lua chunks run with a request environment that indexes the global
-environment for keys that are not present.
+The pre, main, and post Lua chunks run with a *request* environment that indexes the global
+environment for keys that are not present. When a request completes, the request environment
+is removed.
 
 
 ## Request Environment
 
-The request environment provides the values `request` and `response`. These table values
+The request environment initially provides the values `request` and `response`. These table values
 manage information pertinent to the HTTP request.
 
 
@@ -54,16 +55,20 @@ manage information pertinent to the HTTP request.
 
 ## Chunk Result
 
-A chunk must return no value, `nil`, or an integer as its result. No value, nil, and `0` indicate
-success. A negative integer result indicates failure and generates a Lua error. Results that are
-neither `nil`, an integer, or convertible to an integer are processed as `-1` and thus generate a
-Lua error as well.
+A chunk must return no value, `nil`, or an integer as its result.
+
+No value, nil, and `0` indicate success.
+
+A negative integer result indicates failure and generates a Lua error. Results that are neither
+`nil`, an integer, or convertible to an integer are processed as `-1` and thus generate a Lua
+error as well.
 
 Positive integer results from the pre, main and post chunks instruct the web server to send a
 default response page for the corresponding HTTP status code. In NGINX, these pages are defined
 with the `error_page` directive. For example, returning `lws.status.NOT_FOUND` (or, equivalently,
-`404`), sends a "Not Found" page. Positive integers outside the range from 100 to 599 are
-processed as `500` and send an "Internal Server Error" page.
+`404`), sends a "Not Found" page. Positive integers outside the range of 100 to 599 are
+processed as `500` and thus send an "Internal Server Error" page. Returning a positive integer
+additionally marks the request as *complete* (see below).
 
 Positive integer results from the init chunk are ignored.
 
@@ -81,9 +86,10 @@ except the main chunk are optional.
 If any chunk generates a Lua error, be it directly or indirectly through its result, the
 processing is aborted.
 
-If the pre chunk completes the request by instructing the server to send a default response page,
-or by scheduling an internal redirect, processing proceeds directly to the the post chunk,
-skipping the main chunk.
+If the pre chunk marks the request as *complete*, processing proceeds directly to the post chunk,
+skipping the main chunk. A chunk other than the init chunk can mark the request as complete by
+instructing the server to send a default response page (see above), or by calling a
+[library function](Library.md) with this effect, such as `redirect`.
 
 The following figure illustrates the request processing sequence.
 
