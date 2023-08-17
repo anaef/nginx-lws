@@ -55,24 +55,39 @@ manage information pertinent to the HTTP request.
 ## Chunk Result
 
 A chunk must return no value, `nil`, or an integer as its result. No value, nil, and `0` indicate
-success. A negative integer indicates failure and generates a Lua error. Results with a bad type
-are processed as `-1`.
+success. A negative integer result indicates failure and generates a Lua error. Results that are
+neither `nil`, an integer, or convertible to an integer are processed as `-1` and thus generate a
+Lua error as well.
 
-For the main chunk only, a positive integer between 100 and 599 instructs the web server to send
-a default response page for the corresponding HTTP status code. In NGINX, these pages are defined
+Positive integer results from the pre, main and post chunks instruct the web server to send a
+default response page for the corresponding HTTP status code. In NGINX, these pages are defined
 with the `error_page` directive. For example, returning `lws.status.NOT_FOUND` (or, equivalently,
-`404`), sends a "Not Found" page.
+`404`), sends a "Not Found" page. Positive integers outside the range from 100 to 599 are
+processed as `500` and send an "Internal Server Error" page.
+
+Positive integer results from the init chunk are ignored.
 
 > [!NOTE]
 > Most main chunks produce a response body directly and must set `response.status` rather than
-> returning an HTTP status code.
+> returning an HTTP status code. Returning an HTTP status code *replaces* any response body
+> written by the chunk with the default response page.
 
 
 ## Processing Sequence
 
-The Lua chunks are run in the order init (as required), pre, main, and post. If any chunk
-generates a Lua error, be it directly or indirectly through its result, the processing is
-aborted.
+Generally, the Lua chunks are run in the order init (as required), pre, main, and post. All chunks
+except the main chunk are optional.
+
+If any chunk generates a Lua error, be it directly or indirectly through its result, the
+processing is aborted.
+
+If the pre chunk completes the request by instructing the server to send a default response page,
+or by scheduling an internal redirect, processing proceeds directly to the the post chunk,
+skipping the main chunk.
+
+The following figure illustrates the request processing sequence.
+
+![Request processing sequence](images/RequestProcessingSequence.svg)
 
 
 ## Lifecycle of Lua States
@@ -85,6 +100,8 @@ Lua states are kept open to handle subsequent requests when a request completes.
 > environment, and local variables.
 
 Lua states read the Lua chunks from the file system only once. The resulting functions are then
-cached.
+cached. This is a performance optimization.
+
+If processing is aborted due to a Lua error, the Lua state is closed after the request completes.
 
 You can control the closing of Lua states with the `lws_lifecycles` directive.

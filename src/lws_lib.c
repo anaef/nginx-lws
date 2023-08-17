@@ -361,20 +361,21 @@ static int lws_lua_log (lua_State *L) {
 
 static int lws_lua_redirect (lua_State *L) {
 	ngx_log_t              *log;
-	ngx_str_t               redirect;
+	ngx_str_t               redirect, args;
 	lws_lua_request_ctx_t  *lctx;
 
 	redirect.data = (u_char *)luaL_checklstring(L, 1, &redirect.len);
 	luaL_argcheck(L, redirect.len > (redirect.data[0] == '@' ? 1 : 0), 1, "empty path or name");
 	lctx = lws_lua_get_request_ctx(L);
 	log = lctx->ctx->r->connection->log;
-	lctx->ctx->redirect = lws_lua_strdup(L, &redirect, log);
 	if (redirect.data[0] != '@') {
-		redirect.data = (u_char *)luaL_optlstring(L, 2, NULL, &redirect.len);
-		if (redirect.data) {
-			lctx->ctx->redirect_args = lws_lua_strdup(L, &redirect, log);
+		args.data = (u_char *)luaL_optlstring(L, 2, NULL, &args.len);
+		if (args.data) {
+			lctx->ctx->redirect_args = lws_lua_strdup(L, &args, log);
 		}
 	}
+	lctx->ctx->redirect = lws_lua_strdup(L, &redirect, log);
+	lctx->ctx->complete = 1;
 	return 0;
 }
 
@@ -624,7 +625,7 @@ static void lws_lua_push_env (lws_request_ctx_t *ctx) {
 	lt = lws_lua_create_table(L);
 	lt->t = ctx->request_headers;
 	lt->readonly = 1;  /* required as key dup and free are not enabled */
-	lt->external = 1;  /* will be destroyed externally */
+	lt->external = 1;  /* will be freed externally */
 	lua_setfield(L, -2, "headers");
 	request_body = lws_lua_create_file(L);
 	request_body->f = ctx->request_body;
@@ -704,12 +705,12 @@ static int lws_lua_call (lws_request_ctx_t *ctx, ngx_str_t *filename, const char
 }
 
 int lws_lua_run (lua_State *L) {
-	int                     result;
+	int                     result, post_result;
 	lws_request_ctx_t      *ctx;
 	lws_lua_request_ctx_t  *lctx;
 
 	/* get arguments */
-	ctx = (void *)lua_topointer(L, 1);
+	ctx = (void *)lua_topointer(L, 1);  /* [ctx] */
 
 	/* set request context */
 	lctx = lws_lua_create_request_ctx(L);
@@ -737,15 +738,20 @@ int lws_lua_run (lua_State *L) {
 
 	/* pre-handler */
 	if (ctx->llcf->pre.len) {
-		(void)lws_lua_call(ctx, &ctx->llcf->pre, "pre", 1);
+		if ((result = lws_lua_call(ctx, &ctx->llcf->pre, "pre", 1)) > 0 || ctx->complete) {
+			goto post;
+		}  /* result is invariably 0 at this point */
 	}
 
 	/* main handler */
 	result = lws_lua_call(ctx, &ctx->main, "main", 1);
 
 	/* post-handler */
+	post:
 	if (ctx->llcf->post.len) {
-		(void)lws_lua_call(ctx, &ctx->llcf->post, "post", 1);
+		if ((post_result = lws_lua_call(ctx, &ctx->llcf->post, "post", 1)) > 0) {
+			result = post_result;
+		}
 	}
 
 	/* clear request context */

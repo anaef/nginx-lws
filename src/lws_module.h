@@ -62,6 +62,7 @@ struct lws_request_ctx_s {
 	ngx_str_t            response_body_str;   /* HTTP response body string */
 	ngx_str_t           *redirect;            /* NGINX internal redirect; @ prefix for name */
 	ngx_str_t           *redirect_args;       /* NGINX internal uri redirect args */
+	unsigned             complete:1;          /* request is complete */
 };
 
 typedef enum {
