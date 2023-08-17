@@ -157,12 +157,21 @@ lws_state_t *lws_get_state (ngx_http_request_t *r) {
 
 void lws_put_state (ngx_http_request_t *r, lws_state_t *state) {
 	lws_loc_config_t  *llcf;
+	ngx_log_t         *log;
 
 	llcf = ngx_http_get_module_loc_conf(r, lws);
 	state->lifecycles++;
 	if (state->error || (llcf->lifecycles > 0 && state->lifecycles >= llcf->lifecycles)) {
 		lws_close_state(state, r->connection->log);
 		return;
+	}
+	if (llcf->gc > 0 && state->lifecycles % llcf->gc == 0) {
+		log = r->connection->log;
+		ngx_log_debug1(NGX_LOG_DEBUG_HTTP, log, 0, "[LWS] pre-GC used:%d kb",
+				lua_gc(state->L, LUA_GCCOUNT, 0));
+		lua_gc(state->L, LUA_GCCOLLECT, 0);
+		ngx_log_debug1(NGX_LOG_DEBUG_HTTP, log, 0, "[LWS] post-GC used:%d kb",
+				lua_gc(state->L, LUA_GCCOUNT, 0));
 	}
 	ngx_queue_insert_head(&llcf->states, &state->queue);
 }

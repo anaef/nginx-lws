@@ -42,6 +42,7 @@ struct lws_loc_config_s {
 	ngx_str_t                  cpath;         /* Lua C path */
 	size_t                     memory_limit;  /* maximum memory; 0 = unrestricted */
 	ngx_int_t                  lifecycles;    /* maximum state cycles; 0 = unlimitted */
+	ngx_int_t                  gc;            /* maximum gc cycles; 0 = unlimited */
 	ngx_queue_t                states;        /* inactive Lua states */
 };
 

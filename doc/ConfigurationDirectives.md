@@ -81,6 +81,16 @@ number of requests, it is closed. A value of `0` disables this logic. The defaul
 helpful during local development to pick up code changes.
 
 
+## lws_gc *gc*
+
+Context: server, location
+
+Sets a number of requests for periodic garbage collection on Lua states. If a Lua state has
+serviced the set number of requests, a full garbage collection cycle is performed. A vlaue of
+`0` disables this logic. The default value for *gc* is `0`. Setting the value to `1` performs
+a full garbage collection cycle after each request.
+
+
 ## lws_thread_pool *thread_pool_name*
 
 Context: http

@@ -102,6 +102,14 @@ static ngx_command_t lws_commands[] = {
 		NULL
 	},
 	{
+		ngx_string("lws_gc"),
+		NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
+		ngx_conf_set_num_slot,
+		NGX_HTTP_LOC_CONF_OFFSET,
+		offsetof(lws_loc_config_t, gc),
+		NULL
+	},
+	{
 		ngx_string("lws_thread_pool"),
 		NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1,
 		ngx_conf_set_str_slot,
@@ -250,6 +258,7 @@ static void *lws_create_loc_conf (ngx_conf_t *cf) {
 	}
 	llcf->memory_limit = NGX_CONF_UNSET_SIZE;
 	llcf->lifecycles = NGX_CONF_UNSET;
+	llcf->gc = NGX_CONF_UNSET;
 	ngx_queue_init(&llcf->states);
 
 	/* add cleanup */
@@ -280,6 +289,7 @@ static char *lws_merge_loc_conf (ngx_conf_t *cf, void *parent, void *child) {
 	ngx_conf_merge_str_value(conf->cpath, prev->cpath, "");
 	ngx_conf_merge_size_value(conf->memory_limit, prev->memory_limit, 0);
 	ngx_conf_merge_value(conf->lifecycles, prev->lifecycles, 0);
+	ngx_conf_merge_value(conf->gc, prev->gc, 0);
 	return NGX_CONF_OK;
 }
 
