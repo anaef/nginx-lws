@@ -36,6 +36,7 @@ static size_t lws_table_sizes[] = {
 };
 static int lws_table_sizes_n = 112;
 
+
 lws_table_t *lws_table_create (size_t alloc, ngx_log_t *log) {
 	lws_table_t  *t;
 
@@ -62,13 +63,32 @@ void lws_table_free (lws_table_t *t) {
 	ngx_queue_t        *q;
 	lws_table_entry_t  *entry;
 
-	while (!ngx_queue_empty(&t->order)) {
-		q = ngx_queue_last(&t->order);
-		entry = ngx_queue_data(q, lws_table_entry_t, order);
-		lws_table_remove(t, entry);
+	if (t->dup || t->free) {
+		while (!ngx_queue_empty(&t->order)) {
+			q = ngx_queue_last(&t->order);
+			entry = ngx_queue_data(q, lws_table_entry_t, order);
+			lws_table_remove(t, entry);
+		}
 	}
 	ngx_free(t->entries);
 	ngx_free(t);
+}
+
+void lws_table_clear (lws_table_t *t) {
+	ngx_queue_t        *q;
+	lws_table_entry_t  *entry;
+
+	if (t->dup || t->free) {
+		while (!ngx_queue_empty(&t->order)) {
+			q = ngx_queue_last(&t->order);
+			entry = ngx_queue_data(q, lws_table_entry_t, order);
+			lws_table_remove(t, entry);
+		}
+	} else {
+		ngx_queue_init(&t->order);
+		t->count = 0;
+	}
+	ngx_memzero(t->entries, t->alloc * sizeof(lws_table_entry_t));
 }
 
 int lws_table_set_dup (lws_table_t *t, int dup) {
@@ -151,12 +171,10 @@ int lws_table_set (lws_table_t *t, ngx_str_t *key, void *value) {
 			entry->value = value;
 		} else {
 			/* evict as needed */
-			if (t->capped) {
-				while (t->count >= t->cap) {
-					q = ngx_queue_head(&t->order);
-					evict = ngx_queue_data(q, lws_table_entry_t, order);
-					lws_table_remove(t, evict);
-				}
+			if (t->capped && t->count >= t->cap) {
+				q = ngx_queue_head(&t->order);
+				evict = ngx_queue_data(q, lws_table_entry_t, order);
+				lws_table_remove(t, evict);
 			}
 
 			/* rehash as needed */
@@ -223,20 +241,22 @@ int lws_table_next (lws_table_t *t, ngx_str_t *key, ngx_str_t **next, void **val
 }
 
 static ngx_uint_t lws_table_hash (lws_table_t *t, ngx_str_t *key) {
-	u_char     *p, *last;
+	u_char     *p;
 	ngx_uint_t  hash;
 
-	hash = 0;
-	p = key->data;
-	last = key->data + key->len;
+	/* FNV-1a; source: http://www.isthe.com/chongo/tech/comp/fnv/index.html#FNV-1a */
+	hash = 14695981039346656037U;
+	p = key->data + key->len;
 	if (t->ci) {
-		while (p < last) {
-			hash = (hash * 31) + ngx_tolower(*p);  /* no ++ due to macro multi-eval */
-			p++;
+		while (p > key->data) {
+			p--;
+			hash ^= ngx_tolower(*p);  /* no '--' due to macro multiple evaluation */
+			hash *= 1099511628211;
 		}
 	} else {
-		while (p < last) {
-			hash = (hash * 31) + *p++;
+		while (p > key->data) {
+			hash ^= *--p;
+			hash *= 1099511628211;
 		}
 	}
 	return hash;
@@ -263,7 +283,7 @@ static size_t lws_table_size (lws_table_t *t, size_t size) {
 }
 
 static size_t lws_table_load (lws_table_t *t, size_t alloc) {
-	return (alloc >> 1) + (alloc >> 2) + (alloc >> 3);
+	return (alloc >> 1) + (alloc >> 2) + (alloc >> 3);  /* ~87.5 percent */
 }
 
 static int lws_table_rehash (lws_table_t *t, size_t alloc) {
@@ -375,7 +395,7 @@ static lws_table_entry_t *lws_table_insert (lws_table_t *t, ngx_str_t *key, ngx_
 		l++;
 	} while (l < len - 1 && l < entry_m_l);  /* zero-sum at best otherwise */
 
-	/* move if a btter outcome was found */
+	/* move if a better overall outcome was found */
 	if (entry_m_old) {  /* implied by l >= entry_m_l */
 		*entry_m_new = *entry_m_old;
 		entry_m_new->order.prev->next = &entry_m_new->order;

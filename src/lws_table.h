@@ -40,7 +40,7 @@ typedef enum {
 
 struct lws_table_entry_s {
 	ngx_queue_t              order;  /* see above */
-	ngx_str_t                key;    /* key; manged if dup is set */
+	ngx_str_t                key;    /* key; managed if dup is set */
 	void                    *value;  /* value; managed if free is set */
 	ngx_uint_t               hash;   /* key hash */
 	time_t                   time;   /* base for entry timeout; if timed is set */
@@ -50,6 +50,7 @@ struct lws_table_entry_s {
 
 lws_table_t *lws_table_create(size_t alloc, ngx_log_t *log);
 void lws_table_free(lws_table_t *t);
+void lws_table_clear(lws_table_t *t);
 int lws_table_set_dup(lws_table_t *t, int dup);
 int lws_table_set_free(lws_table_t *t, int free);
 int lws_table_set_ci(lws_table_t *t, int ci);
@@ -60,8 +61,8 @@ int lws_table_set(lws_table_t *t, ngx_str_t *key, void *value);
 int lws_table_next(lws_table_t *t, ngx_str_t *key, ngx_str_t **next, void **value);
 
 
-#define lws_table_empty (t) (t)->count == 0
-#define lws_table_count (t) (t)->count
+#define lws_table_empty(t)  ((t)->count == 0)
+#define lws_table_count(t)  (t)->count
 
 
 #endif /* _LWS_TABLE_INCLUDED */
