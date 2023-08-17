@@ -613,14 +613,7 @@ static void lws_handler_completion (ngx_event_t *ev) {
 	lws_put_state(ctx->r, ctx->state);
 	ctx->state = NULL;
 
-	/* rc set? */
-	if (ctx->rc != 0) {
-		rc = ctx->rc >= 100 && ctx->rc < 600 ? ctx->rc : NGX_HTTP_INTERNAL_SERVER_ERROR;
-		ngx_http_finalize_request(r, rc);
-		return;
-	}
-
-	/* redirect? */
+	/* internal redirect? */
 	if (ctx->redirect) {
 		if (ctx->redirect->data[0] == '/') {
 			rc = ngx_http_internal_redirect(r, ctx->redirect, ctx->redirect_args);
@@ -629,6 +622,79 @@ static void lws_handler_completion (ngx_event_t *ev) {
 			ctx->redirect->len--;
 			rc = ngx_http_named_location(r, ctx->redirect);
 		}
+		ngx_http_finalize_request(r, rc);
+		return;
+	}
+
+	/* set headers */
+	key = NULL;
+	while (lws_table_next(ctx->response_headers, key, &key, (void**)&value) == 0) {
+		#define lws_is_header(literal)  ngx_strncasecmp(key->data, (u_char *)literal,  \
+				 sizeof(literal) - 1) == 0
+		if (key->len == 14 && lws_is_header("Content-Length")) {
+			continue;  /* content length is handled separately below */
+		}
+		h = ngx_list_push(&r->headers_out.headers);
+		if (!h) {
+			ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+			return;
+		}
+		switch (key->len) {
+		case 4:
+			if (lws_is_header("Date")) {
+				r->headers_out.date = h;
+			} else if (lws_is_header("ETag")) {
+				r->headers_out.etag = h;
+			}
+			break;
+
+		case 6:
+			if (lws_is_header("Server")) {
+				r->headers_out.server = h;
+			}
+			break;
+
+		case 7:
+			if (lws_is_header("Refresh")) {
+				r->headers_out.refresh = h;
+			} else if (lws_is_header("Expires")) {
+				r->headers_out.expires = h;
+			}
+			break;
+
+		case 8:
+			if (lws_is_header("Location")) {
+				r->headers_out.location = h;
+			}
+			break;
+
+		case 13:
+			if (lws_is_header("Last-Modified")) {
+				r->headers_out.last_modified = h;
+			} else if (lws_is_header("Content-Range")) {
+				r->headers_out.content_range = h;
+			} else if (lws_is_header("Accept-Ranges")) {
+				r->headers_out.accept_ranges = h;
+			}
+			break;
+
+		case 16:
+			if (lws_is_header("Content-Encoding")) {
+				r->headers_out.content_encoding = h;
+			} else if (lws_is_header("WWW-Authenticate")) {
+				r->headers_out.www_authenticate = h;
+			}
+			break;
+		}
+		#undef lws_is_header
+		h->key = *key;
+		h->value = *value;
+		h->hash = 1;
+	}
+
+	/* rc set? */
+	if (ctx->rc != 0) {
+		rc = ctx->rc >= 100 && ctx->rc < 600 ? ctx->rc : NGX_HTTP_INTERNAL_SERVER_ERROR;
 		ngx_http_finalize_request(r, rc);
 		return;
 	}
@@ -661,16 +727,6 @@ static void lws_handler_completion (ngx_event_t *ev) {
 			r->headers_out.content_length_n = 0;
 			r->header_only = 1;
 		}
-	}
-	key = NULL;
-	while (lws_table_next(ctx->response_headers, key, &key, (void**)&value) == 0) {
-		h = ngx_list_push(&r->headers_out.headers);
-		if (!h) {
-			ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
-			return;
-		}
-		h->key = *key;
-		h->value = *value;
 	}
 	rc = ngx_http_send_header(r);
 	if (rc == NGX_ERROR || rc > NGX_OK || r->header_only) {
