@@ -61,32 +61,32 @@ Sets the Lua C path. If the first character of *cpath* is `+`, *cpath* is append
 Lua C path.
 
 
-## lws_memory_limit *memory_limit*
+## lws_max_memory *max_memory*
 
 Context: server, location
 
-Sets a memory limit in bytes for each Lua state. If a Lua state exceeds the limit, a Lua memory
-error is generated. A value of `0` disables this check. The default value for *memory_limit* is
-`0`.  When setting *memory_limit*, you can use the `k` and `m` suffixes to set kilobytes or
+Sets the maximum memory in bytes for each Lua state. If a Lua state exceeds the maximum, a Lua
+memory error is generated. A value of `0` disables this logic. The default value for *max_memory*
+is `0`. When setting *max_memory*, you can use the `k` and `m` suffixes to set kilobytes or
 megabytes, respectively.
 
 
-## lws_lifecycles *lifecycles*
+## lws_max_requests *max_requests*
 
 Context: server, location
 
-Sets a limit on the number of lifecycles per Lua state. If a Lua state has serviced the set
-number of requests, it is closed. A value of `0` disables this logic. The default value for
-*lifecycles* is `0`. Setting the value to `1` closes Lua states after each request. This can be
-helpful during local development to pick up code changes.
+Sets the maximum number of requests in the lifecycle of a Lua state. If a Lua state has serviced
+the set number of requests, it is closed. A value of `0` disables this logic. The default value
+for *max_requests* is `0`. Setting the value to `1` closes Lua states after each request. This
+can be helpful during local development to pick up code changes.
 
 
 ## lws_gc *gc*
 
 Context: server, location
 
-Sets a number of requests for periodic garbage collection on Lua states. If a Lua state has
-serviced the set number of requests, a full garbage collection cycle is performed. A vlaue of
+Sets a number of requests for periodic garbage collection in Lua states. If a Lua state has
+serviced the set number of requests, a full garbage collection cycle is performed. A value of
 `0` disables this logic. The default value for *gc* is `0`. Setting the value to `1` performs
 a full garbage collection cycle after each request.
 

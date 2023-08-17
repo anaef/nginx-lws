@@ -21,9 +21,9 @@ typedef struct lws_state_s lws_state_t;
 struct lws_state_s {
 	ngx_queue_t  queue;
 	lua_State   *L;
-	size_t       memory_used;
-	size_t       memory_limit;
-	ngx_int_t    lifecycles;
+	size_t       used_memory;
+	size_t       max_memory;
+	ngx_int_t    requests;
 	unsigned     init:1;
 	unsigned     error:1;
 };

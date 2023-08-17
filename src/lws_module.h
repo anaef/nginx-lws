@@ -40,9 +40,9 @@ struct lws_loc_config_s {
 	ngx_str_t                  post;          /* filename of post chunk */
 	ngx_str_t                  path;          /* Lua path */
 	ngx_str_t                  cpath;         /* Lua C path */
-	size_t                     memory_limit;  /* maximum memory; 0 = unrestricted */
-	ngx_int_t                  lifecycles;    /* maximum state cycles; 0 = unlimitted */
-	ngx_int_t                  gc;            /* maximum gc cycles; 0 = unlimited */
+	size_t                     max_memory;    /* maximum memory; 0 = unrestricted */
+	ngx_int_t                  max_requests;  /* maximum requests; 0 = unlimitted */
+	ngx_int_t                  gc;            /* explicit gc; 0 = never */
 	ngx_queue_t                states;        /* inactive Lua states */
 };
 

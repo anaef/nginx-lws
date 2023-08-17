@@ -26,21 +26,21 @@ static void *lws_lua_alloc_unchecked (void *ud, void *ptr, size_t osize, size_t 
 }
 
 static void *lws_lua_alloc_checked (void *ud, void *ptr, size_t osize, size_t nsize) {
-	size_t  memory_used;
+	size_t  used_memory;
 
 	lws_state_t *state = ud;
 	if (nsize == 0) {
 		free(ptr);
-		state->memory_used -= osize;
+		state->used_memory -= osize;
 		return NULL;
 	}
-	memory_used = state->memory_used - osize + nsize;
-	if (memory_used > state->memory_limit) {
+	used_memory = state->used_memory - osize + nsize;
+	if (used_memory > state->max_memory) {
 		return NULL;
 	}
 	ptr = realloc(ptr, nsize);
 	if (ptr) {
-		state->memory_used = memory_used;
+		state->used_memory = used_memory;
 	}
 	return ptr;
 }
@@ -104,8 +104,8 @@ lws_state_t *lws_create_state (ngx_http_request_t *r) {
 
 	/* create Lua state */
 	llcf = ngx_http_get_module_loc_conf(r, lws);
-	if (llcf->memory_limit > 0) {
-		state->memory_limit = llcf->memory_limit;
+	if (llcf->max_memory > 0) {
+		state->max_memory = llcf->max_memory;
 		state->L = lua_newstate(lws_lua_alloc_checked, state);
 	} else {
 		state->L = lua_newstate(lws_lua_alloc_unchecked, NULL);
@@ -160,12 +160,12 @@ void lws_put_state (ngx_http_request_t *r, lws_state_t *state) {
 	ngx_log_t         *log;
 
 	llcf = ngx_http_get_module_loc_conf(r, lws);
-	state->lifecycles++;
-	if (state->error || (llcf->lifecycles > 0 && state->lifecycles >= llcf->lifecycles)) {
+	state->requests++;
+	if (state->error || (llcf->max_requests > 0 && state->requests >= llcf->max_requests)) {
 		lws_close_state(state, r->connection->log);
 		return;
 	}
-	if (llcf->gc > 0 && state->lifecycles % llcf->gc == 0) {
+	if (llcf->gc > 0 && state->requests % llcf->gc == 0) {
 		log = r->connection->log;
 		ngx_log_debug1(NGX_LOG_DEBUG_HTTP, log, 0, "[LWS] pre-GC used:%d kb",
 				lua_gc(state->L, LUA_GCCOUNT, 0));

@@ -110,4 +110,4 @@ cached. This is a performance optimization.
 
 If processing is aborted due to a Lua error, the Lua state is closed after the request completes.
 
-You can control the closing of Lua states with the `lws_lifecycles` directive.
+You can control the closing of Lua states with the `lws_max_requests` directive.
