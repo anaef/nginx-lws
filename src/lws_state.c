@@ -15,6 +15,8 @@ static void *lws_lua_alloc_unchecked(void *ud, void *ptr, size_t osize, size_t n
 static void *lws_lua_alloc_checked(void *ud, void *ptr, size_t osize, size_t nsize);
 static void lws_lua_set_path(lua_State *L, int index, const char *field);
 static int lws_lua_init(lua_State *L);
+static void lws_set_state_timer(lws_state_t *state);
+static void lws_state_timer_handler(ngx_event_t *ev);
 
 
 static void *lws_lua_alloc_unchecked (void *ud, void *ptr, size_t osize, size_t nsize) {
@@ -89,6 +91,30 @@ static int lws_lua_init (lua_State *L) {
 	return 0;
 }
 
+static void lws_set_state_timer (lws_state_t *state) {
+	ngx_msec_t  next;
+
+	if (state->max_time == NGX_TIMER_INFINITE && state->timeout == NGX_TIMER_INFINITE) {
+		return;
+	}
+	if (state->tev.timer_set) {
+		ngx_del_timer(&state->tev);
+	}
+	next = state->timeout < state->max_time ? state->timeout : state->max_time;
+	ngx_add_timer(&state->tev, next - ngx_current_msec);
+}
+
+static void lws_state_timer_handler (ngx_event_t *ev) {
+	lws_state_t  *state;
+
+	state = ev->data;
+	if (!state->in_use) {
+		lws_close_state(state, ev->log);
+	} else {
+		state->close = 1;
+	}
+}
+
 lws_state_t *lws_create_state (ngx_http_request_t *r) {
 	ngx_log_t         *log;
 	lws_state_t       *state;
@@ -129,6 +155,19 @@ lws_state_t *lws_create_state (ngx_http_request_t *r) {
 	/* push traceback */
 	lua_pushcfunction(state->L, lws_lua_traceback);
 
+	/* set timer */
+	if (llcf->max_time) {
+		state->max_time = ngx_current_msec + llcf->max_time;
+	} else {
+		state->max_time = NGX_TIMER_INFINITE;
+	}
+	state->timeout = NGX_TIMER_INFINITE;
+	state->tev.data = state;
+	state->tev.handler = lws_state_timer_handler;
+	state->tev.log = ngx_cycle->log;
+	lws_set_state_timer(state);
+
+	/* done */
 	ngx_log_error(NGX_LOG_INFO, log, 0, "[LWS] %s state created L:%p", LUA_VERSION, state->L);
 	return state;
 }
@@ -152,6 +191,7 @@ lws_state_t *lws_get_state (ngx_http_request_t *r) {
 		ngx_queue_remove(q);
 		state = ngx_queue_data(q, lws_state_t, queue);
 	}
+	state->in_use = 1;
 	return state;
 }
 
@@ -160,7 +200,7 @@ void lws_put_state (ngx_http_request_t *r, lws_state_t *state) {
 
 	llcf = ngx_http_get_module_loc_conf(r, lws);
 	state->requests++;
-	if (state->error || (llcf->max_requests > 0 && state->requests >= llcf->max_requests)) {
+	if (state->close || (llcf->max_requests > 0 && state->requests >= llcf->max_requests)) {
 		lws_close_state(state, r->connection->log);
 		return;
 	}
@@ -173,6 +213,11 @@ void lws_put_state (ngx_http_request_t *r, lws_state_t *state) {
 				"[LWS] post-GC L:%p used:%d kb", state->L,
 				lua_gc(state->L, LUA_GCCOUNT, 0));
 	}
+	if (llcf->timeout > 0) {
+		state->timeout = ngx_current_msec + llcf->timeout;
+		lws_set_state_timer(state);
+	}
+	state->in_use = 0;
 	ngx_queue_insert_head(&llcf->states, &state->queue);
 }
 
@@ -191,7 +236,7 @@ int lws_run_state (lws_request_ctx_t *ctx) {
 	} else {
 		ngx_log_error(NGX_LOG_ERR, ctx->r->connection->log, 0, "[LWS] %s error: %s",
 				LUA_VERSION, lws_lua_get_msg(L, -1));
-		ctx->state->error = 1;
+		ctx->state->close = 1;
 		result = -1;
 	}  /* [traceback, result] */
 

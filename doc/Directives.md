@@ -65,10 +65,10 @@ Lua C path.
 
 Context: server, location
 
-Sets the maximum memory in bytes for each Lua state. If a Lua state exceeds the maximum, a Lua
-memory error is generated. A value of `0` disables this logic. The default value for *max_memory*
-is `0`. When setting *max_memory*, you can use the `k` and `m` suffixes to set kilobytes or
-megabytes, respectively.
+Sets the maximum memory of a Lua state. If the memory allocated by a Lua state exceeds
+*max_memory* bytes, a Lua memory error is generated. A value of `0` disables this
+logic. The default value for *max_memory* is `0`. You can use the `k` and `m` suffixes with
+*max_memory* to set kilobytes or megabytes, respectively.
 
 
 ## lws_max_requests *max_requests*
@@ -79,6 +79,26 @@ Sets the maximum number of requests in the lifecycle of a Lua state. If a Lua st
 the set number of requests, it is closed. A value of `0` disables this logic. The default value
 for *max_requests* is `0`. Setting the value to `1` closes Lua states after each request. This
 can be helpful during local development to pick up code changes.
+
+
+## lws_max_time *max_time*
+
+Context: server, location
+
+Sets the maximum lifecycle time of a Lua state. If a Lua state has been alive for a duration
+of `max_time` milliseconds, it is closed. A value of `0` disables this logic. The default value
+for *max_time* is `0`. You can use the `ms`, `s`, `m`, `h`, `d`, `w`, and `M` suffixes with
+*max_time* to set milliseconds, seconds, minutes, hours, days, weeks, or months, respectively.
+
+
+## lws_timeout *timeout*
+
+Context: server, location
+
+Sets the maximum idle time of a Lua state. If a Lua state has been idle for a duration of
+`timeout` milliseconds, it is closed. A value of `0` disables this logic. The default value
+for *timeout* is `0`. You can use the `ms`, `s`, `m`, `h`, `d`, `w`, and `M` suffixes with
+*timeout* to set milliseconds, seconds, minutes, hours, days, weeks, or months, respectively.
 
 
 ## lws_gc *gc*
@@ -105,7 +125,7 @@ Context: http
 
 Sets the parameters of the stat cache. The stat cache maintains file existence information for
 speeding up request processing. It maintains up to `cap` entries for a duration of `timeout`
-seconds using a least recently used (LRU) algorithm. The default values for *cap* and *timeout* are
-`1024` and `30`. You can use the `k` and `m` suffixes with *cap* to set multiples of 1024 or
+seconds using a least recently used (LRU) algorithm. The default values for *cap* and *timeout*
+are `1024` and `30`. You can use the `k` and `m` suffixes with *cap* to set multiples of 1024 or
 1024², respectively, and you can use the `s`, `m`, `h`, `d`, `w`, `M`, and `y` suffixes
 with *timeout* to set seconds, minutes, hours, days, weeks, months, or years, respectively.

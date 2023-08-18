@@ -19,13 +19,17 @@
 /* LWS state */
 typedef struct lws_state_s lws_state_t;
 struct lws_state_s {
-	ngx_queue_t  queue;
-	lua_State   *L;
-	size_t       used_memory;
-	size_t       max_memory;
-	ngx_int_t    requests;
-	unsigned     init:1;
-	unsigned     error:1;
+	ngx_queue_t  queue;        /* location config queue */
+	lua_State   *L;            /* Lua state */
+	size_t       used_memory;  /* used memory */
+	size_t       max_memory;   /* maximum memory */
+	ngx_int_t    requests;     /* requests served */
+	ngx_msec_t   max_time;     /* maximum lifetime */
+	ngx_msec_t   timeout;      /* idle timeout */
+	ngx_event_t  tev;          /* time event */
+	unsigned     in_use:1;     /* state in use */
+	unsigned     init:1;       /* state initialized */
+	unsigned     close:1;      /* state is to be closed */
 };
 
 
