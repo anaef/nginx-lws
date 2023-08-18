@@ -1,6 +1,6 @@
-# LWS Configuration Directives
+# LWS Directives
 
-This document describes the NGINX configuration directives provided by lws-nginx.
+This document describes the NGINX directives provided by lws-nginx.
 
 
 ## lws *main* [, *path_info*]
