@@ -236,7 +236,6 @@ int lws_run_state (lws_request_ctx_t *ctx) {
 	} else {
 		ngx_log_error(NGX_LOG_ERR, ctx->r->connection->log, 0, "[LWS] %s error: %s",
 				LUA_VERSION, lws_lua_get_msg(L, -1));
-		ctx->state->close = 1;
 		result = -1;
 	}  /* [traceback, result] */
 

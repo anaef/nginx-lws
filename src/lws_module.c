@@ -640,8 +640,10 @@ static void lws_handler_completion (ngx_event_t *ev) {
 	r = ctx->r;
 
 	/* put state */
+	if (ctx->rc < 0) {
+		ctx->state->close = 1;
+	}
 	lws_put_state(ctx->r, ctx->state);
-	ctx->state = NULL;
 
 	/* internal redirect? */
 	if (ctx->redirect) {
