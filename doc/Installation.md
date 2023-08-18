@@ -11,7 +11,7 @@ In brief:
 version.
 3. Clone this repository.
 4. In the NGINX directory, run `./configure --with-compat --add-dynamic-module=../lws-nginx`, and
-then `make modules`.
+then `make modules`. (If debug logging is required, add `--with-debug`.)
 5. Copy the `objs/lws.so` shared library into the NGINX modules folder, e.g.,
 `/usr/lib/nginx/modules`.
 6. Add the directive `load_module modules/lws.so;` to the NGINX main configuration. (Alternatively,
