@@ -196,6 +196,7 @@ lws_state_t *lws_get_state (ngx_http_request_t *r) {
 }
 
 void lws_put_state (ngx_http_request_t *r, lws_state_t *state) {
+	size_t             used_memory;
 	lws_loc_config_t  *llcf;
 
 	llcf = ngx_http_get_module_loc_conf(r, lws);
@@ -204,14 +205,14 @@ void lws_put_state (ngx_http_request_t *r, lws_state_t *state) {
 		lws_close_state(state, r->connection->log);
 		return;
 	}
-	if (llcf->gc > 0 && state->requests % llcf->gc == 0) {
-		ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
-				"[LWS] pre-GC L:%p used:%d kb", state->L,
-				lua_gc(state->L, LUA_GCCOUNT, 0));
-		lua_gc(state->L, LUA_GCCOLLECT, 0);
-		ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
-				"[LWS] post-GC L:%p used:%d kb", state->L,
-				lua_gc(state->L, LUA_GCCOUNT, 0));
+	if (llcf->gc > 0) {
+		used_memory = lua_gc(state->L, LUA_GCCOUNT, 0) * 1024;
+		if (used_memory > llcf->gc) {
+			lua_gc(state->L, LUA_GCCOLLECT, 0);
+			ngx_log_debug3(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+				"[LWS] GC L:%p before:%z after:%z", state->L, used_memory,
+				(size_t)lua_gc(state->L, LUA_GCCOUNT, 0) * 1024);
+		}
 	}
 	if (llcf->timeout > 0) {
 		state->timeout = ngx_current_msec + llcf->timeout;

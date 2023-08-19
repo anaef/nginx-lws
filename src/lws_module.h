@@ -44,7 +44,7 @@ struct lws_loc_config_s {
 	ngx_int_t                  max_requests;  /* maximum requests; 0 = unlimitted */
 	ngx_msec_t                 max_time;      /* maximum lifetime; 0 = unlimited */
 	ngx_msec_t                 timeout;       /* idle timeout; 0 = unlimited */
-	ngx_int_t                  gc;            /* explicit gc; 0 = never */
+	size_t                     gc;            /* explicit gc; 0 = never */
 	ngx_queue_t                states;        /* inactive Lua states */
 };
 

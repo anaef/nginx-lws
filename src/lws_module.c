@@ -120,7 +120,7 @@ static ngx_command_t lws_commands[] = {
 	{
 		ngx_string("lws_gc"),
 		NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
-		ngx_conf_set_num_slot,
+		ngx_conf_set_size_slot,
 		NGX_HTTP_LOC_CONF_OFFSET,
 		offsetof(lws_loc_config_t, gc),
 		NULL
@@ -264,8 +264,8 @@ static char *lws_conf_set_stat_cache (ngx_conf_t *cf, ngx_command_t *cmd, void *
 }
 
 static void *lws_create_loc_conf (ngx_conf_t *cf) {
-	lws_loc_config_t *llcf;
-	ngx_pool_cleanup_t *cln;
+	lws_loc_config_t    *llcf;
+	ngx_pool_cleanup_t  *cln;
 
 	/* allocate and intialize structure */
 	llcf = ngx_pcalloc(cf->pool, sizeof(lws_loc_config_t));
@@ -276,7 +276,7 @@ static void *lws_create_loc_conf (ngx_conf_t *cf) {
 	llcf->max_requests = NGX_CONF_UNSET;
 	llcf->max_time = NGX_CONF_UNSET_MSEC;
 	llcf->timeout = NGX_CONF_UNSET_MSEC;
-	llcf->gc = NGX_CONF_UNSET;
+	llcf->gc = NGX_CONF_UNSET_SIZE;
 	ngx_queue_init(&llcf->states);
 
 	/* add cleanup */
@@ -309,7 +309,7 @@ static char *lws_merge_loc_conf (ngx_conf_t *cf, void *parent, void *child) {
 	ngx_conf_merge_value(conf->max_requests, prev->max_requests, 0);
 	ngx_conf_merge_msec_value(conf->max_time, prev->max_time, 0);
 	ngx_conf_merge_msec_value(conf->timeout, prev->timeout, 0);
-	ngx_conf_merge_value(conf->gc, prev->gc, 0);
+	ngx_conf_merge_size_value(conf->gc, prev->gc, 0);
 	return NGX_CONF_OK;
 }
 
