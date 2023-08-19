@@ -645,6 +645,12 @@ static void lws_handler_completion (ngx_event_t *ev) {
 	}
 	lws_put_state(ctx->r, ctx->state);
 
+	/* error? */
+	if (ctx->rc < 0) {
+		ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+		return;
+	}
+
 	/* internal redirect? */
 	if (ctx->redirect) {
 		if (ctx->redirect->data[0] == '/') {
