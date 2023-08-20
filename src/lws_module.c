@@ -227,7 +227,7 @@ static char *lws_init_main_conf (ngx_conf_t *cf, void *conf) {
 		lmcf->stat_cache_timeout = LWS_STATCACHE_TIMEOUT_DEFAULT;
 	}
 	if (lmcf->stat_cache_cap) {
-		lmcf->stat_cache = lws_table_create(32, cf->log);
+		lmcf->stat_cache = lws_table_create(32);
 		if (!lmcf->stat_cache) {
 			return NULL;
 		}
@@ -530,7 +530,7 @@ static ngx_int_t lws_handler (ngx_http_request_t *r) {
 	ctx->llcf = llcf;
 
 	/* prepare request headers */
-	ctx->request_headers = lws_table_create(32, log);
+	ctx->request_headers = lws_table_create(32);
 	if (!ctx->request_headers) {
 		ngx_log_error(NGX_LOG_CRIT, log, 0, "[LWS] failed to create request headers");
 		return NGX_HTTP_INTERNAL_SERVER_ERROR;
@@ -548,7 +548,7 @@ static ngx_int_t lws_handler (ngx_http_request_t *r) {
 	}
 
 	/* prepare response headers */
-	ctx->response_headers = lws_table_create(8, log);
+	ctx->response_headers = lws_table_create(8);
 	if (!ctx->response_headers) {
 		ngx_log_error(NGX_LOG_CRIT, log, 0, "[LWS] failed to create response headers");
 		return NGX_HTTP_INTERNAL_SERVER_ERROR;

@@ -11,7 +11,7 @@
 #include <lws_module.h>
 
 
-static ngx_str_t *lws_lua_strdup(lua_State *L, ngx_str_t *str, ngx_log_t *log);
+static ngx_str_t *lws_lua_strdup(lua_State *L, ngx_str_t *str);
 static void lws_lua_unescape_url(u_char **dest, u_char **src, size_t n);
 
 static lws_lua_request_ctx_t *lws_lua_create_request_ctx(lua_State *L);
@@ -47,10 +47,10 @@ static int lws_lua_call(lws_request_ctx_t *ctx, ngx_str_t *filename, const char 
  * helpers
  */
 
-static ngx_str_t *lws_lua_strdup (lua_State *L, ngx_str_t *str, ngx_log_t *log) {
+static ngx_str_t *lws_lua_strdup (lua_State *L, ngx_str_t *str) {
 	ngx_str_t  *dup;
 
-	dup = ngx_alloc(sizeof(ngx_str_t) + str->len, log);
+	dup = ngx_alloc(sizeof(ngx_str_t) + str->len, ngx_cycle->log);
 	if (!dup) {
 		luaL_error(L, "failed to allocate string");
 	}
@@ -197,7 +197,7 @@ static int lws_lua_table_newindex (lua_State *L) {
 	}
 	key.data = (u_char *)luaL_checklstring(L, 2, &key.len);
 	value.data = (u_char *)luaL_checklstring(L, 3, &value.len);
-	dup = lws_lua_strdup(L, &value, lt->t->log);
+	dup = lws_lua_strdup(L, &value);
 	if (lws_table_set(lt->t, &key, dup) != 0) {
 		ngx_free(dup);
 		return luaL_error(L, "failed to set table value");
@@ -361,21 +361,19 @@ static int lws_lua_log (lua_State *L) {
 }
 
 static int lws_lua_redirect (lua_State *L) {
-	ngx_log_t              *log;
 	ngx_str_t               redirect, args;
 	lws_lua_request_ctx_t  *lctx;
 
 	redirect.data = (u_char *)luaL_checklstring(L, 1, &redirect.len);
 	luaL_argcheck(L, redirect.len > (redirect.data[0] == '@' ? 1 : 0), 1, "empty path or name");
 	lctx = lws_lua_get_request_ctx(L);
-	log = lctx->ctx->r->connection->log;
 	if (redirect.data[0] != '@') {
 		args.data = (u_char *)luaL_optlstring(L, 2, NULL, &args.len);
 		if (args.data) {
-			lctx->ctx->redirect_args = lws_lua_strdup(L, &args, log);
+			lctx->ctx->redirect_args = lws_lua_strdup(L, &args);
 		}
 	}
-	lctx->ctx->redirect = lws_lua_strdup(L, &redirect, log);
+	lctx->ctx->redirect = lws_lua_strdup(L, &redirect);
 	lctx->ctx->complete = 1;
 	return 0;
 }
