@@ -116,10 +116,10 @@ static void lws_state_timer_handler (ngx_event_t *ev) {
 }
 
 lws_state_t *lws_create_state (ngx_http_request_t *r) {
-	ngx_log_t         *log;
-	ngx_str_t          msg;
-	lws_state_t       *state;
-	lws_loc_config_t  *llcf;
+	ngx_log_t       *log;
+	ngx_str_t        msg;
+	lws_state_t     *state;
+	lws_loc_conf_t  *llcf;
 
 	/* create state */
 	log = r->connection->log;
@@ -181,9 +181,9 @@ void lws_close_state (lws_state_t *state, ngx_log_t *log) {
 }
 
 lws_state_t *lws_get_state (ngx_http_request_t *r) {
-	lws_state_t       *state;
-	ngx_queue_t       *q;
-	lws_loc_config_t  *llcf;
+	lws_state_t     *state;
+	ngx_queue_t     *q;
+	lws_loc_conf_t  *llcf;
 
 	llcf = ngx_http_get_module_loc_conf(r, lws);
 	if (ngx_queue_empty(&llcf->states)) {
@@ -198,8 +198,8 @@ lws_state_t *lws_get_state (ngx_http_request_t *r) {
 }
 
 void lws_put_state (ngx_http_request_t *r, lws_state_t *state) {
-	size_t             used_memory;
-	lws_loc_config_t  *llcf;
+	size_t           used_memory;
+	lws_loc_conf_t  *llcf;
 
 	llcf = ngx_http_get_module_loc_conf(r, lws);
 	state->requests++;

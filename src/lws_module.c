@@ -52,7 +52,7 @@ static ngx_command_t lws_commands[] = {
 		NGX_HTTP_LOC_CONF | NGX_CONF_TAKE12,
 		lws_conf_set_lws,
 		NGX_HTTP_LOC_CONF_OFFSET,
-		offsetof(lws_loc_config_t, main),
+		offsetof(lws_loc_conf_t, main),
 		NULL
 	},
 	{
@@ -60,7 +60,7 @@ static ngx_command_t lws_commands[] = {
 		NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 		ngx_conf_set_str_slot,
 		NGX_HTTP_LOC_CONF_OFFSET,
-		offsetof(lws_loc_config_t, init),
+		offsetof(lws_loc_conf_t, init),
 		NULL
 	},
 	{
@@ -68,7 +68,7 @@ static ngx_command_t lws_commands[] = {
 		NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 		ngx_conf_set_str_slot,
 		NGX_HTTP_LOC_CONF_OFFSET,
-		offsetof(lws_loc_config_t, pre),
+		offsetof(lws_loc_conf_t, pre),
 		NULL
 	},
 	{
@@ -76,7 +76,7 @@ static ngx_command_t lws_commands[] = {
 		NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 		ngx_conf_set_str_slot,
 		NGX_HTTP_LOC_CONF_OFFSET,
-		offsetof(lws_loc_config_t, post),
+		offsetof(lws_loc_conf_t, post),
 		NULL
 	},
 	{
@@ -84,7 +84,7 @@ static ngx_command_t lws_commands[] = {
 		NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 		ngx_conf_set_str_slot,
 		NGX_HTTP_LOC_CONF_OFFSET,
-		offsetof(lws_loc_config_t, path),
+		offsetof(lws_loc_conf_t, path),
 		NULL
 	},
 	{
@@ -92,7 +92,7 @@ static ngx_command_t lws_commands[] = {
 		NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 		ngx_conf_set_str_slot,
 		NGX_HTTP_LOC_CONF_OFFSET,
-		offsetof(lws_loc_config_t, cpath),
+		offsetof(lws_loc_conf_t, cpath),
 		NULL
 	},
 	{
@@ -100,7 +100,7 @@ static ngx_command_t lws_commands[] = {
 		NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 		ngx_conf_set_size_slot,
 		NGX_HTTP_LOC_CONF_OFFSET,
-		offsetof(lws_loc_config_t, max_memory),
+		offsetof(lws_loc_conf_t, max_memory),
 		NULL
 	},
 	{
@@ -108,7 +108,7 @@ static ngx_command_t lws_commands[] = {
 		NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 		ngx_conf_set_num_slot,
 		NGX_HTTP_LOC_CONF_OFFSET,
-		offsetof(lws_loc_config_t, max_requests),
+		offsetof(lws_loc_conf_t, max_requests),
 		NULL
 	},
 	{
@@ -116,7 +116,7 @@ static ngx_command_t lws_commands[] = {
 		NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 		ngx_conf_set_msec_slot,
 		NGX_HTTP_LOC_CONF_OFFSET,
-		offsetof(lws_loc_config_t, max_time),
+		offsetof(lws_loc_conf_t, max_time),
 		NULL
 	},
 	{
@@ -124,7 +124,7 @@ static ngx_command_t lws_commands[] = {
 		NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 		ngx_conf_set_msec_slot,
 		NGX_HTTP_LOC_CONF_OFFSET,
-		offsetof(lws_loc_config_t, timeout),
+		offsetof(lws_loc_conf_t, timeout),
 		NULL
 	},
 	{
@@ -132,7 +132,7 @@ static ngx_command_t lws_commands[] = {
 		NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 		ngx_conf_set_size_slot,
 		NGX_HTTP_LOC_CONF_OFFSET,
-		offsetof(lws_loc_config_t, gc),
+		offsetof(lws_loc_conf_t, gc),
 		NULL
 	},
 	{
@@ -140,7 +140,7 @@ static ngx_command_t lws_commands[] = {
 		NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE12,
 		lws_conf_set_error_response,
 		NGX_HTTP_LOC_CONF_OFFSET,
-		offsetof(lws_loc_config_t, error_response),
+		offsetof(lws_loc_conf_t, error_response),
 		lws_error_response
 	},
 	{
@@ -148,7 +148,7 @@ static ngx_command_t lws_commands[] = {
 		NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1,
 		ngx_conf_set_str_slot,
 		NGX_HTTP_MAIN_CONF_OFFSET,
-		offsetof(lws_main_config_t, thread_pool_name),
+		offsetof(lws_main_conf_t, thread_pool_name),
 		NULL
 	},
 	{
@@ -156,7 +156,7 @@ static ngx_command_t lws_commands[] = {
 		NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE2,
 		lws_conf_set_stat_cache,
 		NGX_HTTP_MAIN_CONF_OFFSET,
-		offsetof(lws_main_config_t, stat_cache_cap),
+		offsetof(lws_main_conf_t, stat_cache_cap),
 		NULL
 	},
 	ngx_null_command
@@ -194,9 +194,9 @@ ngx_module_t lws = {
  */
 
 static void *lws_create_main_conf (ngx_conf_t *cf) {
-	lws_main_config_t  *lmcf;
+	lws_main_conf_t  *lmcf;
 
-	lmcf = ngx_pcalloc(cf->pool, sizeof(lws_main_config_t));
+	lmcf = ngx_pcalloc(cf->pool, sizeof(lws_main_conf_t));
 	if (!lmcf) {
 		return NULL;
 	}
@@ -206,7 +206,7 @@ static void *lws_create_main_conf (ngx_conf_t *cf) {
 }
 
 static char *lws_init_main_conf (ngx_conf_t *cf, void *conf) {
-	lws_main_config_t   *lmcf;
+	lws_main_conf_t     *lmcf;
 	ngx_pool_cleanup_t  *cln;
 
 	/* thread pool */
@@ -251,7 +251,7 @@ static char *lws_init_main_conf (ngx_conf_t *cf, void *conf) {
 }
 
 static void lws_cleanup_main_conf (void *data) {
-	lws_main_config_t *lmcf;
+	lws_main_conf_t  *lmcf;
 
 	lmcf = data;
 	if (lmcf->stat_cache) {
@@ -282,11 +282,11 @@ static char *lws_conf_set_stat_cache (ngx_conf_t *cf, ngx_command_t *cmd, void *
 }
 
 static void *lws_create_loc_conf (ngx_conf_t *cf) {
-	lws_loc_config_t    *llcf;
+	lws_loc_conf_t      *llcf;
 	ngx_pool_cleanup_t  *cln;
 
 	/* allocate and intialize structure */
-	llcf = ngx_pcalloc(cf->pool, sizeof(lws_loc_config_t));
+	llcf = ngx_pcalloc(cf->pool, sizeof(lws_loc_conf_t));
 	if (!llcf) {
 		return NULL;
 	}
@@ -311,8 +311,8 @@ static void *lws_create_loc_conf (ngx_conf_t *cf) {
 }
 
 static char *lws_merge_loc_conf (ngx_conf_t *cf, void *parent, void *child) {
-	lws_loc_config_t  *prev = parent;
-	lws_loc_config_t  *conf = child;
+	lws_loc_conf_t  *prev = parent;
+	lws_loc_conf_t  *conf = child;
 
 	if (!conf->main) {
 		conf->main = prev->main;
@@ -336,9 +336,9 @@ static char *lws_merge_loc_conf (ngx_conf_t *cf, void *parent, void *child) {
 }
 
 static void lws_cleanup_loc_conf (void *data) {
-	lws_state_t       *state;
-	ngx_queue_t       *q;
-	lws_loc_config_t  *llcf;
+	lws_state_t     *state;
+	ngx_queue_t     *q;
+	lws_loc_conf_t  *llcf;
 
 	llcf = data;
 	while (!ngx_queue_empty(&llcf->states)) {
@@ -397,9 +397,9 @@ static char *lws_conf_set_lws (ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
 }
 
 static char *lws_conf_set_error_response (ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
-	char              *result;
-	ngx_str_t         *value;
-	lws_loc_config_t  *llcf;
+	char            *result;
+	ngx_str_t       *value;
+	lws_loc_conf_t  *llcf;
 
 	if ((result = ngx_conf_set_enum_slot(cf, cmd, conf)) != NGX_CONF_OK) {
 		return result;
@@ -424,9 +424,9 @@ static char *lws_conf_set_error_response (ngx_conf_t *cf, ngx_command_t *cmd, vo
  */
 
 static lws_file_status_e lws_get_file_status (ngx_http_request_t *r, ngx_str_t *filename) {
-	struct stat         sb;
-	lws_file_status_e   fs;
-	lws_main_config_t  *lmcf;
+	struct stat        sb;
+	lws_main_conf_t   *lmcf;
+	lws_file_status_e  fs;
 
 	lmcf = ngx_http_get_module_main_conf(r, lws);
 	if (lmcf->stat_cache) {
@@ -485,7 +485,7 @@ static ngx_int_t lws_handler (ngx_http_request_t *r) {
 	ngx_uint_t           i;
 	ngx_list_part_t     *part;
 	ngx_table_elt_t     *headers;
-	lws_loc_config_t    *llcf;
+	lws_loc_conf_t      *llcf;
 	lws_request_ctx_t   *ctx;;
 	ngx_pool_cleanup_t  *cln;
 
@@ -577,7 +577,7 @@ static ngx_int_t lws_handler (ngx_http_request_t *r) {
 
 static void lws_handler_continuation (ngx_http_request_t *r) {
 	ngx_log_t          *log;
-	lws_main_config_t  *lmcf;
+	lws_main_conf_t    *lmcf;
 	lws_request_ctx_t  *ctx;
 	ngx_thread_task_t  *task;
 

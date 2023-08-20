@@ -14,8 +14,8 @@
 #include <ngx_http.h>
 
 
-typedef struct lws_main_config_s lws_main_config_t;
-typedef struct lws_loc_config_s lws_loc_config_t;
+typedef struct lws_main_conf_s lws_main_conf_t;
+typedef struct lws_loc_conf_s lws_loc_conf_t;
 typedef struct lws_request_ctx_s lws_request_ctx_t;
 
 
@@ -25,7 +25,7 @@ typedef struct lws_request_ctx_s lws_request_ctx_t;
 #include <lws_lib.h>
 
 
-struct lws_main_config_s {
+struct lws_main_conf_s {
 	ngx_thread_pool_t  *thread_pool;          /* thread pool for async execution of Lua */
 	ngx_str_t           thread_pool_name;     /* name of thread pool */
 	lws_table_t        *stat_cache;           /* timed file stat cache to reduce syscalls */
@@ -33,7 +33,7 @@ struct lws_main_config_s {
 	time_t              stat_cache_timeout;   /* timeout of stat cache */
 };
 
-struct lws_loc_config_s {
+struct lws_loc_conf_s {
 	ngx_http_complex_value_t  *main;            /* filename of main chunk */
 	ngx_http_complex_value_t  *path_info;       /* sub-path arguments */
 	ngx_str_t                  init;            /* filename of init chunk (run once) */
@@ -55,7 +55,7 @@ struct lws_request_ctx_s {
 	ngx_http_request_t  *r;                   /* NGINX HTTP request */
 	ngx_str_t            main;                /* filename of main chunk */
 	ngx_str_t            path_info;           /* sub-path arguments */
-	lws_loc_config_t    *llcf;                /* location configuration */
+	lws_loc_conf_t      *llcf;                /* location configuration */
 	lws_state_t         *state;               /* active Lua state */
 	lws_table_t         *request_headers;     /* request headers */
 	FILE                *request_body;        /* HTTP request body stream */
