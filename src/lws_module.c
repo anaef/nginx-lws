@@ -713,7 +713,11 @@ static void lws_handler_completion (ngx_event_t *ev) {
 	while (lws_table_next(ctx->response_headers, key, &key, (void**)&value) == 0) {
 		#define lws_is_header(literal)  ngx_strncasecmp(key->data, (u_char *)literal,  \
 				 sizeof(literal) - 1) == 0
-		if (key->len == 14 && lws_is_header("Content-Length")) {
+		if (key->len == 12 && lws_is_header("Content-Type")) {
+			r->headers_out.content_type = *value;
+			r->headers_out.content_type_len = value->len;
+			continue;
+		} else if (key->len == 14 && lws_is_header("Content-Length")) {
 			continue;  /* content length is handled separately below */
 		}
 		h = ngx_list_push(&r->headers_out.headers);
@@ -926,6 +930,7 @@ static void lws_send_json_error_response (lws_request_ctx_t *ctx, ngx_int_t rc) 
 	/* send headers */
 	r->headers_out.status = rc;
 	ngx_str_set(&r->headers_out.content_type, "application/json");
+	r->headers_out.content_type_len = r->headers_out.content_type.len;
 	h = ngx_list_push(&r->headers_out.headers);
 	if (!h) {
 		ngx_http_finalize_request(r, rc);
@@ -1001,8 +1006,8 @@ static void lws_send_html_error_response (lws_request_ctx_t *ctx, ngx_int_t rc) 
 
 	/* send headers */
 	r->headers_out.status = rc;
-	r->headers_out.content_type_len = sizeof("text/html") - 1;
 	ngx_str_set(&r->headers_out.content_type, "text/html");
+	r->headers_out.content_type_len = r->headers_out.content_type.len;
 	ngx_str_set(&r->headers_out.charset, "UTF-8");
 	h = ngx_list_push(&r->headers_out.headers);
 	if (!h) {
