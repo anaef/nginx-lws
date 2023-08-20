@@ -584,20 +584,23 @@ int lws_lua_open_lws (lua_State *L) {
  * trace
  */
 
-const char *lws_lua_get_msg (lua_State *L, int index) {
+void lws_lua_get_msg (lua_State *L, int index, ngx_str_t *msg) {
 	if (!lua_isnone(L, index)) {
 		if (lua_isstring(L, index)) {
-			return lua_tostring(L, index);
+			msg->data = (u_char *)lua_tolstring(L, index, &msg->len);
 		} else {
-			return "(error value is not a string)";
+			ngx_str_set(msg, "(error value is not a string)");
 		}
 	} else {
-		return "(no error value)";
+		ngx_str_set(msg, "(no error value)");
 	}
 }
 
 int lws_lua_traceback (lua_State *L) {
-	luaL_traceback(L, L, lws_lua_get_msg(L, 1), 1);
+	ngx_str_t  msg;
+
+	lws_lua_get_msg(L, 1, &msg);
+	luaL_traceback(L, L, (const char *)msg.data, 1);
 	return 1;
 }
 

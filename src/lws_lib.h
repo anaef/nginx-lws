@@ -34,7 +34,7 @@ struct lws_lua_table_s {
 };
 
 
-const char *lws_lua_get_msg(lua_State *L, int index);
+void lws_lua_get_msg(lua_State *L, int index, ngx_str_t *msg);
 int lws_lua_traceback(lua_State *L);
 int lws_lua_open_lws(lua_State *L);
 int lws_lua_run(lua_State *L);

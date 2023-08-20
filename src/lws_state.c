@@ -117,6 +117,7 @@ static void lws_state_timer_handler (ngx_event_t *ev) {
 
 lws_state_t *lws_create_state (ngx_http_request_t *r) {
 	ngx_log_t         *log;
+	ngx_str_t          msg;
 	lws_state_t       *state;
 	lws_loc_config_t  *llcf;
 
@@ -146,8 +147,9 @@ lws_state_t *lws_create_state (ngx_http_request_t *r) {
 	lua_pushlstring(state->L, (const char *)llcf->path.data, llcf->path.len);
 	lua_pushlstring(state->L, (const char *)llcf->cpath.data, llcf->cpath.len);
 	if (lua_pcall(state->L, 2, 0, 0) != LUA_OK) {
-		ngx_log_error(NGX_LOG_CRIT, log, 0, "[LWS] failed to initialize Lua state: %s",
-				lws_lua_get_msg(state->L, -1));
+		lws_lua_get_msg(state->L, -1, &msg);
+		ngx_log_error(NGX_LOG_CRIT, log, 0, "[LWS] failed to initialize Lua state: %V",
+				&msg);
 		lws_close_state(state, log);
 		return NULL;
 	}
@@ -223,11 +225,10 @@ void lws_put_state (ngx_http_request_t *r, lws_state_t *state) {
 }
 
 int lws_run_state (lws_request_ctx_t *ctx) {
-	int          result;
-	size_t       len;
-	lua_State   *L;
-	ngx_log_t   *log;
-	const char  *msg;
+	int         result;
+	lua_State  *L;
+	ngx_log_t  *log;
+	ngx_str_t   msg;
 
 	/* prepare stack */
 	L = ctx->state->L;
@@ -243,22 +244,21 @@ int lws_run_state (lws_request_ctx_t *ctx) {
 
 		/* log error */
 		log = ctx->r->connection->log;
-		msg = lws_lua_get_msg(L, -1);
-		ngx_log_error(NGX_LOG_ERR, log, 0, "[LWS] %s error: %s", LUA_VERSION, msg);
+		lws_lua_get_msg(L, -1, &msg);
+		ngx_log_error(NGX_LOG_ERR, log, 0, "[LWS] %s error: %V", LUA_VERSION, &msg);
 		if (!ctx->llcf->diagnostic) {
 			goto done;
 		}
 
 		/* store diagnostic */
-		len = strlen(msg);
-		ctx->diagnostic = ngx_alloc(sizeof(ngx_str_t) + len, log);
+		ctx->diagnostic = ngx_alloc(sizeof(ngx_str_t) + msg.len, log);
 		if (!ctx->diagnostic) {
 			ngx_log_error(NGX_LOG_ERR, log, 0, "[LWS] failed to allocate diagnostic");
 			goto done;
 		}
 		ctx->diagnostic->data = (u_char *)ctx->diagnostic + sizeof(ngx_str_t);
-		ngx_memcpy(ctx->diagnostic->data, msg, len);
-		ctx->diagnostic->len = len;
+		ngx_memcpy(ctx->diagnostic->data, msg.data, msg.len);
+		ctx->diagnostic->len = msg.len;
 	}  /* [traceback, result] */
 
 	/* clear result */
