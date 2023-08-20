@@ -64,9 +64,9 @@ A negative integer result indicates failure and generates a Lua error. Results t
 error as well.
 
 Positive integer results from the pre, main and post chunks instruct the web server to send an
-error response for the corresponding HTTP status code. You can control the content of the error
-response with the `lws_error_response` and the NGINX `error_page` directives. For example,
-returning `lws.status.NOT_FOUND` (or, equivalently, `404`), sends a "Not Found" page. Positive
+error response for the corresponding HTTP status code. For example, returning
+`lws.status.NOT_FOUND` (or, equivalently, `404`), sends a "Not Found" page. You can control the
+content of the error response with the `lws_error_response` and `error_page` directives. Positive
 integers outside the range of 100 to 599 are processed as `500` and thus send an "Internal Server
 Error" page. Returning a positive integer additionally marks the request as *complete* (see below).
 
@@ -75,7 +75,7 @@ Positive integer results from the init chunk are ignored.
 > [!NOTE]
 > Most main chunks produce a response body directly and must set `response.status` rather than
 > returning an HTTP status code. Returning an HTTP status code *replaces* any response body
-> written by the chunk with the default response page.
+> written by the chunk with the error response.
 
 
 ## Processing Sequence
@@ -88,7 +88,7 @@ processing is aborted.
 
 If the pre chunk marks the request as *complete*, processing proceeds directly to the post chunk,
 skipping the main chunk. A chunk other than the init chunk can mark the request as complete by
-instructing the server to send a default response page (see above), or by calling a
+instructing the server to send an error response (see above), or by calling a
 [library function](Library.md) with this effect, such as `redirect`.
 
 The following figure illustrates the request processing sequence.
@@ -110,4 +110,5 @@ cached. This is a performance optimization.
 
 If processing is aborted due to a Lua error, the Lua state is closed after the request completes.
 
-You can control the closing of Lua states with the `lws_max_requests` directive.
+You can control the closing of Lua states with [directives](Directives.md), such as
+`lws_max_requests`.

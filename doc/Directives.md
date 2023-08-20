@@ -107,7 +107,7 @@ Context: server, location
 
 Sets the memory threshold of a Lua state which triggers an explicit garbage collection cycle. If
 the memory allocated by a Lua exceeds *gc* bytes when a request completes, an explicit, full
-gargabe collection cycle is performed. A value of `0` disables this logic. The default value for
+garbage collection cycle is performed. A value of `0` disables this logic. The default value for
 *gc* is `0`. Setting the value to `1` performs a full garbage collection cycle after each request.
 You can use the `k` and `m` suffixes with *gc* to set kilobytes or megabytes, respectively.
 
