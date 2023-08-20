@@ -463,88 +463,24 @@ static luaL_Reg lws_lua_functions[] = {
 	{ NULL, NULL }
 };
 
-typedef struct lws_lua_http_status_s lws_lua_http_status_t;
-
-struct lws_lua_http_status_s {
-	ngx_int_t    code;
-	const char  *key;
-};
-
-static lws_lua_http_status_t lws_lua_http_status[] = {
-	/* 1xx [n=3] */
-	{ NGX_HTTP_CONTINUE, "CONTINUE" },
-	{ NGX_HTTP_SWITCHING_PROTOCOLS, "SWITCHING_PROTOCOLS" },
-	{ NGX_HTTP_PROCESSING, "PROCESSING" },
-
-	/* 2xx [n=7] */
-	{ NGX_HTTP_OK, "OK" },
-	{ NGX_HTTP_CREATED, "CREATED" },
-	{ NGX_HTTP_ACCEPTED, "ACCEPTED" },
-	{ 203, "NON_AUTHORITATIVE_INFORMATION" },
-	{ NGX_HTTP_NO_CONTENT, "NO_CONTENT" },
-	{ 205, "RESET_CONTENT" },
-	{ NGX_HTTP_PARTIAL_CONTENT, "PARTIAL_CONTENT" },
-
-	/* 3xx [n=8] */
-	{ NGX_HTTP_SPECIAL_RESPONSE, "MULTIPLE_CHOICES" },
-	{ NGX_HTTP_MOVED_PERMANENTLY, "MOVED_PERMANENTLY" },
-	{ NGX_HTTP_MOVED_TEMPORARILY, "FOUND" },
-	{ NGX_HTTP_SEE_OTHER, "SEE_OTHER" },
-	{ NGX_HTTP_NOT_MODIFIED, "NOT_MODIFIED" },
-	{ 305, "USE_PROXY" },
-	{ NGX_HTTP_TEMPORARY_REDIRECT, "TEMPORARY_REDIRECT" },
-	{ NGX_HTTP_PERMANENT_REDIRECT, "PERMANENT_REDIRECT" },
-
-	/* 4xx [n=20] */
-	{ NGX_HTTP_BAD_REQUEST, "BAD_REQUEST" },
-	{ NGX_HTTP_UNAUTHORIZED, "UNAUTHORIZED" },
-	{ 402, "PAYMENT_REQUIRED" },
-	{ NGX_HTTP_FORBIDDEN, "FORBIDDEN" },
-	{ NGX_HTTP_NOT_FOUND, "NOT_FOUND" },
-	{ NGX_HTTP_NOT_ALLOWED, "METHOD_NOT_ALLOWED" },
-	{ 406, "NOT_ACCEPTABLE" },
-	{ 407, "PROXY_AUTHENTICATION_REQUIRED" },
-	{ NGX_HTTP_REQUEST_TIME_OUT, "REQUEST_TIMEOUT" },
-	{ NGX_HTTP_CONFLICT, "CONFLICT" },
-	{ 410, "GONE" },
-	{ NGX_HTTP_LENGTH_REQUIRED, "LENGTH_REQUIRED" },
-	{ NGX_HTTP_PRECONDITION_FAILED, "PRECONDITION_FAILED" },
-	{ NGX_HTTP_REQUEST_ENTITY_TOO_LARGE, "REQUEST_ENTITY_TOO_LARGE" },
-	{ NGX_HTTP_REQUEST_URI_TOO_LARGE, "REQUEST_URI_TOO_LARGE" },
-	{ NGX_HTTP_UNSUPPORTED_MEDIA_TYPE, "UNSUPPORTED_MEDIA_TYPE" },
-	{ NGX_HTTP_RANGE_NOT_SATISFIABLE, "REQUEST_RANGE_NOT_SATISFIABLE" },
-	{ 417, "EXPECTATION_FAILED" },
-	{ NGX_HTTP_MISDIRECTED_REQUEST, "MISDIRECTED_REQUEST" },
-	{ NGX_HTTP_TOO_MANY_REQUESTS, "TOO_MANY_REQUESTS" },
-
-	/* 5xx [n=7] */
-	{ NGX_HTTP_INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR" },
-	{ NGX_HTTP_NOT_IMPLEMENTED, "NOT_IMPLEMENTED" },
-	{ NGX_HTTP_BAD_GATEWAY, "BAD_GATEWAY" },
-	{ NGX_HTTP_SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE" },
-	{ NGX_HTTP_GATEWAY_TIME_OUT, "GATEWAY_TIMEOUT" },
-	{ NGX_HTTP_VERSION_NOT_SUPPORTED, "HTTP_VERSION_NOT_SUPPORTED" },
-	{ NGX_HTTP_INSUFFICIENT_STORAGE, "INSUFFICIENT_STORAGE" },
-	{ 0, NULL }
-};
-
 int lws_lua_open_lws (lua_State *L) {
-	lws_lua_http_status_t  *status;
+	int                 i;
+	lws_http_status_t  *status;
 
 	/* functions */
 	luaL_newlib(L, lws_lua_functions);
 
 	/* status */
-	lua_createtable(L, 0, 3 + 7 + 8 + 20 + 7);  /* sum(n)  */
+	lua_createtable(L, 0, lws_http_status_n);
 	lua_createtable(L, 0, 1);
 	lua_pushcfunction(L, lws_lua_strict_index);
 	lua_setfield(L, -2, "__index");
 	lua_setmetatable(L, -2);
-	status = lws_lua_http_status;
-	while (status->code) {
+	for (i = 0; i < lws_http_status_n; i++) {
+		status = &lws_http_status[i];
+		lua_pushlstring(L, (const char *)status->key.data, status->key.len);
 		lua_pushinteger(L, status->code);
-		lua_setfield(L, -2, status->key);
-		status++;
+		lua_rawset(L, -3);
 	}
 	lua_setfield(L, -2, "status");
 
