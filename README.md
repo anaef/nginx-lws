@@ -1,7 +1,7 @@
 # Lua Web Services for NGINX
 
-lws-nginx is a module for the [NGINX](https://nginx.org/) server that supports web services written
-in Lua, running directly in the server.
+lws-nginx is a module for the [NGINX](https://nginx.org/) server that supports web services
+written in Lua, running directly in the server.
 
 Some central design considerations for lws-nginx are the following:
 
@@ -11,16 +11,16 @@ Lua 5.1 with select extensions. The latest PUC-Rio Lua release is 5.4. PUC-Rio L
 new language features over the years, including 64-bit integers, bit operators, and variable
 attributes that are not directly supported in LuaJIT. Perhaps more worryingly, writing "fast"
 LuaJIT code promotes using language idioms that are amenable to its optimization while
-eschewing language features that are "slow" [^1]. *If* the performance of the Lua VM is deemed
+eschewing language features that are "slow".[^1] *If* the performance of the Lua VM is deemed
 insufficient for a particular function of a web service, there are alternatives to just-in-time
 compilation, including implementing the function in C, or using ahead-of-time compilation.
 
 - **Allow Lua web services to block without blocking the NGINX server.** To this end, lws-nginx
 uses a thread pool that runs Lua services asynchronously. Large parts of the existing Lua
-ecosystem are *not* non-blocking, and this design allows them be be used as is, on the condition
-that their libraries are conditionally thread-safe. There is substantial discussion and research
-on the topic of non-blocking event architectures vs. multi-threaded architectures, including in
-[^2], [^3], [^4], [^5], and [^6]. Ultimately, this is a trade-off between resource use and
+ecosystem are *not* non-blocking. The chosen design allows them be be used as is, on the
+condition that their libraries are conditionally thread-safe. There is substantial discussion
+and research on the topic of non-blocking event architectures vs. multi-threaded
+architectures.[^2][^3][^4][^5][^6][^7] Ultimately, this is a trade-off between resource use and
 complexity. An event processing loop is arguably less demanding on resources than threads.
 However, the resource demand of threads has been coming down over the years with advances
 in operating systems. The complexity in the implementation of web services and libraries is
@@ -70,8 +70,12 @@ lws-nginx is released under the MIT license. See LICENSE for license terms.
 Proceedings of HotOS IX: The 9th Workshop on Hot Topics in Operating Systems. 2003.
 [Link](https://www.usenix.org/legacy/events/hotos03/tech/full_papers/vonbehren/vonbehren.pdf)
 
-[^5]: Matt Welsh et al. SEDA: An Architecture for Well-Conditioned Scalable Internet Services.
+[^5]: Atul Adya et al. Cooperative Task Management Without Manual Stack Management. In
+Proceedings of the 2002 USENIX Annual Technical Conference. 2002.
+[Link](https://www.usenix.org/legacy/publications/library/proceedings/usenix02/full_papers/adyahowell/adyahowell.pdf)
+
+[^6]: Matt Welsh et al. SEDA: An Architecture for Well-Conditioned Scalable Internet Services.
 In Symposium on Operating Systems. 2001. [Link](http://www.sosp.org/2001/papers/welsh.pdf)
 
-[^6]: John Ousterhout. Why Threads Are A Bad Idea (for most purposes). 1996.
+[^7]: John Ousterhout. Why Threads Are A Bad Idea (for most purposes). 1996.
 [Link](https://web.stanford.edu/~ouster/cgi-bin/papers/threads.pdf)
