@@ -20,6 +20,7 @@ typedef struct lws_request_ctx_s lws_request_ctx_t;
 
 
 #include <lws_table.h>
+#include <lws_http.h>
 #include <lws_state.h>
 #include <lws_lib.h>
 
@@ -33,19 +34,21 @@ struct lws_main_config_s {
 };
 
 struct lws_loc_config_s {
-	ngx_http_complex_value_t  *main;          /* filename of main chunk */
-	ngx_http_complex_value_t  *path_info;     /* sub-path arguments */
-	ngx_str_t                  init;          /* filename of init chunk (run once) */
-	ngx_str_t                  pre;           /* filename of pre chunk */
-	ngx_str_t                  post;          /* filename of post chunk */
-	ngx_str_t                  path;          /* Lua path */
-	ngx_str_t                  cpath;         /* Lua C path */
-	size_t                     max_memory;    /* maximum memory; 0 = unrestricted */
-	ngx_int_t                  max_requests;  /* maximum requests; 0 = unlimitted */
-	ngx_msec_t                 max_time;      /* maximum lifetime; 0 = unlimited */
-	ngx_msec_t                 timeout;       /* idle timeout; 0 = unlimited */
-	size_t                     gc;            /* explicit gc; 0 = never */
-	ngx_queue_t                states;        /* inactive Lua states */
+	ngx_http_complex_value_t  *main;            /* filename of main chunk */
+	ngx_http_complex_value_t  *path_info;       /* sub-path arguments */
+	ngx_str_t                  init;            /* filename of init chunk (run once) */
+	ngx_str_t                  pre;             /* filename of pre chunk */
+	ngx_str_t                  post;            /* filename of post chunk */
+	ngx_str_t                  path;            /* Lua path */
+	ngx_str_t                  cpath;           /* Lua C path */
+	size_t                     max_memory;      /* maximum memory; 0 = unrestricted */
+	ngx_int_t                  max_requests;    /* maximum requests; 0 = unlimitted */
+	ngx_msec_t                 max_time;        /* maximum lifetime; 0 = unlimited */
+	ngx_msec_t                 timeout;         /* idle timeout; 0 = unlimited */
+	size_t                     gc;              /* explicit gc; 0 = never */
+	ngx_uint_t                 error_response;  /* error response [json, html] */
+	ngx_flag_t                 diagnostic;      /* include diagnostic w/ error response */
+	ngx_queue_t                states;          /* inactive Lua states */
 };
 
 struct lws_request_ctx_s {
@@ -65,6 +68,7 @@ struct lws_request_ctx_s {
 	ngx_str_t            response_body_str;   /* HTTP response body string */
 	ngx_str_t           *redirect;            /* NGINX internal redirect; @ prefix for name */
 	ngx_str_t           *redirect_args;       /* NGINX internal uri redirect args */
+	ngx_str_t           *diagnostic;          /* diagnostic response */
 	unsigned             complete:1;          /* request is complete */
 };
 
@@ -73,6 +77,11 @@ typedef enum {
 	LWS_FS_FOUND,
 	LWS_FS_NOT_FOUND
 } lws_file_status_e;
+
+typedef enum {
+	LWS_ER_JSON,
+	LWS_ER_HTML
+} lws_error_response_e;
 
 
 #define LWS_STATCACHE_CAP_DEFAULT 1024

@@ -63,12 +63,12 @@ A negative integer result indicates failure and generates a Lua error. Results t
 `nil`, an integer, or convertible to an integer are processed as `-1` and thus generate a Lua
 error as well.
 
-Positive integer results from the pre, main and post chunks instruct the web server to send a
-default response page for the corresponding HTTP status code. In NGINX, these pages are defined
-with the `error_page` directive. For example, returning `lws.status.NOT_FOUND` (or, equivalently,
-`404`), sends a "Not Found" page. Positive integers outside the range of 100 to 599 are
-processed as `500` and thus send an "Internal Server Error" page. Returning a positive integer
-additionally marks the request as *complete* (see below).
+Positive integer results from the pre, main and post chunks instruct the web server to send an
+error response for the corresponding HTTP status code. You can control the content of the error
+response with the `lws_error_response` and the NGINX `error_page` directives. For example,
+returning `lws.status.NOT_FOUND` (or, equivalently, `404`), sends a "Not Found" page. Positive
+integers outside the range of 100 to 599 are processed as `500` and thus send an "Internal Server
+Error" page. Returning a positive integer additionally marks the request as *complete* (see below).
 
 Positive integer results from the init chunk are ignored.
 

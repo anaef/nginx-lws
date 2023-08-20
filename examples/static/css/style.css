@@ -1,5 +1,5 @@
 html {
-	font-family: sans-serif;
+	font-family: system-ui, "Segoe UI", -apple-system, "Liberation Sans", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 body {
 	max-width: 600px;

@@ -223,8 +223,11 @@ void lws_put_state (ngx_http_request_t *r, lws_state_t *state) {
 }
 
 int lws_run_state (lws_request_ctx_t *ctx) {
-	int         result;
-	lua_State  *L;
+	int          result;
+	size_t       len;
+	lua_State   *L;
+	ngx_log_t   *log;
+	const char  *msg;
 
 	/* prepare stack */
 	L = ctx->state->L;
@@ -235,12 +238,31 @@ int lws_run_state (lws_request_ctx_t *ctx) {
 	if (lua_pcall(L, 1, 1, 1) == LUA_OK) {
 		result = lua_tointeger(L, -1);
 	} else {
-		ngx_log_error(NGX_LOG_ERR, ctx->r->connection->log, 0, "[LWS] %s error: %s",
-				LUA_VERSION, lws_lua_get_msg(L, -1));
+		/* set error result */
 		result = -1;
+
+		/* log error */
+		log = ctx->r->connection->log;
+		msg = lws_lua_get_msg(L, -1);
+		ngx_log_error(NGX_LOG_ERR, log, 0, "[LWS] %s error: %s", LUA_VERSION, msg);
+		if (!ctx->llcf->diagnostic) {
+			goto done;
+		}
+
+		/* store diagnostic */
+		len = strlen(msg);
+		ctx->diagnostic = ngx_alloc(sizeof(ngx_str_t) + len, log);
+		if (!ctx->diagnostic) {
+			ngx_log_error(NGX_LOG_ERR, log, 0, "[LWS] failed to allocate diagnostic");
+			goto done;
+		}
+		ctx->diagnostic->data = (u_char *)ctx->diagnostic + sizeof(ngx_str_t);
+		ngx_memcpy(ctx->diagnostic->data, msg, len);
+		ctx->diagnostic->len = len;
 	}  /* [traceback, result] */
 
 	/* clear result */
+	done:
 	lua_pop(L, 1);  /* [traceback] */
 
 	return result;
