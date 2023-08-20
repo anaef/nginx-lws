@@ -925,13 +925,14 @@ static void lws_send_json_error_response (lws_request_ctx_t *ctx, ngx_int_t rc) 
 
 	/* send headers */
 	r->headers_out.status = rc;
+	ngx_str_set(&r->headers_out.content_type, "application/json");
 	h = ngx_list_push(&r->headers_out.headers);
 	if (!h) {
 		ngx_http_finalize_request(r, rc);
 		return;
 	}
-	ngx_str_set(&h->key, "Content-Type");
-	ngx_str_set(&h->value, "application/json");
+	ngx_str_set(&h->key, "Cache-Control");
+	ngx_str_set(&h->value, "private, no-store");
 	h->hash = 1;
 	r->headers_out.content_length_n = len;
 	rc = ngx_http_send_header(r);
@@ -1000,13 +1001,16 @@ static void lws_send_html_error_response (lws_request_ctx_t *ctx, ngx_int_t rc) 
 
 	/* send headers */
 	r->headers_out.status = rc;
+	r->headers_out.content_type_len = sizeof("text/html") - 1;
+	ngx_str_set(&r->headers_out.content_type, "text/html");
+	ngx_str_set(&r->headers_out.charset, "UTF-8");
 	h = ngx_list_push(&r->headers_out.headers);
 	if (!h) {
 		ngx_http_finalize_request(r, rc);
 		return;
 	}
-	ngx_str_set(&h->key, "Content-Type");
-	ngx_str_set(&h->value, "text/html; charset=UTF-8");
+	ngx_str_set(&h->key, "Cache-Control");
+	ngx_str_set(&h->value, "private, no-store");
 	h->hash = 1;
 	r->headers_out.content_length_n = pre.len + dia.len + epi.len;
 	rc = ngx_http_send_header(r);
