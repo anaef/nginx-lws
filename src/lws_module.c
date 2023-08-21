@@ -218,14 +218,22 @@ static char *lws_init_main_conf (ngx_conf_t *cf, void *conf) {
 	lws_main_conf_t     *lmcf;
 	ngx_pool_cleanup_t  *cln;
 
-	/* thread pool */
+	/* cleanup */
 	lmcf = conf;
+	cln = ngx_pool_cleanup_add(cf->pool, 0);
+	if (!cln) {
+		return NGX_CONF_ERROR;
+	}
+	cln->handler = lws_cleanup_main_conf;
+	cln->data = lmcf;
+
+	/* thread pool */
 	if (!lmcf->thread_pool_name.len) {
 		ngx_str_set(&lmcf->thread_pool_name, "default");
 	}
 	lmcf->thread_pool = ngx_thread_pool_add(cf, &lmcf->thread_pool_name);
 	if (!lmcf->thread_pool) {
-		return "[LWS] failed to add thread pool";
+		return NGX_CONF_ERROR;
 	}
 
 	/* stat cache */
@@ -238,20 +246,12 @@ static char *lws_init_main_conf (ngx_conf_t *cf, void *conf) {
 	if (lmcf->stat_cache_cap) {
 		lmcf->stat_cache = lws_table_create(32);
 		if (!lmcf->stat_cache) {
-			return NULL;
+			return NGX_CONF_ERROR;
 		}
 		lws_table_set_dup(lmcf->stat_cache, 1);
 		lws_table_set_cap(lmcf->stat_cache, lmcf->stat_cache_cap);
 		lws_table_set_timeout(lmcf->stat_cache, lmcf->stat_cache_timeout);
 	}
-
-	/* cleanup */
-	cln = ngx_pool_cleanup_add(cf->pool, 0);
-	if (!cln) {
-		return NULL;
-	}
-	cln->handler = lws_cleanup_main_conf;
-	cln->data = lmcf;
 
 	return NGX_CONF_OK;
 }
