@@ -243,9 +243,6 @@ static char *lws_init_main_conf (ngx_conf_t *cf, void *conf) {
 		lws_table_set_dup(lmcf->stat_cache, 1);
 		lws_table_set_cap(lmcf->stat_cache, lmcf->stat_cache_cap);
 		lws_table_set_timeout(lmcf->stat_cache, lmcf->stat_cache_timeout);
-		ngx_log_debug2(NGX_LOG_DEBUG_HTTP, cf->log, 0,
-				"[LWS] stat cache size:%z timeout:%d",
-				lmcf->stat_cache_cap, lmcf->stat_cache_timeout);
 	}
 
 	/* cleanup */
