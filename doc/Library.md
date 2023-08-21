@@ -11,6 +11,13 @@ the optional argument *level* can take the values `debug`, `info`, `notice`, `wa
 `crit`, `alert`, and `emerg`; it defaults to `err`.
 
 
+## getvariable (variable)
+
+Returns the value of the NGINX variable with name *variable*. If the variable is not present,
+the function returns `nil`. NGINX variables must be declared with the `lws_variable`
+[directive](Directives.md).
+
+
 ## redirect(location [, args])
 
 Schedules an internal redirect to *location*. If *location* starts with `@`, it refers to

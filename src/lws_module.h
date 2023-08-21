@@ -17,6 +17,7 @@
 typedef struct lws_main_conf_s lws_main_conf_t;
 typedef struct lws_loc_conf_s lws_loc_conf_t;
 typedef struct lws_request_ctx_s lws_request_ctx_t;
+typedef struct lws_variable_s lws_variable_t;
 
 
 #include <lws_table.h>
@@ -48,6 +49,7 @@ struct lws_loc_conf_s {
 	size_t                     gc;              /* explicit gc; 0 = never */
 	ngx_uint_t                 error_response;  /* error response [json, html] */
 	ngx_flag_t                 diagnostic;      /* include diagnostic w/ error response */
+	ngx_array_t                variables;       /* variables */
 	ngx_queue_t                states;          /* inactive Lua states */
 };
 
@@ -57,6 +59,7 @@ struct lws_request_ctx_s {
 	ngx_str_t            path_info;           /* sub-path arguments */
 	lws_loc_conf_t      *llcf;                /* location configuration */
 	lws_state_t         *state;               /* active Lua state */
+	lws_table_t         *variables;           /* request variables */
 	lws_table_t         *request_headers;     /* request headers */
 	FILE                *request_body;        /* HTTP request body stream */
 	ngx_chain_t         *cl;                  /* HTTP request body chain */
@@ -70,6 +73,11 @@ struct lws_request_ctx_s {
 	ngx_str_t           *redirect_args;       /* NGINX internal uri redirect args */
 	ngx_str_t           *diagnostic;          /* diagnostic response */
 	unsigned             complete:1;          /* request is complete */
+};
+
+struct lws_variable_s {
+	ngx_str_t   name;    /* variable name */
+	ngx_int_t   index;   /* variable index */
 };
 
 typedef enum {

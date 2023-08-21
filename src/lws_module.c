@@ -18,6 +18,7 @@ static void *lws_create_loc_conf(ngx_conf_t *cf);
 static char *lws_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child);
 static void lws_cleanup_loc_conf(void *data);
 static char *lws_conf_set_lws(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
+static char *lws_conf_set_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 static char *lws_conf_set_error_response(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 
 static lws_file_status_e lws_get_file_status(ngx_http_request_t *t, ngx_str_t *filename);
@@ -133,6 +134,14 @@ static ngx_command_t lws_commands[] = {
 		ngx_conf_set_size_slot,
 		NGX_HTTP_LOC_CONF_OFFSET,
 		offsetof(lws_loc_conf_t, gc),
+		NULL
+	},
+	{
+		ngx_string("lws_variable"),
+		NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
+		lws_conf_set_variable,
+		NGX_HTTP_LOC_CONF_OFFSET,
+		offsetof(lws_loc_conf_t, variables),
 		NULL
 	},
 	{
@@ -297,6 +306,9 @@ static void *lws_create_loc_conf (ngx_conf_t *cf) {
 	llcf->gc = NGX_CONF_UNSET_SIZE;
 	llcf->error_response = NGX_CONF_UNSET_UINT;
 	llcf->diagnostic = NGX_CONF_UNSET;
+	if (ngx_array_init(&llcf->variables, cf->pool, 4, sizeof(lws_variable_t)) != NGX_OK) {
+		return NULL;
+	}
 	ngx_queue_init(&llcf->states);
 
 	/* add cleanup */
@@ -330,6 +342,14 @@ static char *lws_merge_loc_conf (ngx_conf_t *cf, void *parent, void *child) {
 	ngx_conf_merge_msec_value(conf->max_time, prev->max_time, 0);
 	ngx_conf_merge_msec_value(conf->timeout, prev->timeout, 0);
 	ngx_conf_merge_size_value(conf->gc, prev->gc, 0);
+	if (!ngx_array_push_n(&conf->variables, prev->variables.nelts)) {
+		return NGX_CONF_ERROR;
+	}
+	ngx_memmove((u_char *)conf->variables.elts + prev->variables.nelts * conf->variables.size,
+			conf->variables.elts, (conf->variables.nelts - prev->variables.nelts)
+			* conf->variables.size);
+	ngx_memcpy(conf->variables.elts, prev->variables.elts, prev->variables.nelts
+			* conf->variables.size);
 	ngx_conf_merge_uint_value(conf->error_response, prev->error_response, 0);
 	ngx_conf_merge_value(conf->diagnostic, prev->diagnostic, 0);
 	return NGX_CONF_OK;
@@ -393,6 +413,30 @@ static char *lws_conf_set_lws (ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
 	/* install handler */
 	clcf = ngx_http_conf_get_module_loc_conf(cf, ngx_http_core_module);
 	clcf->handler = lws_handler;
+	return NGX_CONF_OK;
+}
+
+static char *lws_conf_set_variable (ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
+	ngx_str_t        *values;
+	ngx_int_t         index;
+	lws_loc_conf_t   *llcf;
+	lws_variable_t   *variable;
+
+	/* check argument */
+	values = cf->args->elts;
+	if ((index = ngx_http_get_variable_index(cf, &values[1])) == NGX_ERROR) {
+		return "has invalid variable name";
+	}
+
+	/* push variable */
+	llcf = conf;
+	variable = ngx_array_push(&llcf->variables);
+	if (!variable) {
+		return NGX_CONF_ERROR;
+	}
+	variable->name = values[1];
+	variable->index = index;
+
 	return NGX_CONF_OK;
 }
 
@@ -479,15 +523,18 @@ static int lws_set_header (lws_table_t *t, ngx_http_request_t *r, ngx_table_elt_
 }
 
 static ngx_int_t lws_handler (ngx_http_request_t *r) {
-	ngx_int_t            rc;
-	ngx_log_t           *log;
-	ngx_str_t            main;
-	ngx_uint_t           i;
-	ngx_list_part_t     *part;
-	ngx_table_elt_t     *headers;
-	lws_loc_conf_t      *llcf;
-	lws_request_ctx_t   *ctx;;
-	ngx_pool_cleanup_t  *cln;
+	ngx_int_t                   rc;
+	ngx_log_t                  *log;
+	ngx_str_t                   main;
+	ngx_str_t                  *value;
+	ngx_uint_t                  i;
+	ngx_list_part_t            *part;
+	ngx_table_elt_t            *headers;
+	lws_loc_conf_t             *llcf;
+	lws_variable_t             *variables;
+	lws_request_ctx_t          *ctx;;
+	ngx_pool_cleanup_t         *cln;
+	ngx_http_variable_value_t  *variable_value;
 
 	/* check if enabled */
 	llcf = ngx_http_get_module_loc_conf(r, lws);
@@ -528,6 +575,28 @@ static ngx_int_t lws_handler (ngx_http_request_t *r) {
 		return NGX_HTTP_INTERNAL_SERVER_ERROR;
 	}
 	ctx->llcf = llcf;
+
+	/* prepare request variables */
+	ctx->variables = lws_table_create(llcf->variables.nelts);
+	if (!ctx->variables) {
+		ngx_log_error(NGX_LOG_ERR, log, 0, "[LWS] failed to create variables");
+		return NGX_HTTP_INTERNAL_SERVER_ERROR;
+	}
+	variables = llcf->variables.elts;
+	for (i = 0; i < llcf->variables.nelts; i++) {
+		variable_value = ngx_http_get_indexed_variable(r, variables[i].index);
+		if (!variable_value || !variable_value->valid) {
+			continue;
+		}
+		value = ngx_palloc(r->pool, sizeof(ngx_str_t));
+		if (!value) {
+			ngx_log_error(NGX_LOG_ERR, log, 0, "[LWS] failed to allocate variable");
+			return NGX_HTTP_INTERNAL_SERVER_ERROR;
+		}
+		value->len = variable_value->len;
+		value->data = variable_value->data;
+		lws_table_set(ctx->variables, &variables[i].name, value);
+	}
 
 	/* prepare request headers */
 	ctx->request_headers = lws_table_create(32);
@@ -1069,6 +1138,9 @@ static void lws_cleanup_request_ctx (void *data) {
 	lws_request_ctx_t  *ctx;
 
 	ctx = data;
+	if (ctx->variables) {
+		lws_table_free(ctx->variables);
+	}
 	if (ctx->request_headers) {
 		lws_table_free(ctx->request_headers);
 	}

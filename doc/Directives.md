@@ -112,6 +112,15 @@ garbage collection cycle is performed. A value of `0` disables this logic. The d
 You can use the `k` and `m` suffixes with *gc* to set kilobytes or megabytes, respectively.
 
 
+## lws_variable *variable*
+
+Context: server, location
+
+Resolves the value of an NGINX variable. The value of the variable with name *variable* can then
+be queried through the `lws.getvariable` [library function](Library.md). This directive can be
+used repeatedly.
+
+
 ## lws_error_response *error_response* [, *diagnostic*]
 
 Context: server, location

@@ -35,6 +35,7 @@ static luaL_Stream *lws_lua_create_file(lua_State *L);
 static int lws_lua_close_file(lua_State *L);
 
 static int lws_lua_log(lua_State *L);
+static int lws_lua_getvariable(lua_State *L);
 static int lws_lua_redirect(lua_State *L);
 static int lws_lua_setcomplete(lua_State *L);
 static int lws_lua_parseargs(lua_State *L);
@@ -360,6 +361,21 @@ static int lws_lua_log (lua_State *L) {
 	return 0;
 }
 
+static int lws_lua_getvariable (lua_State *L) {
+	ngx_str_t               key, *value;
+	lws_lua_request_ctx_t  *lctx;
+
+	key.data = (u_char *)luaL_checklstring(L, 1, &key.len);
+	lctx = lws_lua_get_request_ctx(L);
+	value = lws_table_get(lctx->ctx->variables, &key);
+	if (value) {
+		lua_pushlstring(L, (const char *)value->data, value->len);
+	} else {
+		lua_pushnil(L);
+	}
+	return 1;
+}
+
 static int lws_lua_redirect (lua_State *L) {
 	ngx_str_t               redirect, args;
 	lws_lua_request_ctx_t  *lctx;
@@ -455,6 +471,7 @@ static int lws_lua_parseargs (lua_State *L) {
 
 static luaL_Reg lws_lua_functions[] = {
 	{ "log", lws_lua_log },
+	{ "getvariable", lws_lua_getvariable },
 	{ "redirect", lws_lua_redirect },
 	{ "setcomplete", lws_lua_setcomplete },
 	{ "parseargs", lws_lua_parseargs },
