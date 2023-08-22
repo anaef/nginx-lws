@@ -328,7 +328,7 @@ static luaL_Stream *lws_lua_create_file (lua_State *L) {
 }
 
 static int lws_lua_close_file (lua_State *L) {
-	lua_pushboolean(L, 1); /* "success"; the actual FILE is managed externally */
+	lua_pushboolean(L, 1);  /* "success"; the actual FILE is managed externally */
 	return 1;
 }
 
@@ -628,7 +628,7 @@ static int lws_lua_call (lws_request_ctx_t *ctx, ngx_str_t *filename, const char
 	lua_pushvalue(L, -1);  /* [filename, filename] */
 	if (lua_rawget(L, 2) != LUA_TFUNCTION) {  /* [filename, x] */
 		lua_pop(L, 1);  /* [filename] */
-		if (luaL_loadfilex(L, lua_tostring(L, -1), "bt") != 0) {
+		if (luaL_loadfilex(L, lua_tostring(L, -1), "bt") != LUA_OK) {
 			return lua_error(L);
 		}  /* [filename, function] */
 		lua_pushvalue(L, -2);  /* [filename, function, filename] */
@@ -690,7 +690,7 @@ int lws_lua_run (lua_State *L) {
 		lua_newtable(L);
 		lua_pushvalue(L, -1);
 		lua_setfield(L, LUA_REGISTRYINDEX, LWS_LIB_CHUNKS);
-	} /* [ctx, chunks] */
+	}  /* [ctx, chunks] */
 
 	/* init */
 	if (!ctx->state->init) {
@@ -703,7 +703,7 @@ int lws_lua_run (lua_State *L) {
 	/* push environment */
 	lws_lua_push_env(ctx);  /* [ctx, chunks, env] */
 
-	/* pre-handler */
+	/* pre chunk */
 	if (ctx->llcf->pre.len) {
 		result = lws_lua_call(ctx, &ctx->llcf->pre, "pre", 1);
 		if (ctx->complete) {
@@ -711,10 +711,10 @@ int lws_lua_run (lua_State *L) {
 		}  /* result is invariably 0 at this point */
 	}
 
-	/* main handler */
+	/* main chunk */
 	result = lws_lua_call(ctx, &ctx->main, "main", 1);
 
-	/* post-handler */
+	/* post chunk */
 	post:
 	if (ctx->llcf->post.len) {
 		if ((post_result = lws_lua_call(ctx, &ctx->llcf->post, "post", 1)) > 0) {
@@ -727,6 +727,6 @@ int lws_lua_run (lua_State *L) {
 	lua_setfield(L, LUA_REGISTRYINDEX, LWS_LIB_REQUEST_CTX_CURRENT);  /* [ctx, chunks, env] */
 
 	/* return result */
-	lua_pushinteger(L, result);  /* [ctx, chunk, env, result] */
+	lua_pushinteger(L, result);  /* [ctx, chunks, env, result] */
 	return 1;
 }

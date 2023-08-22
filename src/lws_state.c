@@ -186,12 +186,12 @@ lws_state_t *lws_get_state (ngx_http_request_t *r) {
 	lws_loc_conf_t  *llcf;
 
 	llcf = ngx_http_get_module_loc_conf(r, lws);
-	if (ngx_queue_empty(&llcf->states)) {
-		state = lws_create_state(r);
-	} else {
+	if (!ngx_queue_empty(&llcf->states)) {
 		q = ngx_queue_head(&llcf->states);
 		ngx_queue_remove(q);
 		state = ngx_queue_data(q, lws_state_t, queue);
+	} else {
+		state = lws_create_state(r);
 	}
 	state->in_use = 1;
 	return state;

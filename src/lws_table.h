@@ -17,18 +17,18 @@ typedef struct lws_table_s lws_table_t;
 typedef struct lws_table_entry_s lws_table_entry_t;
 
 struct lws_table_s {
-	size_t               alloc;      /* allocated slots */
-	size_t               load;       /* load limit for rehash */
-	size_t               count;      /* number of entries */
-	lws_table_entry_t   *entries;    /* entries */
-	ngx_queue_t          order;      /* insert order; LRU if capped */
-	time_t               timeout;    /* timeout of entries */
-	size_t               cap;        /* cap */
-	unsigned             dup:1;      /* duplicate keys */
-	unsigned             free:1;     /* free values */
-	unsigned             ci:1;       /* case insensitive */
-	unsigned             timed:1;    /* with timeout */
-	unsigned             capped:1;   /* capped, e.g., for caches */
+	size_t               alloc;     /* allocated slots */
+	size_t               load;      /* load limit for rehash */
+	size_t               count;     /* number of entries */
+	lws_table_entry_t   *entries;   /* entries */
+	ngx_queue_t          order;     /* insert order; LRU if capped */
+	time_t               timeout;   /* timeout of entries */
+	size_t               cap;       /* cap */
+	unsigned             dup:1;     /* duplicate keys */
+	unsigned             free:1;    /* free values */
+	unsigned             ci:1;      /* case insensitive */
+	unsigned             timed:1;   /* with timeout */
+	unsigned             capped:1;  /* capped, e.g., for caches */
 };
 
 typedef enum {

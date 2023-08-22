@@ -41,7 +41,7 @@ static cookie_io_functions_t lws_request_read_functions = {
 	NULL               /* close */
 };
 
-static ngx_conf_enum_t lws_error_response[] = {
+static ngx_conf_enum_t lws_error_responses[] = {
 	{ ngx_string("json"), LWS_ER_JSON },
 	{ ngx_string("html"), LWS_ER_HTML },
 	{ ngx_null_string, 0 }
@@ -150,7 +150,7 @@ static ngx_command_t lws_commands[] = {
 		lws_conf_set_error_response,
 		NGX_HTTP_LOC_CONF_OFFSET,
 		offsetof(lws_loc_conf_t, error_response),
-		lws_error_response
+		lws_error_responses
 	},
 	{
 		ngx_string("lws_thread_pool"),
@@ -203,23 +203,18 @@ ngx_module_t lws = {
  */
 
 static void *lws_create_main_conf (ngx_conf_t *cf) {
-	lws_main_conf_t  *lmcf;
+	lws_main_conf_t     *lmcf;
+	ngx_pool_cleanup_t  *cln;
 
+	/* allocate and intialize structure */
 	lmcf = ngx_pcalloc(cf->pool, sizeof(lws_main_conf_t));
 	if (!lmcf) {
 		return NULL;
 	}
 	lmcf->stat_cache_cap = NGX_CONF_UNSET_SIZE;
 	lmcf->stat_cache_timeout = NGX_CONF_UNSET;
-	return lmcf;
-}
 
-static char *lws_init_main_conf (ngx_conf_t *cf, void *conf) {
-	lws_main_conf_t     *lmcf;
-	ngx_pool_cleanup_t  *cln;
-
-	/* cleanup */
-	lmcf = conf;
+	/* add cleanup */
 	cln = ngx_pool_cleanup_add(cf->pool, 0);
 	if (!cln) {
 		return NGX_CONF_ERROR;
@@ -227,9 +222,16 @@ static char *lws_init_main_conf (ngx_conf_t *cf, void *conf) {
 	cln->handler = lws_cleanup_main_conf;
 	cln->data = lmcf;
 
+	return lmcf;
+}
+
+static char *lws_init_main_conf (ngx_conf_t *cf, void *conf) {
+	lws_main_conf_t  *lmcf;
+
 	/* thread pool */
+	lmcf = conf;
 	if (!lmcf->thread_pool_name.len) {
-		ngx_str_set(&lmcf->thread_pool_name, "default");
+		ngx_str_set(&lmcf->thread_pool_name, LWS_THREAD_POOL_NAME_DEFAULT);
 	}
 	lmcf->thread_pool = ngx_thread_pool_add(cf, &lmcf->thread_pool_name);
 	if (!lmcf->thread_pool) {
@@ -237,12 +239,8 @@ static char *lws_init_main_conf (ngx_conf_t *cf, void *conf) {
 	}
 
 	/* stat cache */
-	if (lmcf->stat_cache_cap == NGX_CONF_UNSET_SIZE) {
-		lmcf->stat_cache_cap = LWS_STATCACHE_CAP_DEFAULT;
-	}
-	if (lmcf->stat_cache_timeout == NGX_CONF_UNSET) {
-		lmcf->stat_cache_timeout = LWS_STATCACHE_TIMEOUT_DEFAULT;
-	}
+	ngx_conf_init_size_value(lmcf->stat_cache_cap, LWS_STAT_CACHE_CAP_DEFAULT);
+	ngx_conf_init_value(lmcf->stat_cache_timeout, LWS_STAT_CACHE_TIMEOUT_DEFAULT);
 	if (lmcf->stat_cache_cap) {
 		lmcf->stat_cache = lws_table_create(32);
 		if (!lmcf->stat_cache) {
@@ -266,22 +264,20 @@ static void lws_cleanup_main_conf (void *data) {
 }
 
 static char *lws_conf_set_stat_cache (ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
-	size_t     *zt;
-	time_t     *sp;
-	ngx_str_t  *value;
+	ngx_str_t        *values;
+	lws_main_conf_t  *lmcf;
 
-	zt = (size_t *)((char *)conf + cmd->offset);
-	if (*zt != NGX_CONF_UNSET_SIZE) {
+	lmcf = conf;
+	values = cf->args->elts;
+	if (lmcf->stat_cache_cap != NGX_CONF_UNSET_SIZE) {
 		return "is duplicate";
 	}
-	value = cf->args->elts;
-	*zt = ngx_parse_size(&value[1]);
-	if (*zt == (size_t)NGX_ERROR) {
+	lmcf->stat_cache_cap = ngx_parse_size(&values[1]);
+	if (lmcf->stat_cache_cap == (size_t)NGX_ERROR) {
 		return "has invalid size value";
 	}
-	sp = (time_t *)(zt + 1);
-	*sp = ngx_parse_time(&value[2], 1);
-	if (*sp == (time_t)NGX_ERROR) {
+	lmcf->stat_cache_timeout = ngx_parse_time(&values[2], 1);
+	if (lmcf->stat_cache_timeout == (time_t)NGX_ERROR) {
 		return "has invalid time value";
 	}
 	return NGX_CONF_OK;
@@ -367,7 +363,7 @@ static void lws_cleanup_loc_conf (void *data) {
 }
 
 static char *lws_conf_set_lws (ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
-	ngx_str_t                        *value;
+	ngx_str_t                        *values;
 	ngx_http_core_loc_conf_t         *clcf;
 	ngx_http_complex_value_t        **cv;
 	ngx_http_compile_complex_value_t  ccv;
@@ -381,10 +377,10 @@ static char *lws_conf_set_lws (ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
 	if (!*cv) {
 		return NGX_CONF_ERROR;
 	}
-	value = cf->args->elts;
+	values = cf->args->elts;
 	ngx_memzero(&ccv, sizeof(ngx_http_compile_complex_value_t));
 	ccv.cf = cf;
-	ccv.value = &value[1];
+	ccv.value = &values[1];
 	ccv.complex_value = *cv;
 	ccv.zero = 1;
 	if (ngx_http_compile_complex_value(&ccv) != NGX_OK) {
@@ -400,7 +396,7 @@ static char *lws_conf_set_lws (ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
 		}
 		ngx_memzero(&ccv, sizeof(ngx_http_compile_complex_value_t));
 		ccv.cf = cf;
-		ccv.value = &value[2];
+		ccv.value = &values[2];
 		ccv.complex_value = *cv;
 		if (ngx_http_compile_complex_value(&ccv) != NGX_OK) {
 			return NGX_CONF_ERROR;
@@ -414,10 +410,10 @@ static char *lws_conf_set_lws (ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
 }
 
 static char *lws_conf_set_variable (ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
-	ngx_str_t        *values;
-	ngx_int_t         index;
-	lws_loc_conf_t   *llcf;
-	lws_variable_t   *variable;
+	ngx_str_t       *values;
+	ngx_int_t        index;
+	lws_loc_conf_t  *llcf;
+	lws_variable_t  *variable;
 
 	/* check argument */
 	values = cf->args->elts;
@@ -439,18 +435,18 @@ static char *lws_conf_set_variable (ngx_conf_t *cf, ngx_command_t *cmd, void *co
 
 static char *lws_conf_set_error_response (ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
 	char            *result;
-	ngx_str_t       *value;
+	ngx_str_t       *values;
 	lws_loc_conf_t  *llcf;
 
 	if ((result = ngx_conf_set_enum_slot(cf, cmd, conf)) != NGX_CONF_OK) {
 		return result;
 	}
 	if (cf->args->nelts >= 3) {
-		value = cf->args->elts;
+		values = cf->args->elts;
 		llcf = conf;
-		if (ngx_strcasecmp(value[2].data, (u_char *)"on") == 0) {
+		if (ngx_strcasecmp(values[2].data, (u_char *)"on") == 0) {
 			llcf->diagnostic = 1;
-		} else if (ngx_strcasecmp(value[2].data, (u_char *)"off") == 0) {
+		} else if (ngx_strcasecmp(values[2].data, (u_char *)"off") == 0) {
 			llcf->diagnostic = 0;
 		} else {
 			return "must be \"on\" or \"off\"";
@@ -633,7 +629,6 @@ static ngx_int_t lws_handler (ngx_http_request_t *r) {
 	}
 
 	/* read request body */
-	r->request_body_in_single_buf = 1;
 	rc = ngx_http_read_client_request_body(r, lws_handler_continuation);
 	if (rc >= NGX_HTTP_SPECIAL_RESPONSE) {
 		return rc;
@@ -707,30 +702,24 @@ static void lws_handler_thread (void *data, ngx_log_t *log) {
 static ssize_t lws_request_read (void *cookie, char *buf, size_t size) {
 	size_t              count;
 	ngx_buf_t          *b;
-	ngx_chain_t        *cl;
 	lws_request_ctx_t  *ctx;
 
 	/* done? */
 	ctx = cookie;
-	cl = ctx->cl;
-	if (!cl) {
+	if (!ctx->cl) {
 		return 0;
 	}
 
 	/* read */
-	b = cl->buf;
-	if (!ctx->pos) {
-		ctx->pos = b->pos;
-	}
-	count = b->last - ctx->pos;
+	b = ctx->cl->buf;
+	count = b->last - b->pos;
 	if (count > size) {
 		count = size;
 	}
-	memcpy(buf, ctx->pos, count);
-	ctx->pos += count;
-	if (ctx->pos >= b->last) {
+	memcpy(buf, b->pos, count);
+	b->pos += count;
+	if (b->pos == b->last) {
 		ctx->cl = ctx->cl->next;
-		ctx->pos = NULL;
 	}
 	return count;
 }
@@ -845,7 +834,7 @@ static void lws_handler_completion (ngx_event_t *ev) {
 	}
 
 	/* error response requested? */
-	if (ctx->rc != 0) {
+	if (ctx->rc > 0) {
 		rc = ctx->rc >= 100 && ctx->rc < 600 ? ctx->rc : NGX_HTTP_INTERNAL_SERVER_ERROR;
 		lws_send_error_response(ctx, rc);
 		return;
@@ -894,8 +883,8 @@ static void lws_handler_completion (ngx_event_t *ev) {
 		return;
 	}
 	b->start = ctx->response_body_str.data;
-	b->end = ctx->response_body_str.data + ctx->response_body_str.len;
 	b->pos = b->start;
+	b->end = ctx->response_body_str.data + ctx->response_body_str.len;
 	b->last = b->end;
 	b->temporary = 1;
 	b->last_buf = (r == r->main) ? 1 : 0;
@@ -978,8 +967,8 @@ static void lws_send_json_error_response (lws_request_ctx_t *ctx, ngx_int_t rc) 
 		ngx_http_finalize_request(r, rc);
 		return;
 	}
-	b->end = b->start + len;
 	b->pos = b->start;
+	b->end = b->start + len;
 	b->last = b->pos;
 
 	/* build JSON */
@@ -1102,22 +1091,22 @@ static void lws_send_html_error_response (lws_request_ctx_t *ctx, ngx_int_t rc) 
 		return;
 	}
 	b_pre->start = pre.data;
-	b_pre->end = pre.data + pre.len;
 	b_pre->pos = b_pre->start;
+	b_pre->end = pre.data + pre.len;
 	b_pre->last = b_pre->end;
 	b_pre->memory = 1;
 	out_pre->buf = b_pre;
 	out_pre->next = out_dia;
 	b_dia->start = dia.data;
-	b_dia->end = dia.data + dia.len;
 	b_dia->pos = b_dia->start;
+	b_dia->end = dia.data + dia.len;
 	b_dia->last = b_dia->end;
 	b_dia->temporary = 1;
 	out_dia->buf = b_dia;
 	out_dia->next = out_epi;
 	b_epi->start = epi.data;
-	b_epi->end = epi.data + epi.len;
 	b_epi->pos = b_epi->start;
+	b_epi->end = epi.data + epi.len;
 	b_epi->last = b_epi->end;
 	b_epi->memory = 1;
 	b_epi->last_buf = (r == r->main) ? 1 : 0;
