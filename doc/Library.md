@@ -23,21 +23,23 @@ the function returns `nil`. NGINX variables must be declared with the `lws_varia
 Schedules an internal redirect to *location*. If *location* starts with `@`, it refers to
 a named location. Otherwise, *location* is a path, and *args* are optional query parameters. Both
 *location* and *args* must be strings. The request becomes internal and can use locations marked
-with the `internal` directive. The function also marks the request as complete. A Lua chunk should
-return after scheduling an internal redirect.
+with the `internal` directive. This function can be called from a pre or main chunk, and if
+called from a pre chunk, it additionally marks the request as complete and thus causes processing
+to proceed directly to the post chunk, skipping the main chunk. A Lua chunk should return after
+scheduling an internal redirect.
 
 
 ## setcomplete()
 
-Marks the request as complete. If called in the pre chunk, processing skips the main chunk and
-proceeeds to the post chunk, if any. A Lua chunk should return after marking the request as
-complete.
+Marks the request as complete. This function can be called from a pre chunk and causes processing
+to proceed directly to the post chunk, skipping the main chunk. A Lua chunk should return after
+marking the request as complete.
 
 
 ## parseargs(args)
 
 Parses the request query parameters in *args* and returns them as a table. For repeated keys,
-only the final value is provided. The function also parses request bodies with a content type of
+only the final value is provided. This function also parses request bodies with a content type of
 `application/x-www-form-urlencoded`, i.e., HTML form submissions with the `POST` method.
 
 

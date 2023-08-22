@@ -22,15 +22,25 @@
 
 
 typedef struct lws_lua_request_ctx_s lws_lua_request_ctx_t;
+typedef struct lws_lua_table_s lws_lua_table_t;
+
+typedef enum {
+	LWS_LC_INIT,
+	LWS_LC_PRE,
+	LWS_LC_MAIN,
+	LWS_LC_POST
+} lws_lua_chunk_e;
+
 struct lws_lua_request_ctx_s {
-	lws_request_ctx_t  *ctx;
+	lws_request_ctx_t  *ctx;         /* request context */
+	lws_lua_chunk_e     chunk;       /* current chunk */
+	unsigned            complete:1;  /* request is complete */
 };
 
-typedef struct lws_lua_table_s lws_lua_table_t;
 struct lws_lua_table_s {
-	lws_table_t  *t;
-	unsigned      readonly:1;
-	unsigned      external:1;
+	lws_table_t  *t;           /* table */
+	unsigned      readonly:1;  /* read-only access */
+	unsigned      external:1;  /* managed externally */
 };
 
 

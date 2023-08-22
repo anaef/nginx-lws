@@ -2,8 +2,8 @@
 
 This document describes the general HTTP request processing logic of LWS.
 
-Request processing involves up to four Lua chunks: an init chunk, a pre chunk, a main chunk, and a
-post chunk.
+Request processing involves up to four Lua chunks: an init chunk, a pre chunk, a main chunk, and
+a post chunk.
 
 
 ## Init Lua Chunk
@@ -16,8 +16,9 @@ The init Lua chunk runs with the *global* environment of the Lua state.
 
 ## Pre, Main, and Post Lua Chunks
 
-The pre, main, and post Lua chunks are run sequentially for each request. The optional pre and post
-chunks provide the opportunity to perform common tasks for the main chunks at the location.
+The pre, main, and post Lua chunks are run sequentially for each request. The optional pre and
+post chunks provide the opportunity to perform common tasks for the main chunks at the location,
+such as establishing a context or performing logging.
 
 The pre, main, and post Lua chunks run with a *request* environment that indexes the global
 environment for keys that are not present. When a request completes, the request environment
@@ -63,14 +64,15 @@ A negative integer result indicates failure and generates a Lua error. Results t
 `nil`, an integer, or convertible to an integer are processed as `-1` and thus generate a Lua
 error as well.
 
-Positive integer results from the pre, main and post chunks instruct the web server to send an
-error response for the corresponding HTTP status code. For example, returning
-`lws.status.NOT_FOUND` (or, equivalently, `404`), sends a "Not Found" page. You can control the
-content of the error response with the `lws_error_response` and `error_page` directives. Positive
-integers outside the range of 100 to 599 are processed as `500` and thus send an "Internal Server
-Error" page. Returning a positive integer additionally marks the request as *complete* (see below).
+A positive integer result from the pre or main chunk instructs the web server to send an error
+response for the corresponding HTTP status code. For example, returning `lws.status.NOT_FOUND`
+(or, equivalently, `404`), sends a "Not Found" page. You can control the content of the error
+response with the `lws_error_response` and `error_page` directives. Positive integers outside
+the range of 100 to 599 are processed as `500` and thus send an "Internal Server Error" page.
+Returning a positive integer result from the pre chunk additionally marks the request as
+*complete* (see below).
 
-Positive integer results from the init chunk are ignored.
+A positive integer result from the init or the post chunk is ignored.
 
 > [!NOTE]
 > Most main chunks produce a response body directly and must set `response.status` rather than
@@ -87,9 +89,9 @@ If any chunk generates a Lua error, be it directly or indirectly through its res
 processing is aborted.
 
 If the pre chunk marks the request as *complete*, processing proceeds directly to the post chunk,
-skipping the main chunk. A chunk other than the init chunk can mark the request as complete by
-instructing the server to send an error response (see above), or by calling a
-[library function](Library.md) with this effect, such as `redirect`.
+skipping the main chunk. The pre chunk can mark the request as complete by instructing the server
+to send an error response (see above), or by calling a [library function](Library.md) with this
+effect, such as `redirect`.
 
 The following figure illustrates the request processing sequence.
 

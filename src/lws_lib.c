@@ -41,12 +41,14 @@ static int lws_lua_setcomplete(lua_State *L);
 static int lws_lua_parseargs(lua_State *L);
 
 static void lws_lua_push_env(lws_request_ctx_t *ctx);
-static int lws_lua_call(lws_request_ctx_t *ctx, ngx_str_t *filename, const char *chunk, int env);
+static int lws_lua_call(lws_lua_request_ctx_t *lctx, ngx_str_t *filename, lws_lua_chunk_e chunk);
 
 
 /*
  * helpers
  */
+
+static const char* lws_lua_chunk_names[] = { "init", "pre", "main", "post" };
 
 static ngx_str_t *lws_lua_strdup (lua_State *L, ngx_str_t *str) {
 	ngx_str_t  *dup;
@@ -133,7 +135,7 @@ static lws_lua_request_ctx_t *lws_lua_create_request_ctx (lua_State *L) {
 	lws_lua_request_ctx_t  *lctx;
 
 	lctx = lua_newuserdata(L, sizeof(lws_lua_request_ctx_t));
-	lctx->ctx = NULL;
+	ngx_memzero(lctx, sizeof(lws_lua_request_ctx_t));
 	luaL_getmetatable(L, LWS_LIB_REQUEST_CTX);
 	lua_setmetatable(L, -2);
 	return lctx;
@@ -380,9 +382,12 @@ static int lws_lua_redirect (lua_State *L) {
 	ngx_str_t               redirect, args;
 	lws_lua_request_ctx_t  *lctx;
 
+	lctx = lws_lua_get_request_ctx(L);
+	if (lctx->chunk != LWS_LC_PRE && lctx->chunk != LWS_LC_MAIN) {
+		return luaL_error(L, "not allowed in %s chunk", lws_lua_chunk_names[lctx->chunk]);
+	}
 	redirect.data = (u_char *)luaL_checklstring(L, 1, &redirect.len);
 	luaL_argcheck(L, redirect.len > (redirect.data[0] != '@' ? 0 : 1), 1, "empty path or name");
-	lctx = lws_lua_get_request_ctx(L);
 	if (redirect.data[0] != '@') {
 		args.data = (u_char *)luaL_optlstring(L, 2, NULL, &args.len);
 		if (args.data) {
@@ -390,7 +395,9 @@ static int lws_lua_redirect (lua_State *L) {
 		}
 	}
 	lctx->ctx->redirect = lws_lua_strdup(L, &redirect);
-	lctx->ctx->complete = 1;
+	if (lctx->chunk == LWS_LC_PRE) {
+		lctx->complete = 1;
+	}
 	return 0;
 }
 
@@ -398,7 +405,10 @@ static int lws_lua_setcomplete (lua_State *L) {
 	lws_lua_request_ctx_t  *lctx;
 
 	lctx = lws_lua_get_request_ctx(L);
-	lctx->ctx->complete = 1;
+	if (lctx->chunk != LWS_LC_PRE) {
+		return luaL_error(L, "not allowed in %s chunk", lws_lua_chunk_names[lctx->chunk]);
+	}
+	lctx->complete = 1;
 	return 0;
 }
 
@@ -618,12 +628,15 @@ static void lws_lua_push_env (lws_request_ctx_t *ctx) {
 	lua_setfield(L, -2, "response");
 }
 
-static int lws_lua_call (lws_request_ctx_t *ctx, ngx_str_t *filename, const char *chunk, int env) {
+static int lws_lua_call (lws_lua_request_ctx_t *lctx, ngx_str_t *filename, lws_lua_chunk_e chunk) {
 	int         result, isint;
 	lua_State  *L;
 
+	/* set chunk */
+	lctx->chunk = chunk;
+
 	/* get, or load and store, the function */
-	L = ctx->state->L;
+	L = lctx->ctx->state->L;
 	lua_pushlstring(L, (const char *)filename->data, filename->len);  /* [filename] */
 	lua_pushvalue(L, -1);  /* [filename, filename] */
 	if (lua_rawget(L, 2) != LUA_TFUNCTION) {  /* [filename, x] */
@@ -637,7 +650,7 @@ static int lws_lua_call (lws_request_ctx_t *ctx, ngx_str_t *filename, const char
 	}  /* [filename, function] */
 
 	/* set _ENV */
-	if (env) {
+	if (chunk != LWS_LC_INIT) {
 		lua_pushvalue(L, 3);
 	} else {
 		lua_rawgeti(L, LUA_REGISTRYINDEX, LUA_RIDX_GLOBALS);
@@ -645,6 +658,9 @@ static int lws_lua_call (lws_request_ctx_t *ctx, ngx_str_t *filename, const char
 	lua_setupvalue(L, -2, 1);  /* _ENV is the first upvalue; [filename, function] */
 
 	/* call the function */
+	ngx_log_debug2(NGX_LOG_DEBUG_HTTP, lctx->ctx->r->connection->log, 0,
+			"[LWS] calling %s chunk filename:%V", lws_lua_chunk_names[chunk],
+			filename);
 	lua_call(L, 0, 1);  /* [filename, result] */
 
 	/* check result */
@@ -653,17 +669,18 @@ static int lws_lua_call (lws_request_ctx_t *ctx, ngx_str_t *filename, const char
 	} else {
 		result = lua_tointegerx(L, -1, &isint);
 		if (!isint) {
-			ngx_log_error(NGX_LOG_WARN, ctx->r->connection->log, 0,
-					"[LWS] bad result type (integer or nil expected, got %s)",
+			ngx_log_error(NGX_LOG_WARN, lctx->ctx->r->connection->log, 0,
+					"[LWS] bad result type (nil or integer expected, got %s)",
 					luaL_typename(L, -1));
 			result = -1;
 		}
 	}
 	if (result < 0) {
-		luaL_error(L, "%s: %s chunk failed (%d)", lua_tostring(L, -2), chunk, result);
+		return luaL_error(L, "%s: %s chunk failed (%d)", lua_tostring(L, -2),
+				lws_lua_chunk_names[chunk], result);
 	}
-	if (env && result > 0) {
-		ctx->complete = 1;
+	if (result > 0 && chunk == LWS_LC_PRE) {
+		lctx->complete = 1;
 	}
 
 	/* finish */
@@ -672,7 +689,7 @@ static int lws_lua_call (lws_request_ctx_t *ctx, ngx_str_t *filename, const char
 }
 
 int lws_lua_run (lua_State *L) {
-	int                     result, post_result;
+	int                     result;
 	lws_request_ctx_t      *ctx;
 	lws_lua_request_ctx_t  *lctx;
 
@@ -695,7 +712,7 @@ int lws_lua_run (lua_State *L) {
 	/* init */
 	if (!ctx->state->init) {
 		if (ctx->llcf->init.len) {
-			(void)lws_lua_call(ctx, &ctx->llcf->init, "init", 0);
+			(void)lws_lua_call(lctx, &ctx->llcf->init, LWS_LC_INIT);
 		}
 		ctx->state->init = 1;
 	}
@@ -705,21 +722,19 @@ int lws_lua_run (lua_State *L) {
 
 	/* pre chunk */
 	if (ctx->llcf->pre.len) {
-		result = lws_lua_call(ctx, &ctx->llcf->pre, "pre", 1);
-		if (ctx->complete) {
+		result = lws_lua_call(lctx, &ctx->llcf->pre, LWS_LC_PRE);
+		if (lctx->complete) {
 			goto post;
 		}  /* result is invariably 0 at this point */
 	}
 
 	/* main chunk */
-	result = lws_lua_call(ctx, &ctx->main, "main", 1);
+	result = lws_lua_call(lctx, &ctx->main, LWS_LC_MAIN);
 
 	/* post chunk */
 	post:
 	if (ctx->llcf->post.len) {
-		if ((post_result = lws_lua_call(ctx, &ctx->llcf->post, "post", 1)) > 0) {
-			result = post_result;
-		}
+		(void)lws_lua_call(lctx, &ctx->llcf->post, LWS_LC_POST);
 	}
 
 	/* clear request context */

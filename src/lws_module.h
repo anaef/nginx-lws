@@ -71,7 +71,6 @@ struct lws_request_ctx_s {
 	ngx_str_t           *redirect;           /* NGINX internal redirect; @ prefix for name */
 	ngx_str_t           *redirect_args;      /* NGINX internal redirect args */
 	ngx_str_t           *diagnostic;         /* diagnostic response */
-	unsigned             complete:1;         /* request is complete */
 };
 
 struct lws_variable_s {
