@@ -752,7 +752,7 @@ static void lws_handler_completion (ngx_event_t *ev) {
 
 	/* internal redirect? */
 	if (ctx->redirect) {
-		if (ctx->redirect->data[0] == '/') {
+		if (ctx->redirect->data[0] != '@') {
 			rc = ngx_http_internal_redirect(r, ctx->redirect, ctx->redirect_args);
 		} else {
 			ctx->redirect->data++;

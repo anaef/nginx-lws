@@ -381,7 +381,7 @@ static int lws_lua_redirect (lua_State *L) {
 	lws_lua_request_ctx_t  *lctx;
 
 	redirect.data = (u_char *)luaL_checklstring(L, 1, &redirect.len);
-	luaL_argcheck(L, redirect.len > (redirect.data[0] == '@' ? 1 : 0), 1, "empty path or name");
+	luaL_argcheck(L, redirect.len > (redirect.data[0] != '@' ? 0 : 1), 1, "empty path or name");
 	lctx = lws_lua_get_request_ctx(L);
 	if (redirect.data[0] != '@') {
 		args.data = (u_char *)luaL_optlstring(L, 2, NULL, &args.len);
