@@ -1038,7 +1038,7 @@ static void lws_send_html_error_response (lws_request_ctx_t *ctx, ngx_int_t rc) 
 		"\t\t\t}\n"
 		"\t\t\tbody {\n"
 		"\t\t\t\tmax-width: 600px;\n"
-		"\t\t\t\tmargin: auto;\n"
+		"\t\t\t\tmargin: 0 auto;\n"
 		"\t\t\t}\n"
 		"\t\t</style>\n"
 		"\t</head>\n"

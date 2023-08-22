@@ -3,7 +3,7 @@ html {
 }
 body {
 	max-width: 600px;
-	margin: auto;
+	margin: 0 auto;
 }
 .row {
 	margin-bottom: 1rem;
