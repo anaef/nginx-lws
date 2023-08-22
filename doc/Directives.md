@@ -121,18 +121,19 @@ be queried through the `lws.getvariable` [library function](Library.md). This di
 used repeatedly.
 
 
-## lws_error_response *error_response* [, *diagnostic*]
+## lws_error_response *error_response* [, *attribute*]
 
 Context: server, location
 
 Sets the content of error responses. Error responses are sent if a Lua error is generated, or if a
-pre, main, or post chunk returns a positive integer result. In the first case, the error response
-is 500 Internal Server Error; in the second case, the error response is for the corresponding HTTP
-status code. The *error_response* value controls the content type of the response and must be one
-of `json` or `html`. The default value for *error_response* is `json`. The optional *diagnostic*
-value controls whether diagnostic information is included for Lua errors and must be one of `off`
-or `on`. The default value for *diagnostic* is `off`. Diagnostic information includes the error
-message, file names, line numbers and a stack traceback.
+pre or main chunk returns a positive integer result. In the first case, the error response is 500
+Internal Server Error; in the second case, the error response is for the corresponding HTTP
+status code. The *error_response* value controls the content type of the response and can take the
+values `json` or `html`. The default value for *error_response* is `json`. The optional
+*attribute* value controls whether diagnostic information is included for Lua errors and can take
+the value `diagnostic`. Diagnostic information includes the error message, file names, line
+numbers and a stack traceback. By default, and if the attribute is omitted, diagnostic information
+is not included.
 
 
 ## lws_thread_pool *thread_pool_name*

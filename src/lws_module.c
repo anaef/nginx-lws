@@ -436,20 +436,22 @@ static char *lws_conf_set_variable (ngx_conf_t *cf, ngx_command_t *cmd, void *co
 static char *lws_conf_set_error_response (ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
 	char            *result;
 	ngx_str_t       *values;
+	ngx_uint_t       i;
 	lws_loc_conf_t  *llcf;
 
 	if ((result = ngx_conf_set_enum_slot(cf, cmd, conf)) != NGX_CONF_OK) {
 		return result;
 	}
-	if (cf->args->nelts >= 3) {
-		values = cf->args->elts;
-		llcf = conf;
-		if (ngx_strcasecmp(values[2].data, (u_char *)"on") == 0) {
+	llcf = conf;
+	llcf->diagnostic = 0;
+	values = cf->args->elts;
+	for (i = 2; i < cf->args->nelts; i++) {
+		if (ngx_strcasecmp(values[i].data, (u_char *)"diagnostic") == 0) {
 			llcf->diagnostic = 1;
-		} else if (ngx_strcasecmp(values[2].data, (u_char *)"off") == 0) {
-			llcf->diagnostic = 0;
 		} else {
-			return "must be \"on\" or \"off\"";
+			ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "invalid attribute value \"%s\"",
+					values[i].data);
+			return NGX_CONF_ERROR;
 		}
 	}
 	return NGX_CONF_OK;
