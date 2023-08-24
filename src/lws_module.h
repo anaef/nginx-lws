@@ -42,22 +42,27 @@ struct lws_loc_conf_s {
 	ngx_str_t                  post;            /* filename of post chunk */
 	ngx_str_t                  path;            /* Lua path */
 	ngx_str_t                  cpath;           /* Lua C path */
-	size_t                     max_memory;      /* maximum memory; 0 = unrestricted */
-	ngx_int_t                  max_requests;    /* maximum requests; 0 = unlimitted */
-	ngx_msec_t                 max_time;        /* maximum lifetime; 0 = unlimited */
-	ngx_msec_t                 timeout;         /* idle timeout; 0 = unlimited */
-	size_t                     gc;              /* explicit gc; 0 = never */
+	size_t                     max_states;      /* maximum Lua states; 0 = unrestricted */
+	size_t                     max_queue;       /* maximum queued requests; 0 = unrestricted */
+	size_t                     max_memory;      /* maximum Lua state memory; 0 = unrestricted */
+	ngx_int_t                  max_requests;    /* maximum Lua state requests; 0 = unlimitted */
+	ngx_msec_t                 max_time;        /* maximum Lua state lifetime; 0 = unlimited */
+	ngx_msec_t                 timeout;         /* Lua state idle timeout; 0 = unlimited */
+	size_t                     gc;              /* Lua state explicit gc threshold; 0 = never */
 	ngx_uint_t                 error_response;  /* error response [json, html] */
 	ngx_flag_t                 diagnostic;      /* include diagnostic w/ error response */
 	ngx_array_t                variables;       /* variables */
+	ngx_uint_t                 states_n;        /* number of Lua states (active + inactive) */
 	ngx_queue_t                states;          /* inactive Lua states */
+	ngx_uint_t                 requests_n;      /* number of queued requests */
+	ngx_queue_t                requests;        /* queued requests */
 };
 
 struct lws_request_ctx_s {
+	ngx_queue_t          queue;              /* location configuration queue */
 	ngx_http_request_t  *r;                  /* NGINX HTTP request */
 	ngx_str_t            main;               /* filename of main chunk */
 	ngx_str_t            path_info;          /* sub-path arguments */
-	lws_loc_conf_t      *llcf;               /* location configuration */
 	lws_state_t         *state;              /* active Lua state */
 	lws_table_t         *variables;          /* request variables */
 	lws_table_t         *request_headers;    /* request headers */

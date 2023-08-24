@@ -115,22 +115,23 @@ static void lws_state_timer_handler (ngx_event_t *ev) {
 	}
 }
 
-lws_state_t *lws_create_state (ngx_http_request_t *r) {
+lws_state_t *lws_create_state (lws_request_ctx_t *ctx) {
 	ngx_log_t       *log;
 	ngx_str_t        msg;
 	lws_state_t     *state;
 	lws_loc_conf_t  *llcf;
 
 	/* create state */
-	log = r->connection->log;
+	log = ctx->r->connection->log;
 	state = ngx_calloc(sizeof(lws_state_t), log);
 	if (!state) {
 		ngx_log_error(NGX_LOG_CRIT, log, 0, "[LWS] failed to allocate state");
 		return NULL;
 	}
+	llcf = ngx_http_get_module_loc_conf(ctx->r, lws);
+	state->llcf = llcf;
 
 	/* create Lua state */
-	llcf = ngx_http_get_module_loc_conf(r, lws);
 	if (llcf->max_memory > 0) {
 		state->max_memory = llcf->max_memory;
 		state->L = lua_newstate(lws_lua_alloc_checked, state);
@@ -170,48 +171,53 @@ lws_state_t *lws_create_state (ngx_http_request_t *r) {
 	lws_set_state_timer(state);
 
 	/* done */
+	llcf->states_n++;
 	ngx_log_error(NGX_LOG_INFO, log, 0, "[LWS] %s state created L:%p", LUA_VERSION, state->L);
 	return state;
 }
 
 void lws_close_state (lws_state_t *state, ngx_log_t *log) {
+	state->llcf->states_n--;
 	lua_close(state->L);
 	ngx_log_error(NGX_LOG_INFO, log, 0, "[LWS] %s state closed L:%p", LUA_VERSION, state->L);
 	ngx_free(state);
 }
 
-lws_state_t *lws_get_state (ngx_http_request_t *r) {
+lws_state_t *lws_get_state (lws_request_ctx_t *ctx) {
 	lws_state_t     *state;
 	ngx_queue_t     *q;
 	lws_loc_conf_t  *llcf;
 
-	llcf = ngx_http_get_module_loc_conf(r, lws);
+	llcf = ngx_http_get_module_loc_conf(ctx->r, lws);
 	if (!ngx_queue_empty(&llcf->states)) {
 		q = ngx_queue_head(&llcf->states);
 		ngx_queue_remove(q);
 		state = ngx_queue_data(q, lws_state_t, queue);
 	} else {
-		state = lws_create_state(r);
+		state = lws_create_state(ctx);
+		if (!state) {
+			return NULL;
+		}
 	}
 	state->in_use = 1;
 	return state;
 }
 
-void lws_put_state (ngx_http_request_t *r, lws_state_t *state) {
+void lws_put_state (lws_request_ctx_t *ctx, lws_state_t *state) {
 	size_t           used_memory;
 	lws_loc_conf_t  *llcf;
 
-	llcf = ngx_http_get_module_loc_conf(r, lws);
+	llcf = ngx_http_get_module_loc_conf(ctx->r, lws);
 	state->requests++;
 	if (state->close || (llcf->max_requests > 0 && state->requests >= llcf->max_requests)) {
-		lws_close_state(state, r->connection->log);
+		lws_close_state(state, ctx->r->connection->log);
 		return;
 	}
 	if (llcf->gc > 0) {
 		used_memory = lua_gc(state->L, LUA_GCCOUNT, 0) * 1024;
 		if (used_memory > llcf->gc) {
 			lua_gc(state->L, LUA_GCCOLLECT, 0);
-			ngx_log_debug3(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+			ngx_log_debug3(NGX_LOG_DEBUG_HTTP, ctx->r->connection->log, 0,
 				"[LWS] GC L:%p before:%z after:%z", state->L, used_memory,
 				(size_t)lua_gc(state->L, LUA_GCCOUNT, 0) * 1024);
 		}
@@ -246,7 +252,7 @@ int lws_run_state (lws_request_ctx_t *ctx) {
 		log = ctx->r->connection->log;
 		lws_lua_get_msg(L, -1, &msg);
 		ngx_log_error(NGX_LOG_ERR, log, 0, "[LWS] %s error: %V", LUA_VERSION, &msg);
-		if (!ctx->llcf->diagnostic) {
+		if (!ctx->state->llcf->diagnostic) {
 			goto done;
 		}
 

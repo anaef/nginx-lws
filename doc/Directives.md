@@ -61,6 +61,18 @@ Sets the Lua C path. If the first character of *cpath* is `+`, *cpath* is append
 Lua C path.
 
 
+## lws_max_states *max_states* [*max_queue*]
+
+Context: server, location
+
+Sets the maximum number of Lua states per worker process and location. If more concurrent requests
+arrive than *max_states*, the requests are queued until a Lua state becomes available. A value of
+`0` disables this logic. The default value for *max_states* is `0`. The queue accepts up to
+*max_queue* requests. A 503 Service Unavailable status is returned if the queue overflows. A value
+of `0` disables this logic. The default value for *max_queue* is `0`. You can use the `k` and `m`
+suffixes with *max_states* and *max_queue* to set multiples of 1024 or 1024², respectively.
+
+
 ## lws_max_memory *max_memory*
 
 Context: server, location
@@ -121,7 +133,7 @@ be queried through the `lws.getvariable` [library function](Library.md). This di
 used repeatedly.
 
 
-## lws_error_response *error_response* [, *attribute*]
+## lws_error_response *error_response* [*attribute*]
 
 Context: server, location
 

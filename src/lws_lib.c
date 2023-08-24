@@ -711,8 +711,8 @@ int lws_lua_run (lua_State *L) {
 
 	/* init */
 	if (!ctx->state->init) {
-		if (ctx->llcf->init.len) {
-			(void)lws_lua_call(lctx, &ctx->llcf->init, LWS_LC_INIT);
+		if (ctx->state->llcf->init.len) {
+			(void)lws_lua_call(lctx, &ctx->state->llcf->init, LWS_LC_INIT);
 		}
 		ctx->state->init = 1;
 	}
@@ -721,8 +721,8 @@ int lws_lua_run (lua_State *L) {
 	lws_lua_push_env(ctx);  /* [ctx, chunks, env] */
 
 	/* pre chunk */
-	if (ctx->llcf->pre.len) {
-		result = lws_lua_call(lctx, &ctx->llcf->pre, LWS_LC_PRE);
+	if (ctx->state->llcf->pre.len) {
+		result = lws_lua_call(lctx, &ctx->state->llcf->pre, LWS_LC_PRE);
 		if (lctx->complete) {
 			goto post;
 		}  /* result is invariably 0 at this point */
@@ -733,8 +733,8 @@ int lws_lua_run (lua_State *L) {
 
 	/* post chunk */
 	post:
-	if (ctx->llcf->post.len) {
-		(void)lws_lua_call(lctx, &ctx->llcf->post, LWS_LC_POST);
+	if (ctx->state->llcf->post.len) {
+		(void)lws_lua_call(lctx, &ctx->state->llcf->post, LWS_LC_POST);
 	}
 
 	/* clear request context */
