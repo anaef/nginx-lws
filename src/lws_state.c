@@ -109,9 +109,10 @@ static void lws_state_timer_handler (ngx_event_t *ev) {
 
 	state = ev->data;
 	if (!state->in_use) {
+		ngx_queue_remove(&state->queue);
 		lws_close_state(state, ev->log);
 	} else {
-		state->close = 1;
+		/* handled when request completes; setting state->close could be race condition */
 	}
 }
 
@@ -209,7 +210,8 @@ void lws_put_state (lws_request_ctx_t *ctx, lws_state_t *state) {
 
 	llcf = ngx_http_get_module_loc_conf(ctx->r, lws);
 	state->requests++;
-	if (state->close || (llcf->max_requests > 0 && state->requests >= llcf->max_requests)) {
+	if (state->close || state->tev.timedout || (llcf->max_requests > 0
+			&& state->requests >= llcf->max_requests)) {
 		lws_close_state(state, ctx->r->connection->log);
 		return;
 	}
