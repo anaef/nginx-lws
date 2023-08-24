@@ -42,11 +42,11 @@ struct lws_loc_conf_s {
 	ngx_str_t                  post;            /* filename of post chunk */
 	ngx_str_t                  path;            /* Lua path */
 	ngx_str_t                  cpath;           /* Lua C path */
-	size_t                     max_states;      /* maximum Lua states; 0 = unrestricted */
-	size_t                     max_queue;       /* maximum queued requests; 0 = unrestricted */
-	size_t                     max_memory;      /* maximum Lua state memory; 0 = unrestricted */
-	ngx_int_t                  max_requests;    /* maximum Lua state requests; 0 = unlimitted */
-	ngx_msec_t                 max_time;        /* maximum Lua state lifetime; 0 = unlimited */
+	size_t                     states_max;      /* maximum Lua states; 0 = unrestricted */
+	size_t                     queue_max;       /* maximum queued requests; 0 = unrestricted */
+	size_t                     memory_max;      /* maximum Lua state memory; 0 = unrestricted */
+	ngx_int_t                  requests_max;    /* maximum Lua state requests; 0 = unlimitted */
+	ngx_msec_t                 time_max;        /* maximum Lua state lifetime; 0 = unlimited */
 	ngx_msec_t                 timeout;         /* Lua state idle timeout; 0 = unlimited */
 	size_t                     gc;              /* Lua state explicit gc threshold; 0 = never */
 	ngx_uint_t                 error_response;  /* error response [json, html] */

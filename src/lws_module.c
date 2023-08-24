@@ -5,7 +5,6 @@
  */
 
 
-#include <lws_def.h>
 #include <ngx_thread_pool.h>
 #include <lws_module.h>
 
@@ -103,7 +102,7 @@ static ngx_command_t lws_commands[] = {
 		NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE12,
 		lws_conf_set_max_states,
 		NGX_HTTP_LOC_CONF_OFFSET,
-		offsetof(lws_loc_conf_t, max_states),
+		offsetof(lws_loc_conf_t, states_max),
 		NULL
 	},
 	{
@@ -111,7 +110,7 @@ static ngx_command_t lws_commands[] = {
 		NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 		ngx_conf_set_size_slot,
 		NGX_HTTP_LOC_CONF_OFFSET,
-		offsetof(lws_loc_conf_t, max_memory),
+		offsetof(lws_loc_conf_t, memory_max),
 		NULL
 	},
 	{
@@ -119,7 +118,7 @@ static ngx_command_t lws_commands[] = {
 		NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 		ngx_conf_set_num_slot,
 		NGX_HTTP_LOC_CONF_OFFSET,
-		offsetof(lws_loc_conf_t, max_requests),
+		offsetof(lws_loc_conf_t, requests_max),
 		NULL
 	},
 	{
@@ -127,7 +126,7 @@ static ngx_command_t lws_commands[] = {
 		NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 		ngx_conf_set_msec_slot,
 		NGX_HTTP_LOC_CONF_OFFSET,
-		offsetof(lws_loc_conf_t, max_time),
+		offsetof(lws_loc_conf_t, time_max),
 		NULL
 	},
 	{
@@ -182,14 +181,14 @@ static ngx_command_t lws_commands[] = {
 };
 
 static ngx_http_module_t lws_ctx = {
-    NULL,                  /* preconfiguration */
-    NULL,                  /* postconfiguration */
-    lws_create_main_conf , /* create main configuration */
-    lws_init_main_conf,    /* init main configuration */
-    NULL,                  /* create server configuration */
-    NULL,                  /* merge server configuration */
-    lws_create_loc_conf,   /* create location configuration */
-    lws_merge_loc_conf     /* merge location configuration */
+	NULL,                  /* preconfiguration */
+	NULL,                  /* postconfiguration */
+	lws_create_main_conf , /* create main configuration */
+	lws_init_main_conf,    /* init main configuration */
+	NULL,                  /* create server configuration */
+	NULL,                  /* merge server configuration */
+	lws_create_loc_conf,   /* create location configuration */
+	lws_merge_loc_conf     /* merge location configuration */
 };
 
 ngx_module_t lws = {
@@ -197,13 +196,13 @@ ngx_module_t lws = {
 	&lws_ctx,
 	lws_commands,
 	NGX_HTTP_MODULE,
-	NULL,              /* init master */
-	NULL,              /* init module */
-	NULL,              /* init process */
-	NULL,              /* init thread */
-	NULL,              /* exit thread */
-	NULL,              /* exit process */
-	NULL,              /* exit master */
+	NULL,                  /* init master */
+	NULL,                  /* init module */
+	NULL,                  /* init process */
+	NULL,                  /* init thread */
+	NULL,                  /* exit thread */
+	NULL,                  /* exit process */
+	NULL,                  /* exit master */
 	NGX_MODULE_V1_PADDING
 };
 
@@ -302,11 +301,11 @@ static void *lws_create_loc_conf (ngx_conf_t *cf) {
 	if (!llcf) {
 		return NULL;
 	}
-	llcf->max_states = NGX_CONF_UNSET_SIZE;
-	llcf->max_queue = NGX_CONF_UNSET_SIZE;
-	llcf->max_memory = NGX_CONF_UNSET_SIZE;
-	llcf->max_requests = NGX_CONF_UNSET;
-	llcf->max_time = NGX_CONF_UNSET_MSEC;
+	llcf->states_max = NGX_CONF_UNSET_SIZE;
+	llcf->queue_max = NGX_CONF_UNSET_SIZE;
+	llcf->memory_max = NGX_CONF_UNSET_SIZE;
+	llcf->requests_max = NGX_CONF_UNSET;
+	llcf->time_max = NGX_CONF_UNSET_MSEC;
 	llcf->timeout = NGX_CONF_UNSET_MSEC;
 	llcf->gc = NGX_CONF_UNSET_SIZE;
 	llcf->error_response = NGX_CONF_UNSET_UINT;
@@ -343,11 +342,11 @@ static char *lws_merge_loc_conf (ngx_conf_t *cf, void *parent, void *child) {
 	ngx_conf_merge_str_value(conf->post, prev->post, "");
 	ngx_conf_merge_str_value(conf->path, prev->path, "");
 	ngx_conf_merge_str_value(conf->cpath, prev->cpath, "");
-	ngx_conf_merge_size_value(conf->max_states, prev->max_states, 0);
-	ngx_conf_merge_size_value(conf->max_queue, prev->max_queue, 0);
-	ngx_conf_merge_size_value(conf->max_memory, prev->max_memory, 0);
-	ngx_conf_merge_value(conf->max_requests, prev->max_requests, 0);
-	ngx_conf_merge_msec_value(conf->max_time, prev->max_time, 0);
+	ngx_conf_merge_size_value(conf->states_max, prev->states_max, 0);
+	ngx_conf_merge_size_value(conf->queue_max, prev->queue_max, 0);
+	ngx_conf_merge_size_value(conf->memory_max, prev->memory_max, 0);
+	ngx_conf_merge_value(conf->requests_max, prev->requests_max, 0);
+	ngx_conf_merge_msec_value(conf->time_max, prev->time_max, 0);
 	ngx_conf_merge_msec_value(conf->timeout, prev->timeout, 0);
 	ngx_conf_merge_size_value(conf->gc, prev->gc, 0);
 	if (!ngx_array_push_n(&conf->variables, prev->variables.nelts)) {
@@ -379,24 +378,24 @@ static void lws_cleanup_loc_conf (void *data) {
 
 static char *lws_conf_set_lws (ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
 	ngx_str_t                        *values;
+	lws_loc_conf_t                   *llcf;
 	ngx_http_core_loc_conf_t         *clcf;
-	ngx_http_complex_value_t        **cv;
 	ngx_http_compile_complex_value_t  ccv;
 
 	/* set main */
-	cv = (ngx_http_complex_value_t **)((char *)conf + cmd->offset);
-	if (*cv) {
+	llcf = conf;
+	if (llcf->main) {
 		return "is duplicate";
 	}
-	*cv = ngx_palloc(cf->pool, sizeof(ngx_http_complex_value_t));
-	if (!*cv) {
+	llcf->main = ngx_palloc(cf->pool, sizeof(ngx_http_complex_value_t));
+	if (!llcf->main) {
 		return NGX_CONF_ERROR;
 	}
 	values = cf->args->elts;
 	ngx_memzero(&ccv, sizeof(ngx_http_compile_complex_value_t));
 	ccv.cf = cf;
 	ccv.value = &values[1];
-	ccv.complex_value = *cv;
+	ccv.complex_value = llcf->main;
 	ccv.zero = 1;
 	if (ngx_http_compile_complex_value(&ccv) != NGX_OK) {
 		return NGX_CONF_ERROR;
@@ -404,15 +403,14 @@ static char *lws_conf_set_lws (ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
 
 	/* set optional path info */
 	if (cf->args->nelts >= 3) {
-		cv++;
-		*cv = ngx_palloc(cf->pool, sizeof(ngx_http_complex_value_t));
-		if (!*cv) {
+		llcf->path_info = ngx_palloc(cf->pool, sizeof(ngx_http_complex_value_t));
+		if (!llcf->path_info) {
 			return NGX_CONF_ERROR;
 		}
 		ngx_memzero(&ccv, sizeof(ngx_http_compile_complex_value_t));
 		ccv.cf = cf;
 		ccv.value = &values[2];
-		ccv.complex_value = *cv;
+		ccv.complex_value = llcf->path_info;
 		if (ngx_http_compile_complex_value(&ccv) != NGX_OK) {
 			return NGX_CONF_ERROR;
 		}
@@ -430,14 +428,14 @@ static char *lws_conf_set_max_states (ngx_conf_t *cf, ngx_command_t *cmd, void *
 
 	values = cf->args->elts;
 	llcf = conf;
-	if (llcf->max_states != NGX_CONF_UNSET_SIZE) {
+	if (llcf->states_max != NGX_CONF_UNSET_SIZE) {
 		return "is duplicate";
 	}
-	if ((llcf->max_states = ngx_parse_size(&values[1])) == (size_t)NGX_ERROR) {
+	if ((llcf->states_max = ngx_parse_size(&values[1])) == (size_t)NGX_ERROR) {
 		return "has invalid states value";
 	}
 	if (cf->args->nelts >= 3) {
-		if ((llcf->max_queue = ngx_parse_size(&values[2])) == (size_t)NGX_ERROR) {
+		if ((llcf->queue_max = ngx_parse_size(&values[2])) == (size_t)NGX_ERROR) {
 			return "has invalid queue value";
 		}
 	}
@@ -699,17 +697,17 @@ static void lws_handler_continuation (ngx_http_request_t *r) {
 
 	/* get state, queue, or abort */
 	llcf = ngx_http_get_module_loc_conf(ctx->r, lws);
-	if (!ngx_queue_empty(&llcf->states) || llcf->max_states == 0
-			|| llcf->states_n < llcf->max_states) {
+	if (!ngx_queue_empty(&llcf->states) || llcf->states_max == 0
+			|| llcf->states_n < llcf->states_max) {
 		lws_handler_state(ctx);
-	} else if (llcf->max_queue == 0 || llcf->requests_n < llcf->max_queue) {
+	} else if (llcf->queue_max == 0 || llcf->requests_n < llcf->queue_max) {
 		llcf->requests_n++;
 		ngx_log_debug2(NGX_LOG_DEBUG_HTTP, log, 0, "[LWS] request queued max:%z n:%z",
-				llcf->max_queue, llcf->requests_n);
+				llcf->queue_max, llcf->requests_n);
 		ngx_queue_insert_tail(&llcf->requests, &ctx->queue);
 	} else {
 		ngx_log_error(NGX_LOG_ERR, log, 0, "[LWS] request queue overflow max:%z n:%z",
-				llcf->max_queue, llcf->requests_n);
+				llcf->queue_max, llcf->requests_n);
 		ngx_http_finalize_request(r, NGX_HTTP_SERVICE_UNAVAILABLE);
 	}
 }

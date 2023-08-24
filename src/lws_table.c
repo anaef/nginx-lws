@@ -5,7 +5,6 @@
  */
 
 
-#include <lws_def.h>
 #include <lws_module.h>
 
 

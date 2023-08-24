@@ -5,7 +5,6 @@
  */
 
 
-#include <lws_def.h>
 #include <lauxlib.h>
 #include <lualib.h>
 #include <lws_module.h>
@@ -28,21 +27,21 @@ static void *lws_lua_alloc_unchecked (void *ud, void *ptr, size_t osize, size_t 
 }
 
 static void *lws_lua_alloc_checked (void *ud, void *ptr, size_t osize, size_t nsize) {
-	size_t  used_memory;
+	size_t  memory_used;
 
 	lws_state_t *state = ud;
 	if (nsize == 0) {
 		free(ptr);
-		state->used_memory -= osize;
+		state->memory_used -= osize;
 		return NULL;
 	}
-	used_memory = state->used_memory - osize + nsize;
-	if (used_memory > state->max_memory) {
+	memory_used = state->memory_used - osize + nsize;
+	if (memory_used > state->memory_max) {
 		return NULL;
 	}
 	ptr = realloc(ptr, nsize);
 	if (ptr) {
-		state->used_memory = used_memory;
+		state->memory_used = memory_used;
 	}
 	return ptr;
 }
@@ -94,13 +93,13 @@ static int lws_lua_init (lua_State *L) {
 static void lws_set_state_timer (lws_state_t *state) {
 	ngx_msec_t  next;
 
-	if (state->max_time == NGX_TIMER_INFINITE && state->timeout == NGX_TIMER_INFINITE) {
+	if (state->time_max == NGX_TIMER_INFINITE && state->timeout == NGX_TIMER_INFINITE) {
 		return;
 	}
 	if (state->tev.timer_set) {
 		ngx_del_timer(&state->tev);
 	}
-	next = state->timeout < state->max_time ? state->timeout : state->max_time;
+	next = state->timeout < state->time_max ? state->timeout : state->time_max;
 	ngx_add_timer(&state->tev, next - ngx_current_msec);
 }
 
@@ -133,8 +132,8 @@ lws_state_t *lws_create_state (lws_request_ctx_t *ctx) {
 	state->llcf = llcf;
 
 	/* create Lua state */
-	if (llcf->max_memory > 0) {
-		state->max_memory = llcf->max_memory;
+	if (llcf->memory_max > 0) {
+		state->memory_max = llcf->memory_max;
 		state->L = lua_newstate(lws_lua_alloc_checked, state);
 	} else {
 		state->L = lua_newstate(lws_lua_alloc_unchecked, NULL);
@@ -160,10 +159,10 @@ lws_state_t *lws_create_state (lws_request_ctx_t *ctx) {
 	lua_pushcfunction(state->L, lws_lua_traceback);
 
 	/* set timer */
-	if (llcf->max_time) {
-		state->max_time = ngx_current_msec + llcf->max_time;
+	if (llcf->time_max) {
+		state->time_max = ngx_current_msec + llcf->time_max;
 	} else {
-		state->max_time = NGX_TIMER_INFINITE;
+		state->time_max = NGX_TIMER_INFINITE;
 	}
 	state->timeout = NGX_TIMER_INFINITE;
 	state->tev.data = state;
@@ -205,22 +204,22 @@ lws_state_t *lws_get_state (lws_request_ctx_t *ctx) {
 }
 
 void lws_put_state (lws_request_ctx_t *ctx, lws_state_t *state) {
-	size_t           used_memory;
+	size_t           memory_used;
 	lws_loc_conf_t  *llcf;
 
 	llcf = ngx_http_get_module_loc_conf(ctx->r, lws);
-	state->requests++;
-	if (state->close || state->tev.timedout || (llcf->max_requests > 0
-			&& state->requests >= llcf->max_requests)) {
+	state->requests_n++;
+	if (state->close || state->tev.timedout || (llcf->requests_max > 0
+			&& state->requests_n >= llcf->requests_max)) {
 		lws_close_state(state, ctx->r->connection->log);
 		return;
 	}
 	if (llcf->gc > 0) {
-		used_memory = lua_gc(state->L, LUA_GCCOUNT, 0) * 1024;
-		if (used_memory > llcf->gc) {
+		memory_used = lua_gc(state->L, LUA_GCCOUNT, 0) * 1024;
+		if (memory_used > llcf->gc) {
 			lua_gc(state->L, LUA_GCCOLLECT, 0);
 			ngx_log_debug3(NGX_LOG_DEBUG_HTTP, ctx->r->connection->log, 0,
-				"[LWS] GC L:%p before:%z after:%z", state->L, used_memory,
+				"[LWS] GC L:%p before:%z after:%z", state->L, memory_used,
 				(size_t)lua_gc(state->L, LUA_GCCOUNT, 0) * 1024);
 		}
 	}
