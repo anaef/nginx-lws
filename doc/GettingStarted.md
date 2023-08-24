@@ -56,6 +56,8 @@ per request, before the main Lua chunk.
 - `lws_path`, which sets the Lua path where Lua searches for packages. Due to the `+` sign, the
 set path is appended to the default Lua path.
 
+Please refer to the [directives](Directives.md) documentation for more information.
+
 
 ## Enabling the Examples Website
 

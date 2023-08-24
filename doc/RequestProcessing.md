@@ -8,8 +8,8 @@ a post chunk.
 
 ## Init Lua Chunk
 
-The init Lua chunk is run only once per Lua state. It provides the opportunity to initialize a Lua
-state and set up shared resources for requests, such as database connections.
+The init Lua chunk is run only once per Lua state. This optional chunk provides the opportunity
+to initialize a Lua state and set up shared resources for requests, such as database connections.
 
 The init Lua chunk runs with the *global* environment of the Lua state.
 

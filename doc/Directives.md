@@ -3,7 +3,7 @@
 This document describes the NGINX directives provided by lws-nginx.
 
 
-## lws *main* [, *path_info*]
+## lws *main* [*path_info*]
 
 Context: location
 
@@ -34,14 +34,14 @@ Sets the filename of an init Lua chunk. This chunk initializes Lua states at the
 
 Context: server, location
 
-Sets the filename of a pre Lua chunk. This chunk is run before each request at the location.
+Sets the filename of a pre Lua chunk. This chunk is run before main chunks at the location.
 
 
 ## lws_post *post*
 
 Context: server, location
 
-Sets the filename of a post Lua chunk. This chunk is run after each request at the location.
+Sets the filename of a post Lua chunk. This chunk is run after main chunks at the location.
 
 
 ## lws_path *path*
@@ -69,8 +69,9 @@ Sets the maximum number of Lua states per worker process and location. If more c
 arrive than *max_states*, the requests are queued until a Lua state becomes available. A value of
 `0` disables this logic. The default value for *max_states* is `0`. The queue accepts up to
 *max_queue* requests. A 503 Service Unavailable status is returned if the queue overflows. A value
-of `0` disables this logic. The default value for *max_queue* is `0`. You can use the `k` and `m`
-suffixes with *max_states* and *max_queue* to set multiples of 1024 or 1024², respectively.
+of `0` disables this logic, making the queue unrestricted. The default value for *max_queue* is
+`0`. You can use the `k` and `m` suffixes with *max_states* and *max_queue* to set multiples of
+1024 or 1024², respectively.
 
 
 ## lws_max_memory *max_memory*
@@ -78,9 +79,9 @@ suffixes with *max_states* and *max_queue* to set multiples of 1024 or 1024², r
 Context: server, location
 
 Sets the maximum memory of a Lua state. If the memory allocated by a Lua state exceeds
-*max_memory* bytes, a Lua memory error is generated. A value of `0` disables this
-logic. The default value for *max_memory* is `0`. You can use the `k` and `m` suffixes with
-*max_memory* to set kilobytes or megabytes, respectively.
+*max_memory* bytes, a Lua memory error is generated. A value of `0` disables this logic. The
+default value for *max_memory* is `0`. You can use the `k` and `m` suffixes with *max_memory* to
+set kilobytes or megabytes, respectively.
 
 
 ## lws_max_requests *max_requests*
