@@ -37,6 +37,7 @@ static int lws_lua_log(lua_State *L);
 static int lws_lua_getvariable(lua_State *L);
 static int lws_lua_redirect(lua_State *L);
 static int lws_lua_setcomplete(lua_State *L);
+static int lws_lua_setclose(lua_State *L);
 static int lws_lua_parseargs(lua_State *L);
 
 static void lws_lua_push_env(lws_request_ctx_t *ctx);
@@ -411,6 +412,14 @@ static int lws_lua_setcomplete (lua_State *L) {
 	return 0;
 }
 
+static int lws_lua_setclose (lua_State *L) {
+	lws_lua_request_ctx_t  *lctx;
+
+	lctx = lws_lua_get_request_ctx(L);
+	lctx->ctx->state->close = 1;
+	return 0;
+}
+
 static int lws_lua_parseargs (lua_State *L) {
 	int          nrec, state;
 	size_t       n;
@@ -483,6 +492,7 @@ static luaL_Reg lws_lua_functions[] = {
 	{ "getvariable", lws_lua_getvariable },
 	{ "redirect", lws_lua_redirect },
 	{ "setcomplete", lws_lua_setcomplete },
+	{ "setclose", lws_lua_setclose },
 	{ "parseargs", lws_lua_parseargs },
 	{ NULL, NULL }
 };

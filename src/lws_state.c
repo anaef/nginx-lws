@@ -246,8 +246,9 @@ int lws_run_state (lws_request_ctx_t *ctx) {
 	if (lua_pcall(L, 1, 1, 1) == LUA_OK) {
 		result = lua_tointeger(L, -1);
 	} else {
-		/* set error result */
+		/* set error result, mark for close */
 		result = -1;
+		ctx->state->close = 1;
 
 		/* log error */
 		log = ctx->r->connection->log;

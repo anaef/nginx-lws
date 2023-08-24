@@ -798,9 +798,6 @@ static void lws_handler_completion (ngx_event_t *ev) {
 	ctx = ev->data;
 
 	/* put state */
-	if (ctx->rc < 0) {
-		ctx->state->close = 1;
-	}
 	lws_put_state(ctx, ctx->state);
 
 	/* check for queued requests */

@@ -36,6 +36,11 @@ to proceed directly to the post chunk, skipping the main chunk. A Lua chunk shou
 marking the request as complete.
 
 
+## setclose()
+
+Marks the Lua state to be closed. When the request completes, the Lua state is closed.
+
+
 ## parseargs(args)
 
 Parses the request query parameters in *args* and returns them as a table. For repeated keys,
