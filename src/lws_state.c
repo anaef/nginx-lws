@@ -193,6 +193,10 @@ lws_state_t *lws_get_state (lws_request_ctx_t *ctx) {
 		q = ngx_queue_head(&llcf->states);
 		ngx_queue_remove(q);
 		state = ngx_queue_data(q, lws_state_t, queue);
+		if (llcf->timeout > 0) {
+			state->timeout = NGX_TIMER_INFINITE;
+			lws_set_state_timer(state);
+		}
 	} else {
 		state = lws_create_state(ctx);
 		if (!state) {
