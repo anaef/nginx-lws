@@ -47,7 +47,7 @@ struct lws_table_entry_s {
 };
 
 
-lws_table_t *lws_table_create(size_t alloc);
+lws_table_t *lws_table_create(size_t load);
 void lws_table_free(lws_table_t *t);
 void lws_table_clear(lws_table_t *t);
 int lws_table_set_dup(lws_table_t *t, int dup);

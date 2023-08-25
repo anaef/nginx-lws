@@ -36,13 +36,15 @@ static size_t lws_table_sizes[] = {
 static int lws_table_sizes_n = 112;
 
 
-lws_table_t *lws_table_create (size_t alloc) {
+lws_table_t *lws_table_create (size_t load) {
+	size_t        alloc;
 	lws_table_t  *t;
 
 	t = ngx_calloc(sizeof(lws_table_t), ngx_cycle->log);
 	if (!t) {
 		return NULL;
 	}
+	alloc = load + (load < lws_table_sizes[lws_table_sizes_n - 1] ? load / 7 + 3 : 0);
 	if ((t->alloc = lws_table_size(t, alloc)) == (size_t)-1) {
 		ngx_free(t);
 		return NULL;
@@ -345,6 +347,10 @@ static lws_table_entry_t *lws_table_find (lws_table_t *t, ngx_str_t *key, ngx_ui
 }
 
 static lws_table_entry_t *lws_table_insert (lws_table_t *t, ngx_str_t *key, ngx_uint_t hash) {
+	/*
+	 * Brent's variation.
+	 * Source: https://maths-people.anu.edu.au/~brent/pd/rpb013.pdf
+	 */
 	size_t              h, q, len, l, q_m, h_m, l_m, entry_m_l;
 	lws_table_entry_t  *entry, *entry_m, *entry_m_old, *entry_m_new;
 
