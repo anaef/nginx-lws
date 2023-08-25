@@ -215,12 +215,21 @@ void lws_put_state (lws_request_ctx_t *ctx, lws_state_t *state) {
 		return;
 	}
 	if (llcf->gc > 0) {
-		memory_used = lua_gc(state->L, LUA_GCCOUNT, 0) * 1024;
+		if (llcf->memory_max) {
+			memory_used = state->memory_used;
+		} else {
+			memory_used = lua_gc(state->L, LUA_GCCOUNT, 0) * 1024
+					+ lua_gc(state->L, LUA_GCCOUNTB, 0);
+		}
 		if (memory_used > llcf->gc) {
 			lua_gc(state->L, LUA_GCCOLLECT, 0);
+			if (!llcf->memory_max) {
+				state->memory_used = lua_gc(state->L, LUA_GCCOUNT, 0) * 1024
+						+ lua_gc(state->L, LUA_GCCOUNTB, 0);
+			}
 			ngx_log_debug3(NGX_LOG_DEBUG_HTTP, ctx->r->connection->log, 0,
 				"[LWS] GC L:%p before:%z after:%z", state->L, memory_used,
-				(size_t)lua_gc(state->L, LUA_GCCOUNT, 0) * 1024);
+				state->memory_used);
 		}
 	}
 	if (llcf->timeout > 0) {
