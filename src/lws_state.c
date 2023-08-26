@@ -93,14 +93,13 @@ static int lws_lua_init (lua_State *L) {
 static void lws_set_state_timer (lws_state_t *state) {
 	ngx_msec_t  next;
 
-	if (state->time_max == NGX_TIMER_INFINITE && state->timeout == NGX_TIMER_INFINITE) {
-		return;
-	}
 	if (state->tev.timer_set) {
 		ngx_del_timer(&state->tev);
 	}
-	next = state->timeout < state->time_max ? state->timeout : state->time_max;
-	ngx_add_timer(&state->tev, next - ngx_current_msec);
+	if (state->time_max != NGX_TIMER_INFINITE || state->timeout != NGX_TIMER_INFINITE) {
+		next = state->timeout < state->time_max ? state->timeout : state->time_max;
+		ngx_add_timer(&state->tev, next - ngx_current_msec);
+	}
 }
 
 static void lws_state_timer_handler (ngx_event_t *ev) {
