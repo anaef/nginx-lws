@@ -4,16 +4,16 @@
 		<title>LWS Examples</title>
 		<link rel="stylesheet" href="/css/style.css">
 	</head>
+	<body>
+		<h1>Form Post</h1>
+		<form action="/services/args" method="post">
+			<div class="row">
+				<label for="name">Name</label>
+				<input type="text" id="name" name="name" placeholder="What's your name?">
+			</div>
+			<div class="row">
+				<button type="submit" name="submit" value="sent">Send</button>
+			</div>
+		</form>
+	</body>
 </html>
-<body>
-	<h1>Form Post</h1>
-	<form action="/services/args" method="post">
-		<div class="row">
-			<label for="name">Name</label>
-			<input type="text" id="name" name="name" placeholder="What's your name?">
-		</div>
-		<div class="row">
-			<button type="submit" name="submit" value="sent">Send</button>
-		</div>
-	</form>
-</body>
