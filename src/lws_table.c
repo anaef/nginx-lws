@@ -186,7 +186,6 @@ int lws_table_set (lws_table_t *t, ngx_str_t *key, void *value) {
 
 			/* new entry */
 			entry = lws_table_insert(t, key, hash);
-			ngx_queue_insert_tail(&t->order, &entry->order);
 			if (t->dup) {
 				entry->key.data = ngx_alloc(key->len, ngx_cycle->log);
 				if (!entry->key.data) {
@@ -200,6 +199,7 @@ int lws_table_set (lws_table_t *t, ngx_str_t *key, void *value) {
 			entry->value = value;
 			entry->hash = hash;
 			entry->state = LWS_TES_SET;
+			ngx_queue_insert_tail(&t->order, &entry->order);
 			t->count++;
 		}
 		if (t->timed) {
