@@ -222,9 +222,15 @@ void lws_put_state (lws_request_ctx_t *ctx, lws_state_t *state) {
 	lws_loc_conf_t   *llcf;
 	lws_main_conf_t  *lmcf;
 
+	/* count request */
+	state->request_count++;
+	lmcf = ngx_http_get_module_main_conf(ctx->r, lws);
+	if (lmcf->monitor) {
+		ngx_atomic_fetch_add(&lmcf->monitor->request_count, 1);
+	}
+
 	/* close state? */
 	llcf = ngx_http_get_module_loc_conf(ctx->r, lws);
-	state->request_count++;
 	if (state->close || state->tev.timedout || (llcf->state_requests_max > 0
 			&& state->request_count >= llcf->state_requests_max)) {
 		lws_close_state(state, ctx->r->connection->log);
@@ -250,7 +256,6 @@ void lws_put_state (lws_request_ctx_t *ctx, lws_state_t *state) {
 				"[LWS] GC L:%p before:%z after:%z", state->L, memory_used,
 				state->memory_used);
 	}
-	lmcf = ngx_http_get_module_main_conf(ctx->r, lws);
 	if (lmcf->monitor) {
 		ngx_atomic_fetch_add(&lmcf->monitor->memory_used, state->memory_used
 				- state->memory_monitor);
