@@ -162,6 +162,14 @@ static ngx_command_t lws_commands[] = {
 		lws_error_responses
 	},
 	{
+		ngx_string("lws_monitor"),
+		NGX_HTTP_LOC_CONF | NGX_CONF_NOARGS,
+		lws_monitor,
+		NGX_HTTP_LOC_CONF_OFFSET,
+		offsetof(lws_loc_conf_t, monitor),
+		NULL,
+	},
+	{
 		ngx_string("lws_thread_pool"),
 		NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1,
 		ngx_conf_set_str_slot,
@@ -386,6 +394,9 @@ static char *lws_conf_set_lws (ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
 	llcf = conf;
 	if (llcf->main) {
 		return "is duplicate";
+	}
+	if (llcf->monitor) {
+		return "is exclusive with lws_monitor directive";
 	}
 	llcf->main = ngx_palloc(cf->pool, sizeof(ngx_http_complex_value_t));
 	if (!llcf->main) {

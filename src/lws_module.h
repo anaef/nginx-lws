@@ -23,6 +23,7 @@ typedef struct lws_variable_s lws_variable_t;
 #include <lws_table.h>
 #include <lws_http.h>
 #include <lws_lib.h>
+#include <lws_monitor.h>
 #include <lws_state.h>
 
 
@@ -32,6 +33,9 @@ struct lws_main_conf_s {
 	lws_table_t        *stat_cache;          /* timed file stat cache to reduce syscalls */
 	size_t              stat_cache_cap;      /* cap of stat cache; 0 = disabled */
 	time_t              stat_cache_timeout;  /* timeout of stat cache */
+	ngx_shm_zone_t     *monitor_shm;         /* monitor shared memory zone */
+	ngx_slab_pool_t    *monitor_pool;        /* monitor slab allocator */
+	lws_monitor_t      *monitor;             /* monitor */
 };
 
 struct lws_loc_conf_s {
@@ -51,6 +55,7 @@ struct lws_loc_conf_s {
 	size_t                     gc;              /* Lua state explicit gc threshold; 0 = never */
 	ngx_uint_t                 error_response;  /* error response [json, html] */
 	ngx_flag_t                 diagnostic;      /* include diagnostic w/ error response */
+	ngx_flag_t                 monitor;         /* monitor enabled */
 	ngx_array_t                variables;       /* variables */
 	ngx_uint_t                 states_n;        /* number of Lua states (active + inactive) */
 	ngx_queue_t                states;          /* inactive Lua states */

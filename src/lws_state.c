@@ -115,10 +115,11 @@ static void lws_state_timer_handler (ngx_event_t *ev) {
 }
 
 lws_state_t *lws_create_state (lws_request_ctx_t *ctx) {
-	ngx_log_t       *log;
-	ngx_str_t        msg;
-	lws_state_t     *state;
-	lws_loc_conf_t  *llcf;
+	ngx_log_t        *log;
+	ngx_str_t         msg;
+	lws_state_t      *state;
+	lws_loc_conf_t   *llcf;
+	lws_main_conf_t  *lmcf;
 
 	/* create state */
 	log = ctx->r->connection->log;
@@ -171,12 +172,22 @@ lws_state_t *lws_create_state (lws_request_ctx_t *ctx) {
 
 	/* done */
 	llcf->states_n++;
+	lmcf = ngx_http_get_module_main_conf(ctx->r, lws);
+	if (lmcf->monitor) {
+		ngx_atomic_fetch_add(&lmcf->monitor->states_n, 1);
+	}
 	ngx_log_error(NGX_LOG_INFO, log, 0, "[LWS] %s state created L:%p", LUA_VERSION, state->L);
 	return state;
 }
 
 void lws_close_state (lws_state_t *state, ngx_log_t *log) {
+	lws_main_conf_t  *lmcf;
+
 	state->llcf->states_n--;
+	lmcf = ngx_http_cycle_get_module_main_conf(ngx_cycle, lws);
+	if (lmcf->monitor) {
+		ngx_atomic_fetch_add(&lmcf->monitor->states_n, -1);
+	}
 	lua_close(state->L);
 	ngx_log_error(NGX_LOG_INFO, log, 0, "[LWS] %s state closed L:%p", LUA_VERSION, state->L);
 	ngx_free(state);
