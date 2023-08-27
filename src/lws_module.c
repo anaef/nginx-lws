@@ -12,14 +12,14 @@
 static void *lws_create_main_conf(ngx_conf_t *cf);
 static char *lws_init_main_conf(ngx_conf_t *cf, void *main);
 static void lws_cleanup_main_conf(void *data);
-static char *lws_conf_set_stat_cache(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
+static char *lws_stat_cache(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 static void *lws_create_loc_conf(ngx_conf_t *cf);
 static char *lws_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child);
 static void lws_cleanup_loc_conf(void *data);
-static char *lws_conf_set_lws(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
-static char *lws_conf_set_max_states(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
-static char *lws_conf_set_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
-static char *lws_conf_set_error_response(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
+static char *lws_lws(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
+static char *lws_max_states(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
+static char *lws_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
+static char *lws_error_response(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 
 static lws_file_status_e lws_get_file_status(ngx_http_request_t *t, ngx_str_t *filename);
 static int lws_set_header(lws_table_t *t, ngx_http_request_t *r, ngx_table_elt_t *header);
@@ -50,9 +50,25 @@ static ngx_conf_enum_t lws_error_responses[] = {
 
 static ngx_command_t lws_commands[] = {
 	{
+		ngx_string("lws_thread_pool"),
+		NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1,
+		ngx_conf_set_str_slot,
+		NGX_HTTP_MAIN_CONF_OFFSET,
+		offsetof(lws_main_conf_t, thread_pool_name),
+		NULL
+	},
+	{
+		ngx_string("lws_stat_cache"),
+		NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE2,
+		lws_stat_cache,
+		NGX_HTTP_MAIN_CONF_OFFSET,
+		offsetof(lws_main_conf_t, stat_cache_cap),
+		NULL
+	},
+	{
 		ngx_string("lws"),
 		NGX_HTTP_LOC_CONF | NGX_CONF_TAKE12,
-		lws_conf_set_lws,
+		lws_lws,
 		NGX_HTTP_LOC_CONF_OFFSET,
 		offsetof(lws_loc_conf_t, main),
 		NULL
@@ -100,7 +116,7 @@ static ngx_command_t lws_commands[] = {
 	{
 		ngx_string("lws_max_states"),
 		NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE12,
-		lws_conf_set_max_states,
+		lws_max_states,
 		NGX_HTTP_LOC_CONF_OFFSET,
 		offsetof(lws_loc_conf_t, states_max),
 		NULL
@@ -110,7 +126,7 @@ static ngx_command_t lws_commands[] = {
 		NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 		ngx_conf_set_size_slot,
 		NGX_HTTP_LOC_CONF_OFFSET,
-		offsetof(lws_loc_conf_t, memory_max),
+		offsetof(lws_loc_conf_t, state_memory_max),
 		NULL
 	},
 	{
@@ -118,7 +134,7 @@ static ngx_command_t lws_commands[] = {
 		NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 		ngx_conf_set_num_slot,
 		NGX_HTTP_LOC_CONF_OFFSET,
-		offsetof(lws_loc_conf_t, requests_max),
+		offsetof(lws_loc_conf_t, state_requests_max),
 		NULL
 	},
 	{
@@ -126,7 +142,7 @@ static ngx_command_t lws_commands[] = {
 		NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 		ngx_conf_set_msec_slot,
 		NGX_HTTP_LOC_CONF_OFFSET,
-		offsetof(lws_loc_conf_t, time_max),
+		offsetof(lws_loc_conf_t, state_time_max),
 		NULL
 	},
 	{
@@ -134,7 +150,7 @@ static ngx_command_t lws_commands[] = {
 		NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 		ngx_conf_set_msec_slot,
 		NGX_HTTP_LOC_CONF_OFFSET,
-		offsetof(lws_loc_conf_t, timeout),
+		offsetof(lws_loc_conf_t, state_timeout),
 		NULL
 	},
 	{
@@ -142,13 +158,13 @@ static ngx_command_t lws_commands[] = {
 		NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 		ngx_conf_set_size_slot,
 		NGX_HTTP_LOC_CONF_OFFSET,
-		offsetof(lws_loc_conf_t, gc),
+		offsetof(lws_loc_conf_t, state_gc),
 		NULL
 	},
 	{
 		ngx_string("lws_variable"),
 		NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
-		lws_conf_set_variable,
+		lws_variable,
 		NGX_HTTP_LOC_CONF_OFFSET,
 		offsetof(lws_loc_conf_t, variables),
 		NULL
@@ -156,7 +172,7 @@ static ngx_command_t lws_commands[] = {
 	{
 		ngx_string("lws_error_response"),
 		NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE12,
-		lws_conf_set_error_response,
+		lws_error_response,
 		NGX_HTTP_LOC_CONF_OFFSET,
 		offsetof(lws_loc_conf_t, error_response),
 		lws_error_responses
@@ -168,22 +184,6 @@ static ngx_command_t lws_commands[] = {
 		NGX_HTTP_LOC_CONF_OFFSET,
 		offsetof(lws_loc_conf_t, monitor),
 		NULL,
-	},
-	{
-		ngx_string("lws_thread_pool"),
-		NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1,
-		ngx_conf_set_str_slot,
-		NGX_HTTP_MAIN_CONF_OFFSET,
-		offsetof(lws_main_conf_t, thread_pool_name),
-		NULL
-	},
-	{
-		ngx_string("lws_stat_cache"),
-		NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE2,
-		lws_conf_set_stat_cache,
-		NGX_HTTP_MAIN_CONF_OFFSET,
-		offsetof(lws_main_conf_t, stat_cache_cap),
-		NULL
 	},
 	ngx_null_command
 };
@@ -280,7 +280,7 @@ static void lws_cleanup_main_conf (void *data) {
 	}
 }
 
-static char *lws_conf_set_stat_cache (ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
+static char *lws_stat_cache (ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
 	ngx_str_t        *values;
 	lws_main_conf_t  *lmcf;
 
@@ -291,11 +291,11 @@ static char *lws_conf_set_stat_cache (ngx_conf_t *cf, ngx_command_t *cmd, void *
 	}
 	lmcf->stat_cache_cap = ngx_parse_size(&values[1]);
 	if (lmcf->stat_cache_cap == (size_t)NGX_ERROR) {
-		return "has invalid size value";
+		return "has invalid cap value";
 	}
 	lmcf->stat_cache_timeout = ngx_parse_time(&values[2], 1);
 	if (lmcf->stat_cache_timeout == (time_t)NGX_ERROR) {
-		return "has invalid time value";
+		return "has invalid timeout value";
 	}
 	return NGX_CONF_OK;
 }
@@ -310,12 +310,12 @@ static void *lws_create_loc_conf (ngx_conf_t *cf) {
 		return NULL;
 	}
 	llcf->states_max = NGX_CONF_UNSET_SIZE;
-	llcf->queue_max = NGX_CONF_UNSET_SIZE;
-	llcf->memory_max = NGX_CONF_UNSET_SIZE;
-	llcf->requests_max = NGX_CONF_UNSET;
-	llcf->time_max = NGX_CONF_UNSET_MSEC;
-	llcf->timeout = NGX_CONF_UNSET_MSEC;
-	llcf->gc = NGX_CONF_UNSET_SIZE;
+	llcf->requests_max = NGX_CONF_UNSET_SIZE;
+	llcf->state_memory_max = NGX_CONF_UNSET_SIZE;
+	llcf->state_requests_max = NGX_CONF_UNSET;
+	llcf->state_time_max = NGX_CONF_UNSET_MSEC;
+	llcf->state_timeout = NGX_CONF_UNSET_MSEC;
+	llcf->state_gc = NGX_CONF_UNSET_SIZE;
 	llcf->error_response = NGX_CONF_UNSET_UINT;
 	llcf->diagnostic = NGX_CONF_UNSET;
 	if (ngx_array_init(&llcf->variables, cf->pool, 4, sizeof(lws_variable_t)) != NGX_OK) {
@@ -351,12 +351,12 @@ static char *lws_merge_loc_conf (ngx_conf_t *cf, void *parent, void *child) {
 	ngx_conf_merge_str_value(conf->path, prev->path, "");
 	ngx_conf_merge_str_value(conf->cpath, prev->cpath, "");
 	ngx_conf_merge_size_value(conf->states_max, prev->states_max, 0);
-	ngx_conf_merge_size_value(conf->queue_max, prev->queue_max, 0);
-	ngx_conf_merge_size_value(conf->memory_max, prev->memory_max, 0);
-	ngx_conf_merge_value(conf->requests_max, prev->requests_max, 0);
-	ngx_conf_merge_msec_value(conf->time_max, prev->time_max, 0);
-	ngx_conf_merge_msec_value(conf->timeout, prev->timeout, 0);
-	ngx_conf_merge_size_value(conf->gc, prev->gc, 0);
+	ngx_conf_merge_size_value(conf->requests_max, prev->requests_max, 0);
+	ngx_conf_merge_size_value(conf->state_memory_max, prev->state_memory_max, 0);
+	ngx_conf_merge_value(conf->state_requests_max, prev->state_requests_max, 0);
+	ngx_conf_merge_msec_value(conf->state_time_max, prev->state_time_max, 0);
+	ngx_conf_merge_msec_value(conf->state_timeout, prev->state_timeout, 0);
+	ngx_conf_merge_size_value(conf->state_gc, prev->state_gc, 0);
 	if (!ngx_array_push_n(&conf->variables, prev->variables.nelts)) {
 		return NGX_CONF_ERROR;
 	}
@@ -384,7 +384,7 @@ static void lws_cleanup_loc_conf (void *data) {
 	}
 }
 
-static char *lws_conf_set_lws (ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
+static char *lws_lws (ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
 	ngx_str_t                        *values;
 	lws_loc_conf_t                   *llcf;
 	ngx_http_core_loc_conf_t         *clcf;
@@ -433,7 +433,7 @@ static char *lws_conf_set_lws (ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
 	return NGX_CONF_OK;
 }
 
-static char *lws_conf_set_max_states (ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
+static char *lws_max_states (ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
 	ngx_str_t       *values;
 	lws_loc_conf_t  *llcf;
 
@@ -443,17 +443,17 @@ static char *lws_conf_set_max_states (ngx_conf_t *cf, ngx_command_t *cmd, void *
 		return "is duplicate";
 	}
 	if ((llcf->states_max = ngx_parse_size(&values[1])) == (size_t)NGX_ERROR) {
-		return "has invalid states value";
+		return "has invalid max_states value";
 	}
 	if (cf->args->nelts >= 3) {
-		if ((llcf->queue_max = ngx_parse_size(&values[2])) == (size_t)NGX_ERROR) {
-			return "has invalid queue value";
+		if ((llcf->requests_max = ngx_parse_size(&values[2])) == (size_t)NGX_ERROR) {
+			return "has invalid max_requests value";
 		}
 	}
 	return NGX_CONF_OK;
 }
 
-static char *lws_conf_set_variable (ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
+static char *lws_variable (ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
 	ngx_str_t       *values;
 	ngx_int_t        index;
 	lws_loc_conf_t  *llcf;
@@ -477,7 +477,7 @@ static char *lws_conf_set_variable (ngx_conf_t *cf, ngx_command_t *cmd, void *co
 	return NGX_CONF_OK;
 }
 
-static char *lws_conf_set_error_response (ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
+static char *lws_error_response (ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
 	char            *result;
 	ngx_str_t       *values;
 	ngx_uint_t       i;
@@ -711,14 +711,14 @@ static void lws_handler_continuation (ngx_http_request_t *r) {
 	if (!ngx_queue_empty(&llcf->states) || llcf->states_max == 0
 			|| llcf->states_n < llcf->states_max) {
 		lws_handler_state(ctx);
-	} else if (llcf->queue_max == 0 || llcf->requests_n < llcf->queue_max) {
+	} else if (llcf->requests_max == 0 || llcf->requests_n < llcf->requests_max) {
 		llcf->requests_n++;
-		ngx_log_debug2(NGX_LOG_DEBUG_HTTP, log, 0, "[LWS] request queued max:%z n:%z",
-				llcf->queue_max, llcf->requests_n);
+		ngx_log_debug2(NGX_LOG_DEBUG_HTTP, log, 0, "[LWS] request queued n:%z max:%z",
+				llcf->requests_n, llcf->requests_max);
 		ngx_queue_insert_tail(&llcf->requests, &ctx->queue);
 	} else {
-		ngx_log_error(NGX_LOG_ERR, log, 0, "[LWS] request queue overflow max:%z n:%z",
-				llcf->queue_max, llcf->requests_n);
+		ngx_log_error(NGX_LOG_ERR, log, 0, "[LWS] request queue overflow n:%z max:%z",
+				llcf->requests_n, llcf->requests_max);
 		ngx_http_finalize_request(r, NGX_HTTP_SERVICE_UNAVAILABLE);
 	}
 }

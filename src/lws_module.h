@@ -39,28 +39,28 @@ struct lws_main_conf_s {
 };
 
 struct lws_loc_conf_s {
-	ngx_http_complex_value_t  *main;            /* filename of main chunk */
-	ngx_http_complex_value_t  *path_info;       /* sub-path arguments */
-	ngx_str_t                  init;            /* filename of init chunk (run once) */
-	ngx_str_t                  pre;             /* filename of pre chunk */
-	ngx_str_t                  post;            /* filename of post chunk */
-	ngx_str_t                  path;            /* Lua path */
-	ngx_str_t                  cpath;           /* Lua C path */
-	size_t                     states_max;      /* maximum Lua states; 0 = unrestricted */
-	size_t                     queue_max;       /* maximum queued requests; 0 = unrestricted */
-	size_t                     memory_max;      /* maximum Lua state memory; 0 = unrestricted */
-	ngx_int_t                  requests_max;    /* maximum Lua state requests; 0 = unlimitted */
-	ngx_msec_t                 time_max;        /* maximum Lua state lifetime; 0 = unlimited */
-	ngx_msec_t                 timeout;         /* Lua state idle timeout; 0 = unlimited */
-	size_t                     gc;              /* Lua state explicit gc threshold; 0 = never */
-	ngx_uint_t                 error_response;  /* error response [json, html] */
-	ngx_flag_t                 diagnostic;      /* include diagnostic w/ error response */
-	ngx_flag_t                 monitor;         /* monitor enabled */
-	ngx_array_t                variables;       /* variables */
-	ngx_uint_t                 states_n;        /* number of Lua states (active + inactive) */
-	ngx_queue_t                states;          /* inactive Lua states */
-	ngx_uint_t                 requests_n;      /* number of queued requests */
-	ngx_queue_t                requests;        /* queued requests */
+	ngx_http_complex_value_t  *main;       /* filename of main chunk */
+	ngx_http_complex_value_t  *path_info;  /* sub-path arguments */
+	ngx_str_t    init;                     /* filename of init chunk (run once) */
+	ngx_str_t    pre;                      /* filename of pre chunk */
+	ngx_str_t    post;                     /* filename of post chunk */
+	ngx_str_t    path;                     /* Lua path */
+	ngx_str_t    cpath;                    /* Lua C path */
+	size_t       states_max;               /* maximum Lua states; 0 = unrestricted */
+	size_t       requests_max;             /* maximum queued requests; 0 = unrestricted */
+	size_t       state_memory_max;         /* maximum Lua state memory; 0 = unrestricted */
+	ngx_int_t    state_requests_max;       /* maximum Lua state requests; 0 = unlimitted */
+	ngx_msec_t   state_time_max;           /* maximum Lua state lifetime; 0 = unlimited */
+	ngx_msec_t   state_timeout;            /* Lua state idle timeout; 0 = unlimited */
+	size_t       state_gc;                 /* Lua state explicit GC threshold; 0 = never */
+	ngx_uint_t   error_response;           /* error response [json, html] */
+	ngx_flag_t   diagnostic;               /* include diagnostic w/ error response */
+	ngx_flag_t   monitor;                  /* monitor enabled */
+	ngx_array_t  variables;                /* variables */
+	ngx_uint_t   states_n;                 /* number of Lua states (active + inactive) */
+	ngx_queue_t  states;                   /* inactive Lua states */
+	ngx_uint_t   requests_n;               /* number of queued requests */
+	ngx_queue_t  requests;                 /* queued requests */
 };
 
 struct lws_request_ctx_s {
