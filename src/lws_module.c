@@ -684,6 +684,7 @@ static ngx_int_t lws_handler (ngx_http_request_t *r) {
 static void lws_handler_continuation (ngx_http_request_t *r) {
 	ngx_log_t          *log;
 	lws_loc_conf_t     *llcf;
+	lws_main_conf_t    *lmcf;
 	lws_request_ctx_t  *ctx;
 
 	/* prepare request body */
@@ -713,6 +714,10 @@ static void lws_handler_continuation (ngx_http_request_t *r) {
 		lws_handler_state(ctx);
 	} else if (llcf->requests_max == 0 || llcf->requests_n < llcf->requests_max) {
 		llcf->requests_n++;
+		lmcf = ngx_http_get_module_main_conf(r, lws);
+		if (lmcf->monitor) {
+			ngx_atomic_fetch_add(&lmcf->monitor->requests_n, 1);
+		}
 		ngx_log_debug2(NGX_LOG_DEBUG_HTTP, log, 0, "[LWS] request queued n:%z max:%z",
 				llcf->requests_n, llcf->requests_max);
 		ngx_queue_insert_tail(&llcf->requests, &ctx->queue);
@@ -801,6 +806,7 @@ static void lws_handler_completion (ngx_event_t *ev) {
 	ngx_queue_t         *q;
 	ngx_chain_t         *out;
 	lws_loc_conf_t      *llcf;
+	lws_main_conf_t     *lmcf;
 	ngx_table_elt_t     *h;
 	lws_request_ctx_t   *ctx, *ctx_next;
 	ngx_http_request_t  *r;
@@ -818,6 +824,10 @@ static void lws_handler_completion (ngx_event_t *ev) {
 		q = ngx_queue_head(&llcf->requests);
 		ngx_queue_remove(q);
 		llcf->requests_n--;
+		lmcf = ngx_http_get_module_main_conf(r, lws);
+		if (lmcf->monitor) {
+			ngx_atomic_fetch_add(&lmcf->monitor->requests_n, -1);
+		}
 		ctx_next = ngx_queue_data(q, lws_request_ctx_t, queue);
 		lws_handler_state(ctx_next);
 	}
