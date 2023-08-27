@@ -24,6 +24,7 @@ struct lws_state_s {
 	lua_State       *L;               /* Lua state */
 	size_t           memory_used;     /* used memory */
 	size_t           memory_max;      /* maximum memory */
+	size_t           memory_monitor;  /* monitor memory */
 	ngx_int_t        request_count;   /* requests served */
 	ngx_msec_t       time_max;        /* maximum lifetime */
 	ngx_msec_t       timeout;         /* idle timeout */
