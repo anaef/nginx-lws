@@ -5,8 +5,9 @@
  */
 
 
-#include <ngx_thread_pool.h>
 #include <lws_module.h>
+#include <ngx_thread_pool.h>
+#include <lws_http.h>
 
 
 static void *lws_create_main_conf(ngx_conf_t *cf);
@@ -371,17 +372,10 @@ static char *lws_merge_loc_conf (ngx_conf_t *cf, void *parent, void *child) {
 }
 
 static void lws_cleanup_loc_conf (void *data) {
-	lws_state_t     *state;
-	ngx_queue_t     *q;
 	lws_loc_conf_t  *llcf;
 
 	llcf = data;
-	while (!ngx_queue_empty(&llcf->states)) {
-		q = ngx_queue_head(&llcf->states);
-		ngx_queue_remove(q);
-		state = ngx_queue_data(q, lws_state_t, queue);
-		lws_close_state(state, ngx_cycle->log);
-	}
+	lws_close_states(llcf);
 }
 
 static char *lws_lws (ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {

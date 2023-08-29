@@ -5,7 +5,8 @@
  */
 
 
-#include <lws_module.h>
+#include <lws_http.h>
+#include <ngx_http.h>
 
 
 #define LWS_HTTP_STATUS_N (3 + 7 + 8 + 24 + 7)
@@ -94,7 +95,6 @@ lws_http_status_t lws_http_status[LWS_HTTP_STATUS_N] = {
 	{ NGX_HTTP_INSUFFICIENT_STORAGE, ngx_string("INSUFFICIENT_STORAGE"),
 			ngx_string("Insufficient Storage") },
 };
-
 const int lws_http_status_n = LWS_HTTP_STATUS_N;
 
 

@@ -20,13 +20,21 @@ typedef struct lws_request_ctx_s lws_request_ctx_t;
 typedef struct lws_variable_s lws_variable_t;
 
 
-#include <lws_table.h>
-#include <lws_http.h>
-#include <lws_profiler.h>
-#include <lws_lib.h>
-#include <lws_state.h>
 #include <lws_monitor.h>
+#include <lws_state.h>
+#include <lws_table.h>
 
+
+typedef enum {
+	LWS_FS_UNKNOWN,
+	LWS_FS_FOUND,
+	LWS_FS_NOT_FOUND
+} lws_file_status_e;
+
+typedef enum {
+	LWS_ER_JSON,
+	LWS_ER_HTML
+} lws_error_response_e;
 
 struct lws_main_conf_s {
 	ngx_thread_pool_t  *thread_pool;         /* thread pool for async execution of Lua */
@@ -89,24 +97,13 @@ struct lws_variable_s {
 	ngx_int_t   index;  /* variable index */
 };
 
-typedef enum {
-	LWS_FS_UNKNOWN,
-	LWS_FS_FOUND,
-	LWS_FS_NOT_FOUND
-} lws_file_status_e;
 
-typedef enum {
-	LWS_ER_JSON,
-	LWS_ER_HTML
-} lws_error_response_e;
+extern ngx_module_t lws;
 
 
 #define LWS_THREAD_POOL_NAME_DEFAULT "default"
 #define LWS_STAT_CACHE_CAP_DEFAULT 1024
 #define LWS_STAT_CACHE_TIMEOUT_DEFAULT 30
-
-
-extern ngx_module_t lws;
 
 
 #endif /* _LWS_MODULE_INCLUDED */

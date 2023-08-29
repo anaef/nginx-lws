@@ -5,7 +5,7 @@
  */
 
 
-#include <lws_module.h>
+#include <lws_table.h>
 
 
 static ngx_uint_t lws_table_hash(lws_table_t *t, ngx_str_t *key);

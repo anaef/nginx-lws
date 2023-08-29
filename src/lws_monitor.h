@@ -9,7 +9,12 @@
 #define _LWS_MONITOR_INCLUDED
 
 
+#include <ngx_config.h>
+#include <ngx_core.h>
+
+
 typedef struct lws_monitor_s lws_monitor_t;
+
 struct lws_monitor_s {
 	ngx_atomic_t  states_n;       /* number of Lua states (active + inactive) */
 	ngx_atomic_t  requests_n;     /* number of queued requests */

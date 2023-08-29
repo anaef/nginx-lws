@@ -5,9 +5,10 @@
  */
 
 
+#include <lws_lib.h>
 #include <lauxlib.h>
-#include <lualib.h>
-#include <lws_module.h>
+#include <lws_profiler.h>
+#include <lws_http.h>
 
 
 static ngx_str_t *lws_lua_strdup(lua_State *L, ngx_str_t *str);
@@ -426,7 +427,6 @@ static int lws_lua_parseargs (lua_State *L) {
 	u_char      *start, *pos, *last, *u_start, *u_pos;
 	ngx_str_t    args;
 	luaL_Buffer  B;
-
 
 	/* check arguments */
 	args.data = (u_char *)luaL_checklstring(L, 1, &args.len);

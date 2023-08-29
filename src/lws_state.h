@@ -9,14 +9,16 @@
 #define _LWS_STATE_INCLUDED
 
 
+#include <lua.h>
 #include <ngx_config.h>
 #include <ngx_core.h>
-#include <ngx_http.h>
-#include <lua.h>
-#include <lws_module.h>
 
 
 typedef struct lws_state_s lws_state_t;
+
+
+#include <lws_module.h>
+
 
 struct lws_state_s {
 	ngx_queue_t      queue;           /* location configuration queue */
@@ -36,11 +38,10 @@ struct lws_state_s {
 };
 
 
-lws_state_t *lws_create_state(lws_request_ctx_t *ctx);
-void lws_close_state(lws_state_t *state, ngx_log_t *log);
 lws_state_t *lws_get_state(lws_request_ctx_t *ctx);
 void lws_put_state(lws_request_ctx_t *ctx, lws_state_t *state);
 int lws_run_state(lws_request_ctx_t *ctx);
+void lws_close_states(lws_loc_conf_t *llcf);
 
 
 #endif /* _LWS_STATE_INCLUDED */

@@ -5,7 +5,7 @@
  */
 
 
-#include <lws_module.h>
+#include <lws_profiler.h>
 #include <lauxlib.h>
 
 

@@ -5,9 +5,11 @@
  */
 
 
-#include <lauxlib.h>
+#include <lws_state.h>
 #include <lualib.h>
-#include <lws_module.h>
+#include <lauxlib.h>
+#include <lws_lib.h>
+#include <lws_profiler.h>
 
 
 static void *lws_lua_alloc_unchecked(void *ud, void *ptr, size_t osize, size_t nsize);
@@ -16,6 +18,8 @@ static void lws_lua_set_path(lua_State *L, int index, const char *field);
 static int lws_lua_init(lua_State *L);
 static void lws_set_state_timer(lws_state_t *state);
 static void lws_state_timer_handler(ngx_event_t *ev);
+static lws_state_t *lws_create_state(lws_request_ctx_t *ctx);
+static void lws_close_state(lws_state_t *state, ngx_log_t *log);
 
 
 static void *lws_lua_alloc_unchecked (void *ud, void *ptr, size_t osize, size_t nsize) {
@@ -120,7 +124,7 @@ static void lws_state_timer_handler (ngx_event_t *ev) {
 	}
 }
 
-lws_state_t *lws_create_state (lws_request_ctx_t *ctx) {
+static lws_state_t *lws_create_state (lws_request_ctx_t *ctx) {
 	ngx_log_t        *log;
 	ngx_str_t         msg;
 	lws_state_t      *state;
@@ -187,12 +191,12 @@ lws_state_t *lws_create_state (lws_request_ctx_t *ctx) {
 	return state;
 }
 
-void lws_close_state (lws_state_t *state, ngx_log_t *log) {
+static void lws_close_state (lws_state_t *state, ngx_log_t *log) {
 	lws_main_conf_t  *lmcf;
 
+	lua_close(state->L);
 	state->llcf->states_n--;
 	lmcf = ngx_http_cycle_get_module_main_conf(ngx_cycle, lws);
-	lua_close(state->L);
 	if (lmcf->monitor) {
 		ngx_atomic_fetch_add(&lmcf->monitor->states_n, -1);
 		ngx_atomic_fetch_add(&lmcf->monitor->memory_used, 0 - state->memory_monitor);
@@ -326,4 +330,16 @@ int lws_run_state (lws_request_ctx_t *ctx) {
 	lua_pop(L, 1);  /* [traceback] */
 
 	return result;
+}
+
+void lws_close_states (lws_loc_conf_t *llcf) {
+	lws_state_t  *state;
+	ngx_queue_t  *q;
+
+	while (!ngx_queue_empty(&llcf->states)) {
+		q = ngx_queue_head(&llcf->states);
+		ngx_queue_remove(q);
+		state = ngx_queue_data(q, lws_state_t, queue);
+		lws_close_state(state, ngx_cycle->log);
+	}
 }

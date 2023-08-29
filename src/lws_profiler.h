@@ -10,6 +10,7 @@
 
 
 #include <lua.h>
+#include <lws_table.h>
 
 
 typedef struct lws_profiler_s lws_profiler_t;

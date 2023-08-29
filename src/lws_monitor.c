@@ -5,6 +5,7 @@
  */
 
 
+#include <lws_monitor.h>
 #include <lws_module.h>
 
 
