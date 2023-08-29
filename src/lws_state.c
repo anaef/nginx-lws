@@ -87,6 +87,12 @@ static int lws_lua_init (lua_State *L) {
 	lws_lua_set_path(L, 1, "path");
 	lws_lua_set_path(L, 2, "cpath");
 
+	/* open profiler */
+	if (lua_toboolean(L, 3)) {
+		lua_pushcfunction(L, lws_profiler_open);
+		lua_call(L, 0, 0);
+	}
+
 	return 0;
 }
 
@@ -144,10 +150,12 @@ lws_state_t *lws_create_state (lws_request_ctx_t *ctx) {
 	}
 
 	/* initialize Lua state */
+	lmcf = ngx_http_get_module_main_conf(ctx->r, lws);
 	lua_pushcfunction(state->L, lws_lua_init);
 	lua_pushlstring(state->L, (const char *)llcf->path.data, llcf->path.len);
 	lua_pushlstring(state->L, (const char *)llcf->cpath.data, llcf->cpath.len);
-	if (lua_pcall(state->L, 2, 0, 0) != LUA_OK) {
+	lua_pushboolean(state->L, lmcf->monitor != NULL);
+	if (lua_pcall(state->L, 3, 0, 0) != LUA_OK) {
 		lws_lua_get_msg(state->L, -1, &msg);
 		ngx_log_error(NGX_LOG_CRIT, log, 0, "[LWS] failed to initialize Lua state: %V",
 				&msg);
@@ -172,7 +180,6 @@ lws_state_t *lws_create_state (lws_request_ctx_t *ctx) {
 
 	/* done */
 	llcf->states_n++;
-	lmcf = ngx_http_get_module_main_conf(ctx->r, lws);
 	if (lmcf->monitor) {
 		ngx_atomic_fetch_add(&lmcf->monitor->states_n, 1);
 	}
@@ -195,9 +202,10 @@ void lws_close_state (lws_state_t *state, ngx_log_t *log) {
 }
 
 lws_state_t *lws_get_state (lws_request_ctx_t *ctx) {
-	lws_state_t     *state;
-	ngx_queue_t     *q;
-	lws_loc_conf_t  *llcf;
+	lws_state_t      *state;
+	ngx_queue_t      *q;
+	lws_loc_conf_t   *llcf;
+	lws_main_conf_t  *lmcf;
 
 	llcf = ngx_http_get_module_loc_conf(ctx->r, lws);
 	if (!ngx_queue_empty(&llcf->states)) {
@@ -214,6 +222,8 @@ lws_state_t *lws_get_state (lws_request_ctx_t *ctx) {
 			return NULL;
 		}
 	}
+	lmcf = ngx_http_get_module_main_conf(ctx->r, lws);
+	state->profiling = lmcf->monitor ? lmcf->monitor->profiling : 0;
 	state->in_use = 1;
 	return state;
 }

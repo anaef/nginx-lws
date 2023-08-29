@@ -718,6 +718,12 @@ int lws_lua_run (lua_State *L) {
 		lua_setfield(L, LUA_REGISTRYINDEX, LWS_LIB_CHUNKS);
 	}  /* [ctx, chunks] */
 
+	/* start profiler */
+	if (ctx->state->profiling) {
+		lua_pushcfunction(L, lws_profiler_start);
+		lua_call(L, 0, 0);
+	}
+
 	/* init */
 	if (!ctx->state->init) {
 		if (ctx->state->llcf->init.len) {
@@ -744,6 +750,12 @@ int lws_lua_run (lua_State *L) {
 	post:
 	if (ctx->state->llcf->post.len) {
 		(void)lws_lua_call(lctx, &ctx->state->llcf->post, LWS_LC_POST);
+	}
+
+	/* stop profiler */
+	if (ctx->state->profiling) {
+		lua_pushcfunction(L, lws_profiler_stop);
+		lua_call(L, 0, 0);
 	}
 
 	/* clear request context */

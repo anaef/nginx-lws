@@ -1,8 +1,8 @@
 ngx_addon_name=lws
 ngx_module_type=HTTP
 ngx_module_name=lws
-ngx_module_srcs="$ngx_addon_dir/src/lws_module.c $ngx_addon_dir/src/lws_state.c $ngx_addon_dir/src/lws_monitor.c $ngx_addon_dir/src/lws_lib.c $ngx_addon_dir/src/lws_http.c $ngx_addon_dir/src/lws_table.c"
-ngx_module_deps="$ngx_addon_dir/src/lws_module.h $ngx_addon_dir/src/lws_state.h $ngx_addon_dir/src/lws_monitor.h $ngx_addon_dir/src/lws_lib.h $ngx_addon_dir/src/lws_http.h $ngx_addon_dir/src/lws_table.h"
+ngx_module_srcs="$ngx_addon_dir/src/lws_module.c $ngx_addon_dir/src/lws_monitor.c $ngx_addon_dir/src/lws_state.c $ngx_addon_dir/src/lws_lib.c $ngx_addon_dir/src/lws_profiler.c $ngx_addon_dir/src/lws_http.c $ngx_addon_dir/src/lws_table.c"
+ngx_module_deps="$ngx_addon_dir/src/lws_module.h $ngx_addon_dir/src/lws_monitor.h $ngx_addon_dir/src/lws_state.h $ngx_addon_dir/src/lws_lib.h $ngx_addon_dir/src/lws_profiler.h $ngx_addon_dir/src/lws_http.h $ngx_addon_dir/src/lws_table.h"
 ngx_module_incs="/usr/include/lua5.3 $ngx_addon_dir/src"
 ngx_module_libs="-llua5.3"
 . auto/module

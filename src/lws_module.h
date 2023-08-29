@@ -22,9 +22,10 @@ typedef struct lws_variable_s lws_variable_t;
 
 #include <lws_table.h>
 #include <lws_http.h>
+#include <lws_profiler.h>
 #include <lws_lib.h>
-#include <lws_monitor.h>
 #include <lws_state.h>
+#include <lws_monitor.h>
 
 
 struct lws_main_conf_s {
