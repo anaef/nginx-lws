@@ -91,8 +91,11 @@ Context: server, location
 
 Sets the maximum number of requests in the lifecycle of a Lua state. If a Lua state has serviced
 the set number of requests, it is closed. A value of `0` disables this logic. The default value
-for *max_requests* is `0`. Setting the value to `1` closes Lua states after each request. This
-can be helpful during local development to pick up code changes.
+for *max_requests* is `0`.
+
+> [!NOTE]
+> Setting the value to `1` closes Lua states after each request. This can be helpful during local
+> development to pick up code changes.
 
 
 ## lws_max_time *max_time*
