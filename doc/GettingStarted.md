@@ -31,13 +31,18 @@ server {
 		alias /var/www/lws-examples/internal/;
 		internal;
 	}
+
+	location /lws-monitor/ {
+		lws_monitor;
+	}
 }
 ```
 
-This configuration defines a web server with three locations:
+This configuration defines a web server with four locations:
 - A root location that serves static content from the `static` subfolder.
 - A `/services/` location that provides the web services implemented in Lua.
 - A `/internal/` location that is only accessible via internal redirects.
+- A `/lws-monitor/` location that provides read-write access to central LWS characteristics.
 
 The `/services` location uses the central `lws` directive to enable the LWS handler. The directive
 maps paths to files with main Lua chunks that implement a web service. Specifically, the path

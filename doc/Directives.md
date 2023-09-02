@@ -21,6 +21,7 @@ server {
 	}
 }
 ```
+This directive is exclusive with the `lws_monitor` directive.
 
 
 ## lws_init *init*
@@ -167,3 +168,15 @@ seconds using a least recently used (LRU) algorithm. The default values for *cap
 are `1024` and `30`. You can use the `k` and `m` suffixes with *cap* to set multiples of 1024 or
 1024², respectively, and you can use the `s`, `m`, `h`, `d`, `w`, `M`, and `y` suffixes
 with *timeout* to set seconds, minutes, hours, days, weeks, months, or years, respectively.
+
+
+## lws_monitor
+
+Context: location
+
+Enables the LWS [monitor](Monitor.md) at the loation. The LWS monitor provides read-write access
+to central LWS characteristics. This directive is exclusive with the `lws` directive.
+
+> [!WARNING]
+> The LWS monitor should *not* be enabled at locations that are publicly accessible. Enabling
+> the monitor at a location without appropriate access controls is a security risk.

@@ -7,3 +7,4 @@ The documentation is split into these sections:
 - [Request Processing](RequestProcessing.md)
 - [Library](Library.md)
 - [Directives](Directives.md)
+- [Monitor](Monitor.md)

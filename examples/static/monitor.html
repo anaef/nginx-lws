@@ -1,0 +1,237 @@
+<!DOCTYPE HTML>
+<html>
+	<!-- self contained -->
+	<head>
+		<title>LWS Monitor</title>
+		<style>
+			html {
+				font-family: system-ui, "Segoe UI", -apple-system, "Liberation Sans", Roboto, "Helvetica Neue", Arial, sans-serif;
+			}
+			body {
+				max-width: 680px;
+				margin: 0 auto;
+			}
+			table.table {
+				width: 100%;
+				border-collapse: collapse;
+				margin-bottom: 1.5rem;
+			}
+			table.table th {
+				text-align: start;
+			}
+			table.table th, table.table td {
+				padding: 0.5rem;
+				border-bottom: 1px solid gray;
+			}
+			.row {
+				margin-top: 0.5rem;
+			}
+			.text-end {
+				text-align: end !important;
+			}
+			.w-18 {
+				width: 18%;
+			}
+		</style>
+	</head>
+	<body>
+		<h2>LWS Monitor</h2>
+
+		<h3>Status</h3>
+		<table class="table">
+			<thead>
+				<tr>
+					<th>Characteristic</th>
+					<th class="w-18 text-end">Value</th>
+					<th>Spark Line (5m)</th>
+					<th class="w-18 text-end">Min</th>
+					<th class="w-18 text-end">Max</th>
+				</tr>
+			</thead>
+			<tbody class="table">
+				<tr>
+					<td>Lua States</td>
+					<td class="text-end" id="states_n"></td>
+					<td><canvas id="states_n_spark" width="100" height="20"></canvas></td>
+					<td class="text-end" id="states_n_min"></td>
+					<td class="text-end" id="states_n_max"></td>
+				</tr>
+				<tr>
+					<td>Queued Requests</td>
+					<td class="text-end" id="requests_n"></td>
+					<td><canvas id="requests_n_spark" width="100" height="20"></canvas></td>
+					<td class="text-end" id="requests_n_min"></td>
+					<td class="text-end" id="requests_n_max"></td>
+				</tr>
+				<tr>
+					<td>Memory Used</td>
+					<td class="text-end" id="memory_used"></td>
+					<td><canvas id="memory_used_spark" width="100" height="20"></canvas></td>
+					<td class="text-end" id="memory_used_min"></td>
+					<td class="text-end" id="memory_used_max"></td>
+				</tr>
+				<tr>
+					<td>Request Count</td>
+					<td class="text-end" id="request_count"></td>
+					<td><canvas id="request_count_spark" width="100" height="20"></canvas></td>
+					<td class="text-end" id="request_count_min"></td>
+					<td class="text-end" id="request_count_max"></td>
+				</tr>
+				<tr>
+					<td>Profiling</td>
+					<td class="text-end" id="profiling"></td>
+					<td colspan="3"></td>
+				</tr>
+			</tbody>
+		</table>
+		<div class="row">
+			<button type="button" id="profiling_enable" disabled>Enable Profiling</button>
+			<button type="button" id="profiling_disable" disabled>Disable Profiling</button>
+		</div>
+	</body>
+	<script>
+		let characteristics = [
+			{
+				key: "states_n",
+				format: function (value) {
+					return value.toLocaleString();
+				},
+				hasSpark: true
+			},
+			{
+				key: "requests_n",
+				format: function (value) {
+					return value.toLocaleString();
+				},
+				hasSpark: true
+			},
+			{
+				key: "memory_used",
+				format: function (value) {
+					if (value > 1024**3) {
+						return Math.floor(value / 1024**2).toLocaleString() + " MB";
+					} else if (value > 1024**2) {
+						return Math.floor(value / 1024).toLocaleString() + " KB";
+					} else {
+						return value.toLocaleString() + " B";
+					}
+				},
+				hasSpark: true
+			},
+			{
+				key: "request_count",
+				format: function (value) {
+					return value.toLocaleString();
+				},
+				hasSpark: true
+			},
+			{
+				key: "profiling",
+				format: function (value) {
+					return value ? "enabled" : "disabled";
+				},
+				updateUi: function (value) {
+					document.getElementById("profiling_enable").disabled = value == 1;
+					document.getElementById("profiling_disable").disabled = value == 0;
+				}
+			}
+		];
+		let data = {};
+		for (i in characteristics) {
+			data[characteristics[i].key] = [];
+		}
+
+		function updateStatus (periodic) {
+			let request = new XMLHttpRequest();
+			request.responseType = "json";
+			request.open("GET", "/lws-monitor/");
+			request.onload = function () {
+				if (request.status == 200) {
+					apply(request.response, periodic);
+				}
+			}
+			request.send();
+		}
+
+		function setProfiling (profiling) {
+			let request = new XMLHttpRequest();
+			request.responseType = "json";
+			request.open("POST", "/lws-monitor/");
+			request.onload = function () {
+				if (request.status == 200) {
+					apply(request.response, false);
+				}
+			}
+			request.onerror = function () {
+				if (request.status == 409) {
+					updateStatus(false);
+				}
+			}
+			request.send("profiling=" + profiling);
+		}
+
+		function apply (response, periodic) {
+			for (i in characteristics) {
+				/* value */
+				let key = characteristics[i].key;
+				let valueElement = document.getElementById(key);
+				valueElement.innerText = characteristics[i].format(response[key]);
+
+				/* spark line, min, max */
+				if (periodic && characteristics[i].hasSpark) {
+					/* spark line */
+					let canvas = document.getElementById(key + "_spark");
+					let series = data[key];
+					series.push(response[key]);
+					if (series.length > canvas.width) {
+						series.splice(0, 1);
+					}
+					let min = Math.min(...series);
+					let max = Math.max(...series);
+					let offset = max > min ? min : min - canvas.height / 2;
+					let scale = max > min ? (canvas.height - 2) / (max - min) : 1;
+					let ctx = canvas.getContext("2d");
+					ctx.clearRect(0, 0, canvas.width, canvas.height);
+					ctx.beginPath();
+					ctx.moveTo(0, (series[0] - offset) * scale + 1);
+					for (let i = 1; i < series.length; i++) {
+						ctx.lineTo(i, (series[i] - offset) * scale + 1);
+					}
+					ctx.stroke();
+
+					/* min, max */
+					let minElement = document.getElementById(key + "_min");
+					minElement.innerText = characteristics[i].format(min);
+					let maxElement = document.getElementById(key + "_max");
+					maxElement.innerText = characteristics[i].format(max);
+				}
+
+				/* UI */
+				if (characteristics[i].updateUi) {
+					characteristics[i].updateUi(response[key]);
+				}
+			}
+		}
+
+		window.addEventListener("load", function () {
+			updateStatus(true);
+			setInterval(function () { updateStatus(true) }, 3000);
+			document.getElementById("profiling_enable").addEventListener("click", function () {
+				setProfiling(1);
+			});
+			document.getElementById("profiling_disable").addEventListener("click", function () {
+				setProfiling(0);
+			});
+			for (i in characteristics) {
+				if (!characteristics[i].hasSpark) {
+					continue;
+				}
+				let key = characteristics[i].key;
+				let canvas = document.getElementById(key + "_spark");
+				let ctx = canvas.getContext("2d");
+				ctx.translate(0, canvas.height);
+				ctx.scale(1, -1);
+			}
+		});
+	</script>
+</html>
