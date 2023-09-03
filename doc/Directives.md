@@ -8,8 +8,8 @@ This document describes the NGINX directives provided by lws-nginx.
 Context: location
 
 Enables the LWS handler for the main Lua chunk with filename *main*. The optional *path_info*
-is passed in the request context. Both *main* and *path_info* can contain variables. This is useful
-for including captures from the location path.
+is passed in the request context. Both *main* and *path_info* can contain variables. This is
+useful for including captures from the location path.
 
 Example:
 ```nginx
@@ -21,6 +21,7 @@ server {
 	}
 }
 ```
+
 This directive is exclusive with the `lws_monitor` directive.
 
 
@@ -123,7 +124,7 @@ for *timeout* is `0`. You can use the `ms`, `s`, `m`, `h`, `d`, `w`, and `M` suf
 Context: server, location
 
 Sets the memory threshold of a Lua state which triggers an explicit garbage collection cycle. If
-the memory allocated by a Lua exceeds *gc* bytes when a request completes, an explicit, full
+the memory allocated by a Lua state exceeds *gc* bytes when a request completes, an explicit, full
 garbage collection cycle is performed. A value of `0` disables this logic. The default value for
 *gc* is `0`. Setting the value to `1` performs a full garbage collection cycle after each request.
 You can use the `k` and `m` suffixes with *gc* to set kilobytes or megabytes, respectively.
@@ -149,8 +150,8 @@ status code. The *error_response* value controls the content type of the respons
 values `json` or `html`. The default value for *error_response* is `json`. The optional
 *attribute* value controls whether diagnostic information is included for Lua errors and can take
 the value `diagnostic`. Diagnostic information includes the error message, file names, line
-numbers and a stack traceback. By default, and if the attribute is omitted, diagnostic information
-is not included.
+numbers, function names, and a stack traceback. By default, and if the attribute is omitted,
+diagnostic information is not included.
 
 
 ## lws_thread_pool *thread_pool_name*
@@ -160,8 +161,12 @@ Context: http
 Sets the name of the thread pool used by LWS for serving requests asynchronously. The default
 value of *thread_pool_name* is `default`.
 
+> [!NOTE]
+> If the thread pool name is different from `default`, the named thread pool must be defined with
+> the NGINX `thread_pool` directive in the main context of the server.
 
-## lws_stat_cache *cap*, *timeout*
+
+## lws_stat_cache *cap* *timeout*
 
 Context: http
 

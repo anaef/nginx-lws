@@ -53,7 +53,7 @@ An array with the following values represents each profiled function.
 | 5 | `number` | Total time, nanoseconds |
 | 6 | `number` | Allocated memory, in bytes |
 
-The profiler uses the fixed-size shared memory zone of the monitor. If the zone runs out of
+The profiler uses the fixed-size shared memory zone of the LWS monitor. If the zone runs out of
 memory, an error is logged, and the `out_of_memory` flag is set. In this case, the list of
 profiled functions is incomplete.
 
@@ -81,14 +81,18 @@ modified.
 
 | Key | Description |
 | --- | --- |
-| `profiler` | Profiler status; `0` = disabled, `1` = enabled |
+| `profiler` | Profiler status; `0` = disabled, `1` = CPU, `2` = wall |
 | `functions` | Profiled functions; `[]` to clear |
+
+For the `profiler` key, valid transitions are from the disabled state to one of the enabled
+states and vice versa; transitions from one enabled state to another are invalid.
+
 
 ### Response Status
 
 The response has a 200 OK status if the modification succeeded, a 400 Bad Request status if an
 invalid value was provided, or a 409 Conflict status if the modification failed. The latter can
-happen due to a concurrent modification.
+happen due to a concurrent modification or an invalid transition.
 
 
 ## Examples Website
