@@ -97,14 +97,20 @@
 					<td class="text-end" id="profiler"></td>
 					<td colspan="3"></td>
 				</tr>
+				<tr>
+					<td>Functions</td>
+					<td class="text-end" id="functions"></td>
+					<td colspan="3"></td>
+				</tr>
 			</tbody>
 		</table>
 		<div class="row">
 			<button type="button" id="profiler_enable" disabled>Enable Profiler</button>
 			<button type="button" id="profiler_disable" disabled>Disable Profiler</button>
+			<button type="button" id="functions_clear" disabled>Clear Functions</button>
 		</div>
 
-		<div id="functions"></div>
+		<div id="functions-container"></div>
 	</body>
 	<script>
 		function formatCount (value) {
@@ -162,6 +168,18 @@
 			request.send("profiler=" + profiler);
 		}
 
+		function clearFunctions () {
+			let request = new XMLHttpRequest();
+			request.responseType = "json";
+			request.open("POST", "/lws-monitor/");
+			request.onload = function () {
+				if (request.status == 200) {
+					apply(request.response, false);
+				}
+			}
+			request.send("functions=[]");
+		}
+
 		function apply (response, periodic) {
 			applyCharacteristics(response, periodic);
 			applyFunctions(response.functions);
@@ -212,8 +230,8 @@
 		}
 
 		function applyFunctions (functions) {
-			let functionsElement = document.getElementById("functions");
-			functionsElement.replaceChildren();
+			let functionsContainerElement = document.getElementById("functions-container");
+			functionsContainerElement.replaceChildren();
 			if (functions.length > 0) {
 				/* sort */
 				functions.sort(functionSorterColumn.comparator);
@@ -221,12 +239,12 @@
 				/* title */
 				let titleElement = document.createElement("h3");
 				titleElement.innerText = "Functions";
-				functionsElement.appendChild(titleElement);
+				functionsContainerElement.appendChild(titleElement);
 
 				/* table */
 				let tableElement = document.createElement("table");
 				tableElement.setAttribute("class", "table");
-				functionsElement.appendChild(tableElement);
+				functionsContainerElement.appendChild(tableElement);
 
 				/* thead */
 				let theadElement = document.createElement("thead");
@@ -276,6 +294,9 @@
 			document.getElementById("profiler_disable").addEventListener("click", function () {
 				setProfiler(0);
 			});
+			document.getElementById("functions_clear").addEventListener("click", function () {
+				clearFunctions();
+			});
 			for (i in characteristics) {
 				if (!characteristics[i].hasSpark) {
 					continue;
@@ -324,6 +345,16 @@
 				updateUi: function (value) {
 					document.getElementById("profiler_enable").disabled = value == 1;
 					document.getElementById("profiler_disable").disabled = value == 0;
+				},
+				hasSpark: false
+			},
+			{
+				key: "functions",
+				format: function (value) {
+					return value.length.toLocaleString();
+				},
+				updateUi: function (value) {
+					document.getElementById("functions_clear").disabled = value.length == 0;
 				},
 				hasSpark: false
 			}

@@ -281,29 +281,49 @@ static void lws_monitor_body (ngx_http_request_t *r) {
 }
 
 static ngx_int_t lws_monitor_pair (ngx_http_request_t * r, ngx_str_t *key, ngx_str_t *value) {
+	size_t            i;
 	lws_main_conf_t  *lmcf;
 
 	lmcf = ngx_http_get_module_main_conf(r, lws);
-	if (key->len == 8 && ngx_strncmp(key->data, "profiler", 8) == 0) {
-		if (value->len != 1) {
-			return NGX_HTTP_BAD_REQUEST;
-		}
-		switch (*value->data) {
-		case '0':
-			if (!ngx_atomic_cmp_set(&lmcf->monitor->profiler, 1, 0)) {
-				return NGX_HTTP_CONFLICT;
+	switch (key->len) {
+	case 8:
+		if (ngx_strncmp(key->data, "profiler", 8) == 0) {
+			if (value->len != 1) {
+				return NGX_HTTP_BAD_REQUEST;
 			}
-			break;
+			switch (*value->data) {
+			case '0':
+				if (!ngx_atomic_cmp_set(&lmcf->monitor->profiler, 1, 0)) {
+					return NGX_HTTP_CONFLICT;
+				}
+				break;
 
-		case '1':
-			if (!ngx_atomic_cmp_set(&lmcf->monitor->profiler, 0, 1)) {
-				return NGX_HTTP_CONFLICT;
+			case '1':
+				if (!ngx_atomic_cmp_set(&lmcf->monitor->profiler, 0, 1)) {
+					return NGX_HTTP_CONFLICT;
+				}
+				break;
+
+			default:
+				return NGX_HTTP_BAD_REQUEST;
 			}
-			break;
-
-		default:
-			return NGX_HTTP_BAD_REQUEST;
 		}
+		break;
+
+	case 9:
+		if (ngx_strncmp(key->data, "functions", 9) == 0) {
+			if (value->len != 2 || value->data[0] != '[' || value->data[1] != ']') {
+				return NGX_HTTP_BAD_REQUEST;
+			}
+			ngx_shmtx_lock(&lmcf->monitor_pool->mutex);
+			for (i = 0; i < lmcf->monitor->functions_n; i++) {
+				ngx_slab_free_locked(lmcf->monitor_pool,
+						lmcf->monitor->functions[i].key.data);
+			}
+			lmcf->monitor->functions_n = 0;
+			ngx_shmtx_unlock(&lmcf->monitor_pool->mutex);
+		}
+		break;
 	}
 
 	return NGX_OK;

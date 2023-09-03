@@ -83,6 +83,7 @@ modified.
 | Key | Description |
 | --- | --- |
 | `profiler` | Profiler status; `0` = disabled, `1` = enabled |
+| `functions` | Profiled functions; `[]` to clear |
 
 ### Response Status
 
