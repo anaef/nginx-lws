@@ -36,12 +36,12 @@ The following table describes the keys of the document.
 | `memory_used` | `number` | Memory used by Lua, in bytes |
 | `request_count` | `number` | Total number of requests served |
 | `out_of_memory` | `number` | Monitor has run out of memory; `0` = no, `1` = yes |
-| `profiler` | `number` | Profiler status; `0` = disabled, `1` = enabled |
+| `profiler` | `number` | Profiler status; `0` = disabled, `1` = CPU, `2` = wall |
 | `functions` | `array` | Profiled functions (see below) |
 
 ### Profiled Function
 
-Each profiled function is represented by an array with the following values.
+An array with the following values represents each profiled function.
 
 | Index | Type | Description |
 | --- | --- | --- |
@@ -57,15 +57,16 @@ The profiler uses the fixed-size shared memory zone of the monitor. If the zone 
 memory, an error is logged, and the `out_of_memory` flag is set. In this case, the list of
 profiled functions is incomplete.
 
-Self time and total time are measured in thread CPU time (as opposed to wall time.) Each time is
-represented as a sum of seconds and nanoseconds. Self time is the time spent in the function
-per se, whereas as total time additionally includes the time spent in child functions, i.e.,
-functions that are called from the parent function under consideration. A tail call is processed
-as an exit from the parent function and thus does not accumulate child time. Due to profiler
-overhead, time values are approximations.
+Self time and total time are measured in thread CPU time or wall time, depending on the
+`profiler` value. Each time is represented with a second and a nanosecond component. Self time is
+the time spent in the function per se. In contrast, total time additionally includes the time
+spent in child functions, i.e., functions directly or indirectly called from the function under
+consideration. A proper tail call is processed as an exit from the calling function and thus does
+not accumulate child time for the calling function unless the calling function is active further
+down in the call stack. Due to profiler overhead, all time values are approximations.
 
 Allocated memory is the amount of Lua memory allocated during the execution of the function per
-se. Due to potential garbage collection, this is an approximation.
+se. Due to potential garbage collection and profiler overhead, this is an approximation.
 
 ### Response Status
 
@@ -92,7 +93,8 @@ happen due to a concurrent modification.
 
 ## Examples Website
 
-The [examples website](GettingStarted.md) includes a self-contained web page that periodically
-queries the monitor for display, and allows for enabling and disabling the profiler.
+The [examples website](GettingStarted.md) includes a self-contained web page that displays data
+from the LWS monitor with periodic updates and allows for controlling the profiler. The page
+looks similar to the following figure.
 
 ![Monitor web page](images/Monitor.png)

@@ -108,8 +108,8 @@ static ngx_int_t lws_monitor_content (ngx_http_request_t *r) {
 	len += sizeof("\t\"requests_n\": ,\n") - 1  + 20;
 	len += sizeof("\t\"memory_used\": ,\n") - 1  + 20;
 	len += sizeof("\t\"request_count\": ,\n") - 1  + 20;
-	len += sizeof("\t\"out_of_memory\": ,\n") - 1  + 1;
 	len += sizeof("\t\"profiler\": ,\n") - 1  + 1;
+	len += sizeof("\t\"out_of_memory\": ,\n") - 1  + 1;
 	len += sizeof("\t\"functions\": [\n") - 1;
 	for (i = 0; i < lmcf->monitor->functions_n; i++) {
 		f = &lmcf->monitor->functions[i];
@@ -130,14 +130,14 @@ static ngx_int_t lws_monitor_content (ngx_http_request_t *r) {
 			"\t\"requests_n\": %i,\n"
 			"\t\"memory_used\": %i,\n"
 			"\t\"request_count\": %i,\n"
-			"\t\"out_of_memory\": %i,\n"
-			"\t\"profiler\": %i,\n",
+			"\t\"profiler\": %i,\n"
+			"\t\"out_of_memory\": %i,\n",
 			(ngx_int_t)lmcf->monitor->states_n,
 			(ngx_int_t)lmcf->monitor->requests_n,
 			(ngx_int_t)lmcf->monitor->memory_used,
 			(ngx_int_t)lmcf->monitor->request_count,
-			(ngx_int_t)lmcf->monitor->out_of_memory,
-			(ngx_int_t)lmcf->monitor->profiler);
+			(ngx_int_t)lmcf->monitor->profiler,
+			(ngx_int_t)lmcf->monitor->out_of_memory);
 	if (lmcf->monitor->functions_n == 0) {
 		b->last = lws_cpylit(b->last, "\t\"functions\": []\n");
 	} else {
@@ -282,9 +282,11 @@ static void lws_monitor_body (ngx_http_request_t *r) {
 
 static ngx_int_t lws_monitor_pair (ngx_http_request_t * r, ngx_str_t *key, ngx_str_t *value) {
 	size_t            i;
+	lws_monitor_t    *m;
 	lws_main_conf_t  *lmcf;
 
 	lmcf = ngx_http_get_module_main_conf(r, lws);
+	m = lmcf->monitor;
 	switch (key->len) {
 	case 8:
 		if (ngx_strncmp(key->data, "profiler", 8) == 0) {
@@ -293,13 +295,15 @@ static ngx_int_t lws_monitor_pair (ngx_http_request_t * r, ngx_str_t *key, ngx_s
 			}
 			switch (*value->data) {
 			case '0':
-				if (!ngx_atomic_cmp_set(&lmcf->monitor->profiler, 1, 0)) {
+				if (!ngx_atomic_cmp_set(&m->profiler, 1, 0)
+						&& !ngx_atomic_cmp_set(&m->profiler, 2, 0)) {
 					return NGX_HTTP_CONFLICT;
 				}
 				break;
 
 			case '1':
-				if (!ngx_atomic_cmp_set(&lmcf->monitor->profiler, 0, 1)) {
+			case '2':
+				if (!ngx_atomic_cmp_set(&m->profiler, 0, *value->data - '0')) {
 					return NGX_HTTP_CONFLICT;
 				}
 				break;
@@ -316,12 +320,11 @@ static ngx_int_t lws_monitor_pair (ngx_http_request_t * r, ngx_str_t *key, ngx_s
 				return NGX_HTTP_BAD_REQUEST;
 			}
 			ngx_shmtx_lock(&lmcf->monitor_pool->mutex);
-			for (i = 0; i < lmcf->monitor->functions_n; i++) {
-				ngx_slab_free_locked(lmcf->monitor_pool,
-						lmcf->monitor->functions[i].key.data);
+			for (i = 0; i < m->functions_n; i++) {
+				ngx_slab_free_locked(lmcf->monitor_pool, m->functions[i].key.data);
 			}
-			ngx_atomic_cmp_set(&lmcf->monitor->out_of_memory, 1, 0);
-			lmcf->monitor->functions_n = 0;
+			m->out_of_memory = 0;
+			m->functions_n = 0;
 			ngx_shmtx_unlock(&lmcf->monitor_pool->mutex);
 		}
 		break;

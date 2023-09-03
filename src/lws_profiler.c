@@ -77,12 +77,6 @@ static void lws_profiler_hook (lua_State *L, lua_Debug *ar) {
 	struct timespec           time;
 	lws_activation_record_t  *par, **stack_new;
 
-	/* get time and memory on entry */
-	if (clock_gettime(CLOCK_THREAD_CPUTIME_ID, &time) != 0) {
-		luaL_error(L, "failed to get profiler thread CPU time");
-	}
-	memory = (size_t)lua_gc(L, LUA_GCCOUNT, 0) * 1024 + lua_gc(L, LUA_GCCOUNTB, 0);
-
 	/* get profiler */
 	lua_getfield(L, LUA_REGISTRYINDEX, LWS_PROFILER_CURRENT);
 	if (!(p = luaL_testudata(L, -1, LWS_PROFILER))) {
@@ -90,7 +84,14 @@ static void lws_profiler_hook (lua_State *L, lua_Debug *ar) {
 	}
 	lua_pop(L, 1);
 
-	/* process exit */
+	/* get time and memory on hook entry */
+	if (clock_gettime(p->clock_id, &time) != 0) {
+		luaL_error(L, "failed to get profiler %s time", p->clock_id
+				== CLOCK_THREAD_CPUTIME_ID ? "thread CPU" : "wall");
+	}
+	memory = (size_t)lua_gc(L, LUA_GCCOUNT, 0) * 1024 + lua_gc(L, LUA_GCCOUNTB, 0);
+
+	/* process function exit */
 	if (p->stack_n > 0) {
 		par = p->stack[p->stack_n - 1];
 		lws_timespec_add_delta(&par->time_self, &par->time_self_start, &time);
@@ -162,10 +163,11 @@ static void lws_profiler_hook (lua_State *L, lua_Debug *ar) {
 		par = p->stack_n > 0 ? p->stack[p->stack_n - 1] : NULL;
 	}
 
-	/* process entry */
+	/* process function entry */
 	if (par) {
-		if (clock_gettime(CLOCK_THREAD_CPUTIME_ID, &time) != 0) {
-			luaL_error(L, "failed to get profiler thread CPU time");
+		if (clock_gettime(p->clock_id, &time) != 0) {
+			luaL_error(L, "failed to get profiler %s time", p->clock_id
+					== CLOCK_THREAD_CPUTIME_ID ? "thread CPU" : "wall");
 		}
 		par->time_self_start = time;
 		par->memory_start = memory;
@@ -192,7 +194,8 @@ int lws_profiler_open (lua_State *L) {
 }
 
 int lws_profiler_start (lua_State *L) {
-	lws_profiler_t  *p;
+	lws_profiler_t   *p;
+	lws_main_conf_t  *lmcf;
 
 	/* create and set profiler */
 	p = lua_newuserdata(L, sizeof(lws_profiler_t));
@@ -213,6 +216,8 @@ int lws_profiler_start (lua_State *L) {
 	if (!p->stack) {
 		return luaL_error(L, "faild to allocate profiler stack");
 	}
+	lmcf = ngx_http_cycle_get_module_main_conf(ngx_cycle, lws);
+	p->clock_id = lmcf->monitor->profiler == 1 ? CLOCK_THREAD_CPUTIME_ID : CLOCK_MONOTONIC_RAW;
 
 	/* set hook */
 	lua_sethook(L, lws_profiler_hook, LUA_MASKCALL | LUA_MASKRET, 0);
@@ -260,7 +265,7 @@ int lws_profiler_stop (lua_State *L) {
 				if (!functions_new) {
 					ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "[LWS] "
 							"failed to allocate monitor functions");
-					ngx_atomic_cmp_set(&lmcf->monitor->out_of_memory, 0, 1);
+					lmcf->monitor->out_of_memory = 1;
 					break;
 				}
 				ngx_memcpy(functions_new, lmcf->monitor->functions,
@@ -275,7 +280,7 @@ int lws_profiler_stop (lua_State *L) {
 			if (!f->key.data) {
 				ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "[LWS] "
 						"failed to allocate monitor function key");
-				ngx_atomic_cmp_set(&lmcf->monitor->out_of_memory, 0, 1);
+				lmcf->monitor->out_of_memory = 1;
 				break;
 			}
 			ngx_memcpy(f->key.data, key->data, key->len);

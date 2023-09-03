@@ -17,10 +17,11 @@ typedef struct lws_profiler_s lws_profiler_t;
 typedef struct lws_activation_record_s lws_activation_record_t;
 
 struct lws_profiler_s {
-	lws_table_t               *functions;    /* profiler functions */
-	lws_activation_record_t  **stack;        /* profiler stack */
-	size_t                     stack_n;      /* profiler stack count */
-	size_t                     stack_alloc;  /* profiler stack allocated */
+	lws_table_t               *functions;    /* functions */
+	lws_activation_record_t  **stack;        /* stack */
+	size_t                     stack_n;      /* stack count */
+	size_t                     stack_alloc;  /* stack allocated */
+	clockid_t                  clock_id;     /* clock */
 };
 
 struct lws_activation_record_s {
