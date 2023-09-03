@@ -69,7 +69,8 @@ static inline void lws_memory_add_delta (size_t *base, size_t from, size_t to) {
 }
 
 static void lws_profiler_hook (lua_State *L, lua_Debug *ar) {
-	u_char                    buf[LWS_PROFILER_KEY_MAX + 1], *f, *last;
+	u_char                    buf[LWS_PROFILER_KEY_MAX];
+	u_char                   *name, *last;
 	size_t                    memory, stack_alloc_new;
 	ngx_str_t                 key;
 	lws_profiler_t           *p;
@@ -108,23 +109,23 @@ static void lws_profiler_hook (lua_State *L, lua_Debug *ar) {
 	if (ar->event == LUA_HOOKCALL || ar->event == LUA_HOOKTAILCALL) {
 		/* identify function */
 		lua_getinfo(L, "nS", ar);
-		f = ngx_cpystrn(buf, (u_char *)ar->short_src, sizeof(buf));
-		last = buf + sizeof(buf);
-		if (ar->linedefined > 0) {
-			f = ngx_slprintf(f, last, ":%d", ar->linedefined);
-		}
-		f = ngx_cpystrn(f, (u_char *)": ", last - f);
 		if (ar->name) {
-			f = ngx_cpystrn(f, (u_char *)ar->name, last - f);
+			name = (u_char *)ar->name;
 		} else if (*ar->what == 'm') {
-			f = ngx_cpystrn(f, (u_char *)"main chunk", last - f);
+			name = (u_char *)"main chunk";
 		} else if (*ar->what == 'L') {
-			f = ngx_cpystrn(f, (u_char *)"anonymous function", last - f);
+			name = (u_char *)"anonymous function";
 		} else {
-			f = ngx_cpystrn(f, (u_char *)"?", last - f);
+			name = (u_char *)"?";
+		}
+		if (ar->linedefined > 0) {
+			last = ngx_slprintf(buf, buf + sizeof(buf), "%s:%d: %s", ar->short_src,
+					ar->linedefined, name);
+		} else {
+			last = ngx_slprintf(buf, buf + sizeof(buf), "%s: %s", ar->short_src, name);
 		}
 		key.data = buf;
-		key.len = f - buf;
+		key.len = last - buf;
 
 		/* get or create activation record */
 		par = lws_table_get(p->functions, &key);
@@ -245,7 +246,7 @@ int lws_profiler_stop (lua_State *L) {
 			lws_timespec_add(&f->time_self, &par->time_self);
 			lws_timespec_add(&f->time_total, &par->time_total);
 			f->memory += par->memory;
-			lws_table_set(p->functions, &f->key, NULL);
+			lws_table_set(p->functions, &f->key, NULL);  /* to avoid adding */
 		}
 	}
 	if (!lmcf->monitor->out_of_memory) {

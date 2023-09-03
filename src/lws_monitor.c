@@ -320,6 +320,7 @@ static ngx_int_t lws_monitor_pair (ngx_http_request_t * r, ngx_str_t *key, ngx_s
 				ngx_slab_free_locked(lmcf->monitor_pool,
 						lmcf->monitor->functions[i].key.data);
 			}
+			ngx_atomic_cmp_set(&lmcf->monitor->out_of_memory, 1, 0);
 			lmcf->monitor->functions_n = 0;
 			ngx_shmtx_unlock(&lmcf->monitor_pool->mutex);
 		}

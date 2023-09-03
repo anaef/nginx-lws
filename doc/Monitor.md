@@ -1,7 +1,7 @@
 # LWS Monitor
 
-The LWS monitor provides read-write access to central LWS characteristics. It is configured
-through the `lws_monitor` [directive](Directives.md).
+The LWS monitor is a web API that provides read-write access to central LWS characteristics. It
+is configured through the `lws_monitor` [directive](Directives.md).
 
 > [!WARNING]
 > The LWS monitor should *not* be enabled at locations that are publicly accessible. Enabling
@@ -56,8 +56,6 @@ Each profiled function is represented by an array with the following values.
 The profiler uses the fixed-size shared memory zone of the monitor. If the zone runs out of
 memory, an error is logged, and the `out_of_memory` flag is set. In this case, the list of
 profiled functions is incomplete.
-
-The number of calls is exact for profiled functions.
 
 Self time and total time are measured in thread CPU time (as opposed to wall time.) Each time is
 represented as a sum of seconds and nanoseconds. Self time is the time spent in the function

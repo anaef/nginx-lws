@@ -20,7 +20,7 @@ struct lws_profiler_s {
 	lws_table_t               *functions;    /* profiler functions */
 	lws_activation_record_t  **stack;        /* profiler stack */
 	size_t                     stack_n;      /* profiler stack count */
-	size_t                     stack_alloc;  /* profiler stack allocated*/
+	size_t                     stack_alloc;  /* profiler stack allocated */
 };
 
 struct lws_activation_record_s {
@@ -42,7 +42,7 @@ int lws_profiler_stop(lua_State *L);
 
 #define LWS_PROFILER          "lws.profiler"          /* profiler metatable */
 #define LWS_PROFILER_CURRENT  "lws.profiler_current"  /* current profiler*/
-#define LWS_PROFILER_KEY_MAX  255                     /* maximum length of function key */
+#define LWS_PROFILER_KEY_MAX  256                     /* maximum length of function key */
 
 
 #endif /* _LWS_PROFILER_INCLUDED */

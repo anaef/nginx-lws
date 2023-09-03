@@ -177,8 +177,9 @@ with *timeout* to set seconds, minutes, hours, days, weeks, months, or years, re
 
 Context: location
 
-Enables the LWS [monitor](Monitor.md) at the loation. The LWS monitor provides read-write access
-to central LWS characteristics. This directive is exclusive with the `lws` directive.
+Enables the LWS [monitor](Monitor.md) at the loation. The LWS monitor is a web API that provides
+read-write access to central LWS characteristics. This directive is exclusive with the `lws`
+directive.
 
 > [!WARNING]
 > The LWS monitor should *not* be enabled at locations that are publicly accessible. Enabling
