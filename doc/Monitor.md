@@ -19,7 +19,7 @@ The `GET` method returns a JSON document as follows:
 	"memory_used": 0,
 	"request_count": 0,
 	"out_of_memory": 0,
-	"profiling": 0,
+	"profiler": 0,
 	"functions": [
 		["/var/www/lws-examples/services/request.lua:2: render_var", 282, 0, 774532, 0, 4464414, 15980],
 		["/var/www/lws-examples/services/request.lua: main chunk", 47, 0, 1186461, 0, 11546675, 1880]
@@ -36,7 +36,7 @@ The following table describes the keys of the document.
 | `memory_used` | `number` | Memory used by Lua, in bytes |
 | `request_count` | `number` | Total number of requests served |
 | `out_of_memory` | `number` | Monitor has run out of memory; `0` = no, `1` = yes |
-| `profiling` | `number` | Profiler status; `0` = disabled, `1` = enabled |
+| `profiler` | `number` | Profiler status; `0` = disabled, `1` = enabled |
 | `functions` | `array` | Profiled functions (see below) |
 
 ### Profiled Function
@@ -53,20 +53,25 @@ Each profiled function is represented by an array with the following values.
 | 5 | `number` | Total time, nanoseconds |
 | 6 | `number` | Allocated memory, in bytes |
 
-The profiler uses the fixed-size shared memory area of the monitor. If the shared memory runs out,
-an error is logged, and the `out_of_memory` flag is set. In this case, the set of profiled
-functions is incomplete.
+The profiler uses the fixed-size shared memory zone of the monitor. If the zone runs out of
+memory, an error is logged, and the `out_of_memory` flag is set. In this case, the list of
+profiled functions is incomplete.
 
-The number of calls is exact.
+The number of calls is exact for profiled functions.
 
-Self and total time are measured in thread CPU time (as opposed to wall time.) Self time is the
-time spent in the function per se, whereas as total time additionally includes the time spent in
-child functions, i.e., functions that are called from the function. A tail call is processed as an
-exit from the function and thus does not accumulate child time. Due to profiler overhead, time
-values are approximations.
+Self time and total time are measured in thread CPU time (as opposed to wall time.) Each time is
+represented as a sum of seconds and nanoseconds. Self time is the time spent in the function
+per se, whereas as total time additionally includes the time spent in child functions, i.e.,
+functions that are called from the parent function under consideration. A tail call is processed
+as an exit from the parent function and thus does not accumulate child time. Due to profiler
+overhead, time values are approximations.
 
 Allocated memory is the amount of Lua memory allocated during the execution of the function per
 se. Due to potential garbage collection, this is an approximation.
+
+### Response Status
+
+The response has a 200 OK status.
 
 
 ## `POST` Method
@@ -77,7 +82,9 @@ modified.
 
 | Key | Description |
 | --- | --- |
-| `profiling` | Profiler status; `0` = disabled; `1` = enabled |
+| `profiler` | Profiler status; `0` = disabled, `1` = enabled |
+
+### Response Status
 
 The response has a 200 OK status if the modification succeeded, a 400 Bad Request status if an
 invalid value was provided, or a 409 Conflict status if the modification failed. The latter can
@@ -88,3 +95,5 @@ happen due to a concurrent modification.
 
 The [examples website](GettingStarted.md) includes a self-contained web page that periodically
 queries the monitor for display, and allows for enabling and disabling the profiler.
+
+![Monitor web page](images/Monitor.png)

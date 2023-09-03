@@ -93,15 +93,15 @@
 					<td colspan="3"></td>
 				</tr>
 				<tr>
-					<td>Profiling</td>
-					<td class="text-end" id="profiling"></td>
+					<td>Profiler</td>
+					<td class="text-end" id="profiler"></td>
 					<td colspan="3"></td>
 				</tr>
 			</tbody>
 		</table>
 		<div class="row">
-			<button type="button" id="profiling_enable" disabled>Enable Profiling</button>
-			<button type="button" id="profiling_disable" disabled>Disable Profiling</button>
+			<button type="button" id="profiler_enable" disabled>Enable Profiler</button>
+			<button type="button" id="profiler_disable" disabled>Disable Profiler</button>
 		</div>
 
 		<div id="functions"></div>
@@ -145,7 +145,7 @@
 			request.send();
 		}
 
-		function setProfiling (profiling) {
+		function setProfiler (profiler) {
 			let request = new XMLHttpRequest();
 			request.responseType = "json";
 			request.open("POST", "/lws-monitor/");
@@ -159,7 +159,7 @@
 					updateStatus(false);
 				}
 			}
-			request.send("profiling=" + profiling);
+			request.send("profiler=" + profiler);
 		}
 
 		function apply (response, periodic) {
@@ -270,11 +270,11 @@
 		window.addEventListener("load", function () {
 			updateStatus(true);
 			setInterval(function () { updateStatus(true) }, 3000);
-			document.getElementById("profiling_enable").addEventListener("click", function () {
-				setProfiling(1);
+			document.getElementById("profiler_enable").addEventListener("click", function () {
+				setProfiler(1);
 			});
-			document.getElementById("profiling_disable").addEventListener("click", function () {
-				setProfiling(0);
+			document.getElementById("profiler_disable").addEventListener("click", function () {
+				setProfiler(0);
 			});
 			for (i in characteristics) {
 				if (!characteristics[i].hasSpark) {
@@ -317,13 +317,13 @@
 				hasSpark: false
 			},
 			{
-				key: "profiling",
+				key: "profiler",
 				format: function (value) {
 					return value ? "enabled" : "disabled";
 				},
 				updateUi: function (value) {
-					document.getElementById("profiling_enable").disabled = value == 1;
-					document.getElementById("profiling_disable").disabled = value == 0;
+					document.getElementById("profiler_enable").disabled = value == 1;
+					document.getElementById("profiler_disable").disabled = value == 0;
 				},
 				hasSpark: false
 			}
