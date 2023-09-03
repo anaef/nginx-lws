@@ -18,7 +18,12 @@ The `GET` method returns a JSON document as follows:
 	"requests_n": 0,
 	"memory_used": 0,
 	"request_count": 0,
-	"profiling": 0
+	"out_of_memory": 0,
+	"profiling": 0,
+	"functions": [
+		["/var/www/lws-examples/services/request.lua:2: render_var", 282, 0, 774532, 0, 4464414, 15980],
+		["/var/www/lws-examples/services/request.lua: main chunk", 47, 0, 1186461, 0, 11546675, 1880]
+	]
 }
 ```
 
@@ -30,7 +35,38 @@ The following table describes the keys of the document.
 | `requests_n` | `number` | Number of queued requests |
 | `memory_used` | `number` | Memory used by Lua, in bytes |
 | `request_count` | `number` | Total number of requests served |
-| `profiling` | `number` | Profiler status; `0` = disabled; `1` = enabled |
+| `out_of_memory` | `number` | Monitor has run out of memory; `0` = no, `1` = yes |
+| `profiling` | `number` | Profiler status; `0` = disabled, `1` = enabled |
+| `functions` | `array` | Profiled functions (see below) |
+
+### Profiled Function
+
+Each profiled function is represented by an array with the following values.
+
+| Index | Type | Description |
+| --- | --- | --- |
+| 0 | `string` | Function key |
+| 1 | `number` | Number of calls |
+| 2 | `number` | Self time, seconds |
+| 3 | `number` | Self time, nanoseconds |
+| 4 | `number` | Total time, seconds |
+| 5 | `number` | Total time, nanoseconds |
+| 6 | `number` | Allocated memory, in bytes |
+
+The profiler uses the fixed-size shared memory area of the monitor. If the shared memory runs out,
+an error is logged, and the `out_of_memory` flag is set. In this case, the set of profiled
+functions is incomplete.
+
+The number of calls is exact.
+
+Self and total time are measured in thread CPU time (as opposed to wall time.) Self time is the
+time spent in the function per se, whereas as total time additionally includes the time spent in
+child functions, i.e., functions that are called from the function. A tail call is processed as an
+exit from the function and thus does not accumulate child time. Due to profiler overhead, time
+values are approximations.
+
+Allocated memory is the amount of Lua memory allocated during the execution of the function per
+se. Due to potential garbage collection, this is an approximation.
 
 
 ## `POST` Method

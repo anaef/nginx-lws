@@ -31,7 +31,7 @@ struct lws_activation_record_s {
 	struct timespec  time_self;         /* self time */
 	struct timespec  time_total;        /* total time */
 	size_t           memory_start;      /* start memory */
-	size_t           memory;            /* used memory */
+	size_t           memory;            /* allocated memory */
 };
 
 

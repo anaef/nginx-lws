@@ -2,13 +2,14 @@
 <html>
 	<!-- self contained -->
 	<head>
+		<meta charset="UTF-8">
 		<title>LWS Monitor</title>
 		<style>
 			html {
 				font-family: system-ui, "Segoe UI", -apple-system, "Liberation Sans", Roboto, "Helvetica Neue", Arial, sans-serif;
 			}
 			body {
-				max-width: 680px;
+				max-width: 960px;
 				margin: 0 auto;
 			}
 			table.table {
@@ -23,14 +24,23 @@
 				padding: 0.5rem;
 				border-bottom: 1px solid gray;
 			}
+			table.table th.table-sorter {
+				cursor: pointer;
+			}
+			table.table th.table-sorter-asc::after {
+				content: " ⏶";
+			}
+			table.table th.table-sorter-desc::after {
+				content: " ⏷";
+			}
 			.row {
 				margin-top: 0.5rem;
 			}
 			.text-end {
 				text-align: end !important;
 			}
-			.w-18 {
-				width: 18%;
+			.w-15 {
+				width: 15%;
 			}
 		</style>
 	</head>
@@ -42,10 +52,10 @@
 			<thead>
 				<tr>
 					<th>Characteristic</th>
-					<th class="w-18 text-end">Value</th>
+					<th class="w-15 text-end">Value</th>
 					<th>Spark Line (5m)</th>
-					<th class="w-18 text-end">Min</th>
-					<th class="w-18 text-end">Max</th>
+					<th class="w-15 text-end">Min</th>
+					<th class="w-15 text-end">Max</th>
 				</tr>
 			</thead>
 			<tbody class="table">
@@ -78,6 +88,11 @@
 					<td class="text-end" id="request_count_max"></td>
 				</tr>
 				<tr>
+					<td>Out of Memory</td>
+					<td class="text-end" id="out_of_memory"></td>
+					<td colspan="3"></td>
+				</tr>
+				<tr>
 					<td>Profiling</td>
 					<td class="text-end" id="profiling"></td>
 					<td colspan="3"></td>
@@ -88,57 +103,34 @@
 			<button type="button" id="profiling_enable" disabled>Enable Profiling</button>
 			<button type="button" id="profiling_disable" disabled>Disable Profiling</button>
 		</div>
+
+		<div id="functions"></div>
 	</body>
 	<script>
-		let characteristics = [
-			{
-				key: "states_n",
-				format: function (value) {
-					return value.toLocaleString();
-				},
-				hasSpark: true
-			},
-			{
-				key: "requests_n",
-				format: function (value) {
-					return value.toLocaleString();
-				},
-				hasSpark: true
-			},
-			{
-				key: "memory_used",
-				format: function (value) {
-					if (value > 1024**3) {
-						return Math.floor(value / 1024**2).toLocaleString() + " MB";
-					} else if (value > 1024**2) {
-						return Math.floor(value / 1024).toLocaleString() + " KB";
-					} else {
-						return value.toLocaleString() + " B";
-					}
-				},
-				hasSpark: true
-			},
-			{
-				key: "request_count",
-				format: function (value) {
-					return value.toLocaleString();
-				},
-				hasSpark: true
-			},
-			{
-				key: "profiling",
-				format: function (value) {
-					return value ? "enabled" : "disabled";
-				},
-				updateUi: function (value) {
-					document.getElementById("profiling_enable").disabled = value == 1;
-					document.getElementById("profiling_disable").disabled = value == 0;
-				}
+		function formatCount (value) {
+			return value.toLocaleString();
+		}
+
+		function formatMemory (value) {
+			if (value > 1024**3) {
+				return Math.floor(value / 1024**2).toLocaleString() + " MB";
+			} else if (value > 1024**2) {
+				return Math.floor(value / 1024).toLocaleString() + " KB";
+			} else {
+				return value.toLocaleString() + " B";
 			}
-		];
-		let data = {};
-		for (i in characteristics) {
-			data[characteristics[i].key] = [];
+		}
+
+		function formatDuration (sec, nsec) {
+			if (sec > 0) {
+				return (sec + nsec / 1000000000).toFixed(3) + " s";
+			} else if (nsec > 1000000) {
+				return (nsec / 1000000).toFixed(3) + " ms";
+			} else if (nsec > 1000) {
+				return (nsec / 1000).toFixed(3) + " µs";
+			} else {
+				return nsec + " ns";
+			}
 		}
 
 		function updateStatus (periodic) {
@@ -171,7 +163,13 @@
 		}
 
 		function apply (response, periodic) {
-			for (i in characteristics) {
+			applyCharacteristics(response, periodic);
+			applyFunctions(response.functions);
+			functions = response.functions;
+		}
+
+		function applyCharacteristics (response, periodic) {
+			for (let i in characteristics) {
 				/* value */
 				let key = characteristics[i].key;
 				let valueElement = document.getElementById(key);
@@ -213,6 +211,62 @@
 			}
 		}
 
+		function applyFunctions (functions) {
+			let functionsElement = document.getElementById("functions");
+			functionsElement.replaceChildren();
+			if (functions.length > 0) {
+				/* sort */
+				functions.sort(functionSorterColumn.comparator);
+
+				/* title */
+				let titleElement = document.createElement("h3");
+				titleElement.innerText = "Functions";
+				functionsElement.appendChild(titleElement);
+
+				/* table */
+				let tableElement = document.createElement("table");
+				tableElement.setAttribute("class", "table");
+				functionsElement.appendChild(tableElement);
+
+				/* thead */
+				let theadElement = document.createElement("thead");
+				let trElement = document.createElement("tr");
+				for (let i in functionColumns) {
+					let column = functionColumns[i];
+					let thElement = document.createElement("th");
+					thElement.setAttribute("class", "table-sorter");
+					thElement.classList.add(...column.classes);
+					if (column == functionSorterColumn) {
+						thElement.classList.add("table-sorter-" + column.direction);
+					}
+					thElement.innerText = column.name;
+					thElement.addEventListener("click", function () {
+						functionSorterColumn = column;
+						applyFunctions(functions);
+					});
+					trElement.appendChild(thElement);
+				}
+				theadElement.appendChild(trElement);
+				tableElement.appendChild(theadElement);
+
+				/* tbody */
+				let tbodyElement = document.createElement("tbody");
+				for (let i in functions) {
+					let f = functions[i];
+					let trElement = document.createElement("tr");
+					for (let j in functionColumns) {
+						let column = functionColumns[j];
+						let tdElement = document.createElement("td");
+						tdElement.classList.add(...column.classes);
+						tdElement.innerText = column.format(f);
+						trElement.appendChild(tdElement);
+					}
+					tbodyElement.appendChild(trElement);
+				}
+				tableElement.appendChild(tbodyElement);
+			}
+		}
+
 		window.addEventListener("load", function () {
 			updateStatus(true);
 			setInterval(function () { updateStatus(true) }, 3000);
@@ -233,5 +287,111 @@
 				ctx.scale(1, -1);
 			}
 		});
+
+		let characteristics = [
+			{
+				key: "states_n",
+				format: formatCount,
+				hasSpark: true
+			},
+			{
+				key: "requests_n",
+				format: formatCount,
+				hasSpark: true
+			},
+			{
+				key: "memory_used",
+				format: formatMemory,
+				hasSpark: true
+			},
+			{
+				key: "request_count",
+				format: formatCount,
+				hasSpark: true
+			},
+			{
+				key: "out_of_memory",
+				format: function (value) {
+					return value ? "yes" : "no";
+				},
+				hasSpark: false
+			},
+			{
+				key: "profiling",
+				format: function (value) {
+					return value ? "enabled" : "disabled";
+				},
+				updateUi: function (value) {
+					document.getElementById("profiling_enable").disabled = value == 1;
+					document.getElementById("profiling_disable").disabled = value == 0;
+				},
+				hasSpark: false
+			}
+		];
+
+		let data = {};
+		for (i in characteristics) {
+			data[characteristics[i].key] = [];
+		}
+
+		let functionColumns = [
+			{
+				name: "Key",
+				classes: [],
+				direction: "asc",
+				format: function (f) {
+					return f[0];
+				},
+				comparator: function (a, b) {
+					return a[0].localeCompare(b[0]);
+				},
+			},
+			{
+				name: "Calls",
+				classes: ["w-15", "text-end"],
+				direction: "desc",
+				format: function (f) {
+					return formatCount(f[1]);
+				},
+				comparator: function (a, b) {
+					return a[1] != b[1] ? b[1] - a[1] : a[0].localeCompare(b[0]);
+				}
+			},
+			{
+				name: "Self Time",
+				classes: ["w-15", "text-end"],
+				direction: "desc",
+				format: function (f) {
+					return formatDuration(f[2], f[3]);
+				},
+				comparator: function (a, b) {
+					return a[2] != b[2] ? b[2] - a[2] : a[3] != b[3] ? b[3] - a[3] : a[0].localeCompare(b[0]);
+				}
+			},
+			{
+				name: "Total Time",
+				classes: ["w-15", "text-end"],
+				direction: "desc",
+				format: function (f) {
+					return formatDuration(f[4], f[5]);
+				},
+				comparator: function (a, b) {
+					return a[4] != b[4] ? b[4] - a[4] : a[5] != b[5] ? b[5] - a[5] : a[0].localeCompare(b[0]);
+				}
+			},
+			{
+				name: "Memory",
+				classes: ["w-15", "text-end"],
+				direction: "desc",
+				format: function (f) {
+					return formatMemory(f[6]);
+				},
+				comparator: function (a, b) {
+					return a[6] != b[6] ? b[6] - a[6] : a[0].localeCompare(b[0]);
+				}
+			}
+		];
+		let functionSorterColumn = functionColumns[1];
+		let functions = [];
 	</script>
 </html>

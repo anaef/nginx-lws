@@ -7,10 +7,12 @@
 
 #include <lws_profiler.h>
 #include <lauxlib.h>
+#include <lws_module.h>
 
 
 static int lws_profiler_tostring(lua_State *L);
 static int lws_profiler_gc(lua_State *L);
+static inline void lws_timespec_add(struct timespec *base, const struct timespec *inc);
 static inline void lws_timespec_add_delta(struct timespec *base, const struct timespec *from,
 		const struct timespec *to);
 static inline void lws_memory_add_delta(size_t *base, size_t from, size_t to);
@@ -38,6 +40,15 @@ static int lws_profiler_gc (lua_State *L) {
 	return 0;
 }
 
+static inline void lws_timespec_add (struct timespec *base, const struct timespec *inc) {
+	base->tv_nsec += inc->tv_nsec;
+	base->tv_sec += inc->tv_sec;
+	if (base->tv_nsec > 1000000000) {
+		base->tv_nsec -= 1000000000;
+		base->tv_sec++;
+	}
+}
+
 static inline void lws_timespec_add_delta (struct timespec *base, const struct timespec *from,
 		const struct timespec *to) {
 	base->tv_nsec += to->tv_nsec - from->tv_nsec;
@@ -45,6 +56,9 @@ static inline void lws_timespec_add_delta (struct timespec *base, const struct t
 	if (base->tv_nsec < 0) {
 		base->tv_nsec += 1000000000;
 		base->tv_sec--;
+	} else if (base->tv_nsec > 1000000000) {
+		base->tv_nsec -= 1000000000;
+		base->tv_sec++;
 	}
 }
 
@@ -206,6 +220,74 @@ int lws_profiler_start (lua_State *L) {
 }
 
 int lws_profiler_stop (lua_State *L) {
+	size_t                    i, functions_alloc_new;
+	ngx_str_t                *key;
+	lws_function_t           *f, *functions_new;
+	lws_profiler_t           *p;
+	lws_main_conf_t          *lmcf;
+	lws_activation_record_t  *par;
+
+	/* get profiler */
+	lua_getfield(L, LUA_REGISTRYINDEX, LWS_PROFILER_CURRENT);
+	if (!(p = luaL_testudata(L, -1, LWS_PROFILER))) {
+		luaL_error(L, "failed to get profiler");
+	}
+
+	/* synchronize profiled functions into monitor */
+	lmcf = ngx_http_cycle_get_module_main_conf(ngx_cycle, lws);
+	ngx_shmtx_lock(&lmcf->monitor_pool->mutex);
+	for (i = 0; i < lmcf->monitor->functions_n; i++) {
+		f = &lmcf->monitor->functions[i];
+		par = lws_table_get(p->functions, &f->key);
+		if (par) {
+			/* update existing */
+			f->calls += par->calls;
+			lws_timespec_add(&f->time_self, &par->time_self);
+			lws_timespec_add(&f->time_total, &par->time_total);
+			f->memory += par->memory;
+			lws_table_set(p->functions, &f->key, NULL);
+		}
+	}
+	if (!lmcf->monitor->out_of_memory) {
+		key = NULL;
+		while (lws_table_next(p->functions, key, &key, (void**)&par) == 0) {
+			/* add new*/
+			if (lmcf->monitor->functions_n == lmcf->monitor->functions_alloc) {
+				functions_alloc_new = lmcf->monitor->functions_alloc * 2;
+				functions_new = ngx_slab_alloc_locked(lmcf->monitor_pool,
+						functions_alloc_new * sizeof(lws_function_t));
+				if (!functions_new) {
+					ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "[LWS] "
+							"failed to allocate monitor functions");
+					ngx_atomic_cmp_set(&lmcf->monitor->out_of_memory, 0, 1);
+					break;
+				}
+				ngx_memcpy(functions_new, lmcf->monitor->functions,
+						lmcf->monitor->functions_n
+						* sizeof(lws_function_t));
+				ngx_slab_free_locked(lmcf->monitor_pool, lmcf->monitor->functions);
+				lmcf->monitor->functions = functions_new;
+				lmcf->monitor->functions_alloc = functions_alloc_new;
+			}
+			f = &lmcf->monitor->functions[lmcf->monitor->functions_n];
+			f->key.data = ngx_slab_alloc_locked(lmcf->monitor_pool, key->len);
+			if (!f->key.data) {
+				ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "[LWS] "
+						"failed to allocate monitor function key");
+				ngx_atomic_cmp_set(&lmcf->monitor->out_of_memory, 0, 1);
+				break;
+			}
+			ngx_memcpy(f->key.data, key->data, key->len);
+			f->key.len = key->len;
+			f->calls = par->calls;
+			f->time_self = par->time_self;
+			f->time_total = par->time_total;
+			f->memory = par->memory;
+			lmcf->monitor->functions_n++;
+		}
+	}
+	ngx_shmtx_unlock(&lmcf->monitor_pool->mutex);
+
 	/* clear hook */
 	lua_sethook(L, NULL, 0, 0);
 

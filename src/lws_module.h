@@ -101,9 +101,11 @@ struct lws_variable_s {
 extern ngx_module_t lws;
 
 
-#define LWS_THREAD_POOL_NAME_DEFAULT "default"
-#define LWS_STAT_CACHE_CAP_DEFAULT 1024
-#define LWS_STAT_CACHE_TIMEOUT_DEFAULT 30
+#define LWS_THREAD_POOL_NAME_DEFAULT    "default"
+#define LWS_STAT_CACHE_CAP_DEFAULT      1024
+#define LWS_STAT_CACHE_TIMEOUT_DEFAULT  30
+
+#define lws_cpylit(p, lit)              ngx_cpymem(p, lit, sizeof(lit) - 1)
 
 
 #endif /* _LWS_MODULE_INCLUDED */

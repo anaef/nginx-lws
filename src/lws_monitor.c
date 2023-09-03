@@ -37,7 +37,7 @@ char *lws_monitor(ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
 	lmcf = ngx_http_conf_get_module_main_conf(cf, lws);
 	if (!lmcf->monitor_shm) {
 		ngx_str_set(&name, "lws_monitor");
-		lmcf->monitor_shm = ngx_shared_memory_add(cf, &name, 64 * 1024, &lws);
+		lmcf->monitor_shm = ngx_shared_memory_add(cf, &name, LWS_MONITOR_SIZE, &lws);
 		if (!lmcf->monitor_shm) {
 			return NGX_CONF_ERROR;
 		}
@@ -58,11 +58,16 @@ static ngx_int_t lws_init_monitor (ngx_shm_zone_t *zone, void *data) {
 
 	lmcf = zone->data;
 	lmcf->monitor_pool = (ngx_slab_pool_t *)zone->shm.addr;
-	lmcf->monitor = ngx_slab_alloc(lmcf->monitor_pool, sizeof(lws_monitor_t));
+	lmcf->monitor = ngx_slab_calloc(lmcf->monitor_pool, sizeof(lws_monitor_t));
 	if (!lmcf->monitor) {
 		return NGX_ERROR;
 	}
-	ngx_memzero(lmcf->monitor, sizeof(lws_monitor_t));
+	lmcf->monitor->functions_alloc = 32;
+	lmcf->monitor->functions = ngx_slab_alloc(lmcf->monitor_pool,
+			lmcf->monitor->functions_alloc * sizeof(lws_function_t));
+	if (!lmcf->monitor->functions) {
+		return NGX_ERROR;
+	}
 	return NGX_OK;
 }
 
@@ -80,12 +85,13 @@ static ngx_int_t lws_monitor_handler (ngx_http_request_t *r) {
 }
 
 static ngx_int_t lws_monitor_content (ngx_http_request_t *r) {
-	u_char            output[1024];
+	size_t            i, len;
 	ngx_buf_t        *b;
-	ngx_chain_t      *out;
-	ngx_table_elt_t  *h;
 	ngx_int_t         rc;
+	ngx_chain_t      *out;
+	lws_function_t   *f;
 	lws_main_conf_t  *lmcf;
+	ngx_table_elt_t  *h;
 
 	/* allocate buffer */
 	out = ngx_alloc_chain_link(r->pool);
@@ -93,25 +99,70 @@ static ngx_int_t lws_monitor_content (ngx_http_request_t *r) {
 	if (!out || !b) {
 		return NGX_HTTP_INTERNAL_SERVER_ERROR;
 	}
-	b->start = output;
-	b->pos = b->start;
-	b->end = b->start + sizeof(output);
-	b->last = b->pos;
 
 	/* build JSON */
-	lmcf = ngx_http_get_module_main_conf(r, lws);
-	b->last = ngx_slprintf(b->last, b->end, "{\n"
+	lmcf = ngx_http_cycle_get_module_main_conf(ngx_cycle, lws);
+	ngx_shmtx_lock(&lmcf->monitor_pool->mutex);
+	len = sizeof("{\n") - 1;
+	len += sizeof("\t\"states_n\": ,\n") - 1  + 20;
+	len += sizeof("\t\"requests_n\": ,\n") - 1  + 20;
+	len += sizeof("\t\"memory_used\": ,\n") - 1  + 20;
+	len += sizeof("\t\"request_count\": ,\n") - 1  + 20;
+	len += sizeof("\t\"out_of_memory\": ,\n") - 1  + 1;
+	len += sizeof("\t\"profiling\": ,\n") - 1  + 1;
+	len += sizeof("\t\"functions\": [\n") - 1;
+	for (i = 0; i < lmcf->monitor->functions_n; i++) {
+		f = &lmcf->monitor->functions[i];
+		len += sizeof("\t\t[\"\", , , , , , ],\n") - 1 + 6 * 20;
+		len += ngx_escape_json(NULL, f->key.data, f->key.len);
+	}
+	len += sizeof("\t]\n}") - 1;
+	b->start = ngx_palloc(r->pool, len);
+	if (!b->start) {
+		ngx_shmtx_unlock(&lmcf->monitor_pool->mutex);
+		return NGX_HTTP_INTERNAL_SERVER_ERROR;
+	}
+	b->pos = b->start;
+	b->end = b->start + len;
+	b->last = b->pos;
+	b->last = ngx_sprintf(b->last, "{\n"
 			"\t\"states_n\": %i,\n"
 			"\t\"requests_n\": %i,\n"
 			"\t\"memory_used\": %i,\n"
 			"\t\"request_count\": %i,\n"
-			"\t\"profiling\": %i\n"
-			"}",
+			"\t\"out_of_memory\": %i,\n"
+			"\t\"profiling\": %i,\n",
 			(ngx_int_t)lmcf->monitor->states_n,
 			(ngx_int_t)lmcf->monitor->requests_n,
 			(ngx_int_t)lmcf->monitor->memory_used,
 			(ngx_int_t)lmcf->monitor->request_count,
+			(ngx_int_t)lmcf->monitor->out_of_memory,
 			(ngx_int_t)lmcf->monitor->profiling);
+	if (lmcf->monitor->functions_n == 0) {
+		b->last = lws_cpylit(b->last, "\t\"functions\": []\n");
+	} else {
+		b->last = lws_cpylit(b->last, "\t\"functions\": [\n");
+		for (i = 0; i < lmcf->monitor->functions_n; i++) {
+			f = &lmcf->monitor->functions[i];
+			b->last = lws_cpylit(b->last, "\t\t[\"");
+			b->last = (u_char *)ngx_escape_json(b->last, f->key.data, f->key.len);
+			b->last = ngx_sprintf(b->last, "\", %i, %i, %i, %i, %i, %i]",
+					(ngx_int_t)f->calls,
+					(ngx_int_t)f->time_self.tv_sec,
+					(ngx_int_t)f->time_self.tv_nsec,
+					(ngx_int_t)f->time_total.tv_sec,
+					(ngx_int_t)f->time_total.tv_nsec,
+					(ngx_int_t)f->memory);
+			if (i < lmcf->monitor->functions_n - 1) {
+				b->last = lws_cpylit(b->last, ",\n");
+			} else {
+				b->last = lws_cpylit(b->last, "\n");
+			}
+		}
+		b->last = lws_cpylit(b->last, "\t]\n");
+	}
+	b->last = lws_cpylit(b->last, "}");
+	ngx_shmtx_unlock(&lmcf->monitor_pool->mutex);
 
 	/* send headers */
 	r->headers_out.status = NGX_HTTP_OK;
