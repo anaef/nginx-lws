@@ -456,7 +456,13 @@
 					}
 				},
 				comparator: function (a, b) {
-					return a[2] != b[2] ? b[2] - a[2] : a[3] != b[3] ? b[3] - a[3] : a[0].localeCompare(b[0]);
+					if (!functionsPerCall || functionsSelfTimeInPercent) {
+						return a[2] != b[2] ? b[2] - a[2] : a[3] != b[3] ? b[3] - a[3] : a[0].localeCompare(b[0]);
+					} else {
+						let aSeconds = (a[2] + a[3] / 1e9) / a[1];
+						let bSeconds = (b[2] + b[3] / 1e9) / b[1];
+						return aSeconds != bSeconds ? bSeconds - aSeconds : a[0].localeCompare(b[0]);
+					}
 				}
 			},
 			{
@@ -467,7 +473,13 @@
 					return formatDuration(f[4], f[5], functionsPerCall ? 1 / f[1] : 1);
 				},
 				comparator: function (a, b) {
-					return a[4] != b[4] ? b[4] - a[4] : a[5] != b[5] ? b[5] - a[5] : a[0].localeCompare(b[0]);
+					if (!functionsPerCall) {
+						return a[4] != b[4] ? b[4] - a[4] : a[5] != b[5] ? b[5] - a[5] : a[0].localeCompare(b[0]);
+					} else {
+						let aSeconds = (a[4] + a[5] / 1e9) / a[1];
+						let bSeconds = (b[4] + b[5] / 1e9) / b[1];
+						return aSeconds != bSeconds ? bSeconds - aSeconds : a[0].localeCompare(b[0]);
+					}
 				}
 			},
 			{
@@ -482,7 +494,13 @@
 					}
 				},
 				comparator: function (a, b) {
-					return a[6] != b[6] ? b[6] - a[6] : a[0].localeCompare(b[0]);
+					if (!functionsPerCall) {
+						return a[6] != b[6] ? b[6] - a[6] : a[0].localeCompare(b[0]);
+					} else {
+						let aMemory = a[6] / a[1];
+						let bMemory = b[6] / b[1];
+						return aMemory != bMemory ? bMemory - aMemory : a[0].localeCompare(b[0]);
+					}
 				}
 			}
 		];
