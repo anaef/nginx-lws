@@ -239,6 +239,8 @@
 			if (functions.length > 0) {
 				/* sort */
 				functions.sort(functionsSorterColumn.comparator);
+
+				/* calculate total self time as needed */
 				if (functionsSelfTimeInPercent) {
 					let sumSeconds = 0;
 					let sumNanoseconds = 0;
@@ -257,22 +259,22 @@
 
 				/* controls */
 				let controlsElement = document.createElement("div");
-				let timePerCallCheckbox = document.createElement("input");
-				timePerCallCheckbox.setAttribute("type", "checkbox");
-				timePerCallCheckbox.setAttribute("id", "timePerCall");
-				if (functionsTimePerCall) {
-					timePerCallCheckbox.setAttribute("checked", "");
+				let perCallCheckbox = document.createElement("input");
+				perCallCheckbox.setAttribute("type", "checkbox");
+				perCallCheckbox.setAttribute("id", "perCall");
+				if (functionsPerCall) {
+					perCallCheckbox.setAttribute("checked", "");
 				}
-				timePerCallCheckbox.addEventListener("change", function (evt) {
-					functionsTimePerCall = evt.target.checked;
+				perCallCheckbox.addEventListener("change", function (evt) {
+					functionsPerCall = evt.target.checked;
 					renderFunctions();
 				});
-				controlsElement.appendChild(timePerCallCheckbox);
-				let timePerCallLabel = document.createElement("label");
-				timePerCallLabel.setAttribute("class", "inline");
-				timePerCallLabel.setAttribute("for", "timePerCall");
-				timePerCallLabel.innerText = "Time per Call";
-				controlsElement.appendChild(timePerCallLabel);
+				controlsElement.appendChild(perCallCheckbox);
+				let perCallLabel = document.createElement("label");
+				perCallLabel.setAttribute("class", "inline");
+				perCallLabel.setAttribute("for", "perCall");
+				perCallLabel.innerText = "Per Call";
+				controlsElement.appendChild(perCallLabel);
 				let selfTimeInPercentCheckbox = document.createElement("input");
 				selfTimeInPercentCheckbox.setAttribute("type", "checkbox");
 				selfTimeInPercentCheckbox.setAttribute("id", "selfTimeInPercent");
@@ -448,7 +450,7 @@
 				direction: "desc",
 				format: function (f) {
 					if (!functionsSelfTimeInPercent) {
-						return formatDuration(f[2], f[3], functionsTimePerCall ? 1 / f[1] : 1);
+						return formatDuration(f[2], f[3], functionsPerCall ? 1 / f[1] : 1);
 					} else {
 						return formatDurationPercent(f[2], f[3], functionsSelfTimeSum);
 					}
@@ -462,7 +464,7 @@
 				classes: ["w-15", "text-end"],
 				direction: "desc",
 				format: function (f) {
-					return formatDuration(f[4], f[5], functionsTimePerCall ? 1 / f[1] : 1);
+					return formatDuration(f[4], f[5], functionsPerCall ? 1 / f[1] : 1);
 				},
 				comparator: function (a, b) {
 					return a[4] != b[4] ? b[4] - a[4] : a[5] != b[5] ? b[5] - a[5] : a[0].localeCompare(b[0]);
@@ -473,7 +475,11 @@
 				classes: ["w-15", "text-end"],
 				direction: "desc",
 				format: function (f) {
-					return formatMemory(f[6]);
+					if (!functionsPerCall) {
+						return formatMemory(f[6])
+					} else {
+						return formatMemory(Math.floor(f[6] / f[1]));
+					}
 				},
 				comparator: function (a, b) {
 					return a[6] != b[6] ? b[6] - a[6] : a[0].localeCompare(b[0]);
@@ -481,7 +487,7 @@
 			}
 		];
 		let functions = [];
-		let functionsTimePerCall = false;
+		let functionsPerCall = false;
 		let functionsSelfTimeInPercent = false;
 		let functionsSelfTimeSum = 0;
 		let functionsSorterColumn = functionColumns[1];
