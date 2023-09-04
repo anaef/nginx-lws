@@ -33,6 +33,9 @@
 			table.table th.table-sorter-desc::after {
 				content: " ⏷";
 			}
+			label.inline {
+				margin-inline-end: 1rem;
+			}
 			.row {
 				margin-top: 0.5rem;
 			}
@@ -130,16 +133,22 @@
 			}
 		}
 
-		function formatDuration (sec, nsec) {
-			if (sec > 0) {
-				return (sec + nsec / 1000000000).toFixed(3) + " s";
-			} else if (nsec > 1000000) {
-				return (nsec / 1000000).toFixed(3) + " ms";
-			} else if (nsec > 1000) {
-				return (nsec / 1000).toFixed(3) + " µs";
+		function formatDuration (sec, nsec, scale) {
+			let s = (sec + nsec / 1e9) * scale;
+			if (s >= 1) {
+				return sec.toFixed(3) + " s";
+			} else if (s >= 1e-3) {
+				return (s * 1e3).toFixed(3) + " ms";
+			} else if (s >= 1e-6) {
+				return (s * 1e6).toFixed(3) + " µs";
 			} else {
-				return nsec + " ns";
+				return (s * 1e9).toFixed(0) + " ns";
 			}
+		}
+
+		function formatDurationPercent (sec, nsec, sum) {
+			let s = (sec + nsec / 1e9);
+			return ((s / sum) * 100).toFixed(2) + " %";
 		}
 
 		async function updateStatus (periodic) {
@@ -173,8 +182,7 @@
 
 		function apply (response, periodic) {
 			applyCharacteristics(response, periodic);
-			applyFunctions(response.functions);
-			functions = response.functions;
+			applyFunctions(response);
 		}
 
 		function applyCharacteristics (response, periodic) {
@@ -220,17 +228,68 @@
 			}
 		}
 
-		function applyFunctions (functions) {
+		function applyFunctions (response) {
+			functions = response.functions;
+			renderFunctions();
+		}
+
+		function renderFunctions () {
 			let functionsContainerElement = document.getElementById("functions-container");
 			functionsContainerElement.replaceChildren();
 			if (functions.length > 0) {
 				/* sort */
-				functions.sort(functionSorterColumn.comparator);
+				functions.sort(functionsSorterColumn.comparator);
+				if (functionsSelfTimeInPercent) {
+					let sumSeconds = 0;
+					let sumNanoseconds = 0;
+					for (let i in functions) {
+						let f = functions[i];
+						sumSeconds += f[2];
+						sumNanoseconds += f[3];
+					}
+					functionsSelfTimeSum = sumSeconds + sumNanoseconds / 1e9;
+				}
 
 				/* title */
 				let titleElement = document.createElement("h3");
 				titleElement.innerText = "Functions";
 				functionsContainerElement.appendChild(titleElement);
+
+				/* controls */
+				let controlsElement = document.createElement("div");
+				let timePerCallCheckbox = document.createElement("input");
+				timePerCallCheckbox.setAttribute("type", "checkbox");
+				timePerCallCheckbox.setAttribute("id", "timePerCall");
+				if (functionsTimePerCall) {
+					timePerCallCheckbox.setAttribute("checked", "");
+				}
+				timePerCallCheckbox.addEventListener("change", function (evt) {
+					functionsTimePerCall = evt.target.checked;
+					renderFunctions();
+				});
+				controlsElement.appendChild(timePerCallCheckbox);
+				let timePerCallLabel = document.createElement("label");
+				timePerCallLabel.setAttribute("class", "inline");
+				timePerCallLabel.setAttribute("for", "timePerCall");
+				timePerCallLabel.innerText = "Time per Call";
+				controlsElement.appendChild(timePerCallLabel);
+				let selfTimeInPercentCheckbox = document.createElement("input");
+				selfTimeInPercentCheckbox.setAttribute("type", "checkbox");
+				selfTimeInPercentCheckbox.setAttribute("id", "selfTimeInPercent");
+				if (functionsSelfTimeInPercent) {
+					selfTimeInPercentCheckbox.setAttribute("checked", "");
+				}
+				selfTimeInPercentCheckbox.addEventListener("change", function (evt) {
+					functionsSelfTimeInPercent = evt.target.checked;
+					renderFunctions();
+				});
+				controlsElement.appendChild(selfTimeInPercentCheckbox);
+				let selfTimeInPercentLabel = document.createElement("label");
+				selfTimeInPercentLabel.setAttribute("class", "inline");
+				selfTimeInPercentLabel.setAttribute("for", "selfTimeInPercent");
+				selfTimeInPercentLabel.innerText = "Self Time in Percent";
+				controlsElement.appendChild(selfTimeInPercentLabel);
+				functionsContainerElement.appendChild(controlsElement);
 
 				/* table */
 				let tableElement = document.createElement("table");
@@ -245,13 +304,13 @@
 					let thElement = document.createElement("th");
 					thElement.setAttribute("class", "table-sorter");
 					thElement.classList.add(...column.classes);
-					if (column == functionSorterColumn) {
+					if (column == functionsSorterColumn) {
 						thElement.classList.add("table-sorter-" + column.direction);
 					}
 					thElement.innerText = column.name;
 					thElement.addEventListener("click", function () {
-						functionSorterColumn = column;
-						applyFunctions(functions);
+						functionsSorterColumn = column;
+						renderFunctions();
 					});
 					trElement.appendChild(thElement);
 				}
@@ -388,7 +447,11 @@
 				classes: ["w-15", "text-end"],
 				direction: "desc",
 				format: function (f) {
-					return formatDuration(f[2], f[3]);
+					if (!functionsSelfTimeInPercent) {
+						return formatDuration(f[2], f[3], functionsTimePerCall ? 1 / f[1] : 1);
+					} else {
+						return formatDurationPercent(f[2], f[3], functionsSelfTimeSum);
+					}
 				},
 				comparator: function (a, b) {
 					return a[2] != b[2] ? b[2] - a[2] : a[3] != b[3] ? b[3] - a[3] : a[0].localeCompare(b[0]);
@@ -399,7 +462,7 @@
 				classes: ["w-15", "text-end"],
 				direction: "desc",
 				format: function (f) {
-					return formatDuration(f[4], f[5]);
+					return formatDuration(f[4], f[5], functionsTimePerCall ? 1 / f[1] : 1);
 				},
 				comparator: function (a, b) {
 					return a[4] != b[4] ? b[4] - a[4] : a[5] != b[5] ? b[5] - a[5] : a[0].localeCompare(b[0]);
@@ -417,7 +480,10 @@
 				}
 			}
 		];
-		let functionSorterColumn = functionColumns[1];
 		let functions = [];
+		let functionsTimePerCall = false;
+		let functionsSelfTimeInPercent = false;
+		let functionsSelfTimeSum = 0;
+		let functionsSorterColumn = functionColumns[1];
 	</script>
 </html>
