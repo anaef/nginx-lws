@@ -114,6 +114,8 @@
 		<div id="functions-container"></div>
 	</body>
 	<script>
+		const MONITOR_URI = "/lws-monitor/";
+
 		function formatCount (value) {
 			return value.toLocaleString();
 		}
@@ -140,45 +142,33 @@
 			}
 		}
 
-		function updateStatus (periodic) {
-			let request = new XMLHttpRequest();
-			request.responseType = "json";
-			request.open("GET", "/lws-monitor/");
-			request.onload = function () {
-				if (request.status == 200) {
-					apply(request.response, periodic);
-				}
+		async function updateStatus (periodic) {
+			let response = await fetch(MONITOR_URI);
+			if (response.status == 200) {
+				apply(await response.json(), periodic);
 			}
-			request.send();
 		}
 
-		function setProfiler (profiler) {
-			let request = new XMLHttpRequest();
-			request.responseType = "json";
-			request.open("POST", "/lws-monitor/");
-			request.onload = function () {
-				if (request.status == 200) {
-					apply(request.response, false);
-				}
+		async function setProfiler (profiler) {
+			let response = await fetch(MONITOR_URI, {
+				method: "POST",
+				body: "profiler=" + profiler
+			});
+			if (response.status == 200) {
+				apply(await response.json(), false);
+			} else if (response.status == 409) {
+				updateStatus(false);
 			}
-			request.onerror = function () {
-				if (request.status == 409) {
-					updateStatus(false);
-				}
-			}
-			request.send("profiler=" + profiler);
 		}
 
-		function clearFunctions () {
-			let request = new XMLHttpRequest();
-			request.responseType = "json";
-			request.open("POST", "/lws-monitor/");
-			request.onload = function () {
-				if (request.status == 200) {
-					apply(request.response, false);
-				}
+		async function clearFunctions () {
+			let response = await fetch(MONITOR_URI, {
+				method: "POST",
+				body: "functions=[]"
+			});
+			if (response.status == 200) {
+				apply(await response.json(), false);
 			}
-			request.send("functions=[]");
 		}
 
 		function apply (response, periodic) {
@@ -289,19 +279,19 @@
 		window.addEventListener("load", function () {
 			updateStatus(true);
 			setInterval(function () { updateStatus(true) }, 3000);
-			document.getElementById("profiler_enable_cpu").addEventListener("click", function () {
-				setProfiler(1);
+			document.getElementById("profiler_enable_cpu").addEventListener("click", async function () {
+				await setProfiler(1);
 			});
-			document.getElementById("profiler_enable_wall").addEventListener("click", function () {
-				setProfiler(2);
+			document.getElementById("profiler_enable_wall").addEventListener("click", async function () {
+				await setProfiler(2);
 			});
-			document.getElementById("profiler_disable").addEventListener("click", function () {
-				setProfiler(0);
+			document.getElementById("profiler_disable").addEventListener("click", async function () {
+				await setProfiler(0);
 			});
-			document.getElementById("functions_clear").addEventListener("click", function () {
-				clearFunctions();
+			document.getElementById("functions_clear").addEventListener("click", async function () {
+				await clearFunctions();
 			});
-			for (i in characteristics) {
+			for (let i in characteristics) {
 				if (!characteristics[i].hasSpark) {
 					continue;
 				}
@@ -366,7 +356,7 @@
 		];
 
 		let data = {};
-		for (i in characteristics) {
+		for (let i in characteristics) {
 			data[characteristics[i].key] = [];
 		}
 
