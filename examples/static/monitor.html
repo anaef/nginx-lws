@@ -56,62 +56,18 @@
 				<tr>
 					<th>Characteristic</th>
 					<th class="w-15 text-end">Value</th>
-					<th>Spark Line (5m)</th>
+					<th>Spark line (10 m)</th>
 					<th class="w-15 text-end">Min</th>
 					<th class="w-15 text-end">Max</th>
 				</tr>
 			</thead>
-			<tbody class="table">
-				<tr>
-					<td>Lua States</td>
-					<td class="text-end" id="states_n"></td>
-					<td><canvas id="states_n_spark" width="100" height="20"></canvas></td>
-					<td class="text-end" id="states_n_min"></td>
-					<td class="text-end" id="states_n_max"></td>
-				</tr>
-				<tr>
-					<td>Queued Requests</td>
-					<td class="text-end" id="requests_n"></td>
-					<td><canvas id="requests_n_spark" width="100" height="20"></canvas></td>
-					<td class="text-end" id="requests_n_min"></td>
-					<td class="text-end" id="requests_n_max"></td>
-				</tr>
-				<tr>
-					<td>Memory Used</td>
-					<td class="text-end" id="memory_used"></td>
-					<td><canvas id="memory_used_spark" width="100" height="20"></canvas></td>
-					<td class="text-end" id="memory_used_min"></td>
-					<td class="text-end" id="memory_used_max"></td>
-				</tr>
-				<tr>
-					<td>Request Count</td>
-					<td class="text-end" id="request_count"></td>
-					<td><canvas id="request_count_spark" width="100" height="20"></canvas></td>
-					<td class="text-end" id="request_count_min"></td>
-					<td class="text-end" id="request_count_max"></td>
-				</tr>
-				<tr>
-					<td>Profiler</td>
-					<td class="text-end" id="profiler"></td>
-					<td colspan="3"></td>
-				</tr>
-				<tr>
-					<td>Out of Memory</td>
-					<td class="text-end" id="out_of_memory"></td>
-					<td colspan="3"></td>
-				</tr>
-				<tr>
-					<td>Functions</td>
-					<td class="text-end" id="functions"></td>
-					<td colspan="3"></td>
-				</tr>
-			</tbody>
+			<tbody id="characteristics-container"></tbody>
 		</table>
 		<div class="row">
-			<button type="button" id="profiler_enable_cpu" disabled>Enable CPU Profiler</button>
-			<button type="button" id="profiler_enable_wall" disabled>Enable Wall Profiler</button>
-			<button type="button" id="profiler_disable" disabled>Disable Profiler</button>
-			<button type="button" id="functions_clear" disabled>Clear Functions</button>
+			<button type="button" id="profiler_enable_cpu" disabled>Enable CPU profiler</button>
+			<button type="button" id="profiler_enable_wall" disabled>Enable wall profiler</button>
+			<button type="button" id="profiler_disable" disabled>Disable profiler</button>
+			<button type="button" id="functions_clear" disabled>Clear functions</button>
 		</div>
 
 		<div id="functions-container"></div>
@@ -273,7 +229,7 @@
 				let perCallLabel = document.createElement("label");
 				perCallLabel.setAttribute("class", "inline");
 				perCallLabel.setAttribute("for", "perCall");
-				perCallLabel.innerText = "Per Call";
+				perCallLabel.innerText = "Show time and memory per call";
 				controlsElement.appendChild(perCallLabel);
 				let selfTimeInPercentCheckbox = document.createElement("input");
 				selfTimeInPercentCheckbox.setAttribute("type", "checkbox");
@@ -289,7 +245,7 @@
 				let selfTimeInPercentLabel = document.createElement("label");
 				selfTimeInPercentLabel.setAttribute("class", "inline");
 				selfTimeInPercentLabel.setAttribute("for", "selfTimeInPercent");
-				selfTimeInPercentLabel.innerText = "Self Time in Percent";
+				selfTimeInPercentLabel.innerText = "Show self time as percentage";
 				controlsElement.appendChild(selfTimeInPercentLabel);
 				functionsContainerElement.appendChild(controlsElement);
 
@@ -338,6 +294,44 @@
 		}
 
 		window.addEventListener("load", function () {
+			/* characteristics */
+			let characteristicsContainerElement = document.getElementById("characteristics-container");
+			for (let i in characteristics) {
+				let key = characteristics[i].key;
+				let trElement = document.createElement("tr");
+				let characteristicElement = document.createElement("td");
+				characteristicElement.innerText = characteristics[i].name;
+				trElement.appendChild(characteristicElement);
+				let valueElement = document.createElement("td");
+				valueElement.setAttribute("id", key);
+				valueElement.setAttribute("class", "text-end");
+				trElement.appendChild(valueElement);
+				if (characteristics[i].hasSpark) {
+					let sparkElement = document.createElement("td");
+					let sparkCanvasElement = document.createElement("canvas");
+					sparkCanvasElement.setAttribute("id", key + "_spark");
+					sparkCanvasElement.setAttribute("width", "200");
+					sparkCanvasElement.setAttribute("height", "20");
+					let sparkCanvasContext = sparkCanvasElement.getContext("2d");
+					sparkCanvasContext.translate(0, sparkCanvasElement.height);
+					sparkCanvasContext.scale(1, -1);
+					sparkElement.appendChild(sparkCanvasElement);
+					trElement.appendChild(sparkElement);
+					let minElement = document.createElement("td");
+					minElement.setAttribute("id", key + "_min");
+					minElement.setAttribute("class", "text-end");
+					trElement.appendChild(minElement);
+					let maxElement = document.createElement("td");
+					maxElement.setAttribute("id", key + "_max");
+					maxElement.setAttribute("class", "text-end");
+					trElement.appendChild(maxElement);
+				} else {
+					let fillElement = document.createElement("td");
+					fillElement.setAttribute("colspan", "3");
+					trElement.appendChild(fillElement);
+				}
+				characteristicsContainerElement.appendChild(trElement);
+			}
 			updateStatus(true);
 			setInterval(function () { updateStatus(true) }, 3000);
 			document.getElementById("profiler_enable_cpu").addEventListener("click", async function () {
@@ -352,41 +346,36 @@
 			document.getElementById("functions_clear").addEventListener("click", async function () {
 				await clearFunctions();
 			});
-			for (let i in characteristics) {
-				if (!characteristics[i].hasSpark) {
-					continue;
-				}
-				let key = characteristics[i].key;
-				let canvas = document.getElementById(key + "_spark");
-				let ctx = canvas.getContext("2d");
-				ctx.translate(0, canvas.height);
-				ctx.scale(1, -1);
-			}
 		});
 
 		let characteristics = [
 			{
 				key: "states_n",
+				name: "Lua states",
 				format: formatCount,
 				hasSpark: true
 			},
 			{
 				key: "requests_n",
+				name: "Queued requests",
 				format: formatCount,
 				hasSpark: true
 			},
 			{
 				key: "memory_used",
+				name: "Memory used",
 				format: formatMemory,
 				hasSpark: true
 			},
 			{
 				key: "request_count",
+				name: "Request count",
 				format: formatCount,
 				hasSpark: true
 			},
 			{
 				key: "profiler",
+				name: "Profiler",
 				format: function (value) {
 					return ["Disabled", "CPU", "Wall"][value];
 				},
@@ -399,6 +388,7 @@
 			},
 			{
 				key: "out_of_memory",
+				name: "Out of memory",
 				format: function (value) {
 					return value ? "Yes" : "No";
 				},
@@ -406,6 +396,7 @@
 			},
 			{
 				key: "functions",
+				name: "Functions",
 				format: function (value) {
 					return value.length.toLocaleString();
 				},
