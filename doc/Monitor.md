@@ -57,13 +57,18 @@ The profiler uses the fixed-size shared memory zone of the LWS monitor. If the z
 memory, an error is logged, and the `out_of_memory` flag is set. In this case, the list of
 profiled functions is incomplete.
 
+Lua functions are first-class values without a fixed name. The profiler identifies each function
+through a key, which is a string. This may sometimes result in distinct functions being folded
+into the same key, such as `[C]: ?`, or the same function being aliased through multiple keys.
+
 Self time and total time are measured in thread CPU time or wall time, depending on the
-`profiler` value. Each time is represented with a second and a nanosecond component. Self time is
-the time spent in the function per se. In contrast, total time additionally includes the time
-spent in child functions, i.e., functions directly or indirectly called from the function under
-consideration. A proper tail call is processed as an exit from the calling function and thus does
-not accumulate child time for the calling function unless the calling function is active further
-down in the call stack. Due to profiler overhead, all time values are approximations.
+`profiler` value. Each time is represented with a second and a nanosecond component. Due to
+profiler overhead, all time values are approximations. Self time is the time spent in the function
+per se. In contrast, total time additionally includes the time spent in child functions, i.e.,
+functions directly or indirectly called from the function under consideration. A proper tail call
+is processed as an exit from the calling function and thus does not accumulate child time for the
+calling function (unless the calling function is already active further down in the call stack,
+which implies that it did not perform a proper tail call at that stack location.)
 
 Allocated memory is the amount of Lua memory allocated during the execution of the function per
 se. Due to potential garbage collection and profiler overhead, this is an approximation.
@@ -86,6 +91,8 @@ modified.
 
 For the `profiler` key, valid transitions are from the disabled state to one of the enabled
 states and vice versa; transitions from one enabled state to another are invalid.
+
+Clearing the profiled functions also clears the `out_of_memory` flag.
 
 
 ### Response Status

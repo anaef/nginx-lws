@@ -11,7 +11,8 @@ a post chunk.
 The init Lua chunk is run only once per Lua state. This optional chunk provides the opportunity
 to initialize a Lua state and set up shared resources for requests, such as database connections.
 
-The init Lua chunk runs with the *global* environment of the Lua state.
+> [!NOTE]
+> The init Lua chunk runs with the *global* environment of the Lua state.
 
 
 ## Pre, Main, and Post Lua Chunks
@@ -20,9 +21,10 @@ The pre, main, and post Lua chunks are run sequentially for each request. The op
 post chunks provide the opportunity to perform common tasks for the main chunks at the location,
 such as establishing a context or performing logging.
 
-The pre, main, and post Lua chunks run with a *request* environment that indexes the global
-environment for keys that are not present. When a request completes, the request environment
-is removed.
+> [!NOTE]
+> The pre, main, and post Lua chunks run with a *request* environment that indexes the global
+> environment for keys that are not present. When a request completes, the request environment
+> is removed.
 
 
 ## Request Environment
@@ -68,7 +70,7 @@ A positive integer result from the pre or main chunk instructs the web server to
 response for the corresponding HTTP status code. For example, returning `lws.status.NOT_FOUND`
 (or, equivalently, `404`), sends a "Not Found" page. You can control the content of the error
 response with the `lws_error_response` and `error_page` directives. Positive integers outside
-the range of 100 to 599 are processed as `500` and thus send an "Internal Server Error" page.
+the range of 100 to 599 are processed as `500` and thus send an "Internal Server Error" response.
 Returning a positive integer result from the pre chunk additionally marks the request as
 *complete* (see below).
 

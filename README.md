@@ -14,14 +14,14 @@ directly supported in LuaJIT. Perhaps more worryingly, writing "fast" LuaJIT cod
 language idioms that are amenable to its optimization while eschewing language features that are
 "slow".[^1] *If* the performance of the Lua VM is deemed insufficient for a particular function
 of a web service, there is always the option of implementing the function in C. Furthermore,
-the research team at PUC-Rio is working on ahead-of-time compilation through Pallene.[^1]
+the research team at PUC-Rio is working on ahead-of-time compilation through Pallene.[^2]
 
 - **Allow Lua web services to block.** To this end, lws-nginx uses a thread pool that runs Lua
 services asynchronously without blocking the NGINX event processing loop. Large parts of the
 existing Lua ecosystem are *not* non-blocking. The chosen design allows them be be used as is,
 on the condition that their libraries are conditionally thread-safe. There is substantial
 discussion and research on the topic of non-blocking event architectures vs. multi-threaded
-architectures.[^2][^3][^4][^5][^6][^7] Ultimately, this is a trade-off between resource use and
+architectures.[^3][^4][^5][^6][^7][^8] Ultimately, this is a trade-off between resource use and
 complexity. An event processing loop is arguably less demanding on resources than threads.
 However, the resource demand of threads has been coming down over the years with advances
 in operating systems. The complexity in the implementation of web services and libraries is
@@ -39,7 +39,7 @@ directives allows control over the lifecycle of Lua states.
 - **Focus on web services.** The purpose of lws-nginx is implementing web services in Lua. This
 focus streamlines the design of lws-nginx. For other extension areas in NGINX (including
 rewriting, access, and filters), there are numerous highly configurable modules that address
-these areas.
+these functions.
 
 
 ## Documentation
@@ -60,29 +60,41 @@ may vary with other software versions.
 Lua libraries used with lws-nginx must be conditionally thread-safe.
 
 
+## Trademarks
+
+NGINX is a registered trademark of F5, Inc.
+
+All other trademarks are the property of their respective owners.
+
+
 ## License
 
 lws-nginx is released under the MIT license. See LICENSE for license terms.
 
+
 [^1]: Hugo Musso Gualandi. The Pallene Programming Language. 2020.
 [Link](http://www.lua.inf.puc-rio.br/publications/2020-HugoGualandi-phd-thesis.pdf).
 
-[^2]: Paolo Maresca. Scalable I/O: Events- Vs Multithreading-based. 2016.
-[Link](https://thetechsolo.wordpress.com/2016/02/29/scalable-io-events-vs-multithreading-based/)
+[^2]: Roberto Ierusalimschy. What about Pallene? Lua Workshop 2022. 2022.
+[Link](https://www.lua.org/wshop22/Ierusalimschy.pdf).
 
-[^3]: Paul Tyma. Thousands of Threads and Blocking I/O. 2008.
+[^3]: Paolo Maresca. Scalable I/O: Events- Vs Multithreading-based. 2016.
+[Link](https://thetechsolo.wordpress.com/2016/02/29/scalable-io-events-vs-multithreading-based/).
+
+[^4]: Paul Tyma. Thousands of Threads and Blocking I/O. 2008.
 [Link](https://silo.tips/download/thousands-of-threads-and-blocking-i-o).
 
-[^4]: Rob von Behren et al. Why Events Are A Bad Idea (for high-concurrency servers). In
+[^5]: Rob von Behren et al. Why Events Are A Bad Idea (for high-concurrency servers). In
 Proceedings of HotOS IX: The 9th Workshop on Hot Topics in Operating Systems. 2003.
-[Link](https://www.usenix.org/legacy/events/hotos03/tech/full_papers/vonbehren/vonbehren.pdf)
+[Link](https://www.usenix.org/legacy/events/hotos03/tech/full_papers/vonbehren/vonbehren.pdf).
 
-[^5]: Atul Adya et al. Cooperative Task Management Without Manual Stack Management. In
+[^6]: Atul Adya et al. Cooperative Task Management Without Manual Stack Management. In
 Proceedings of the 2002 USENIX Annual Technical Conference. 2002.
-[Link](https://www.usenix.org/legacy/publications/library/proceedings/usenix02/full_papers/adyahowell/adyahowell.pdf)
+[Link](https://www.usenix.org/legacy/publications/library/proceedings/usenix02/full_papers/adyahowell/adyahowell.pdf).
 
-[^6]: Matt Welsh et al. SEDA: An Architecture for Well-Conditioned Scalable Internet Services.
-In Symposium on Operating Systems. 2001. [Link](http://www.sosp.org/2001/papers/welsh.pdf)
+[^7]: Matt Welsh et al. SEDA: An Architecture for Well-Conditioned Scalable Internet Services.
+In Symposium on Operating Systems. 2001.
+[Link](http://www.sosp.org/2001/papers/welsh.pdf).
 
-[^7]: John Ousterhout. Why Threads Are A Bad Idea (for most purposes). 1996.
-[Link](https://web.stanford.edu/~ouster/cgi-bin/papers/threads.pdf)
+[^8]: John Ousterhout. Why Threads Are A Bad Idea (for most purposes). 1996.
+[Link](https://web.stanford.edu/~ouster/cgi-bin/papers/threads.pdf).

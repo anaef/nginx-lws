@@ -9,9 +9,8 @@ Context: location
 
 Enables the LWS handler for the main Lua chunk with filename *main*. The optional *path_info*
 is passed in the request context. Both *main* and *path_info* can contain variables. This is
-useful for including captures from the location path.
+useful for including captures from the location path as illustrated by the following example:
 
-Example:
 ```nginx
 server {
 	...
@@ -22,6 +21,8 @@ server {
 }
 ```
 
+Please see the [request processing](RequestProcessing.md) documentation for more information.
+
 This directive is exclusive with the `lws_monitor` directive.
 
 
@@ -29,21 +30,24 @@ This directive is exclusive with the `lws_monitor` directive.
 
 Context: server, location
 
-Sets the filename of an init Lua chunk. This chunk initializes Lua states at the location.
+Sets the filename of an init Lua chunk. This chunk initializes Lua states at the location. Please
+see the [request processing](RequestProcessing.md) documentation for more information.
 
 
 ## lws_pre *pre*
 
 Context: server, location
 
-Sets the filename of a pre Lua chunk. This chunk is run before main chunks at the location.
+Sets the filename of a pre Lua chunk. This chunk is run before main chunks at the location. Please
+see the [request processing](RequestProcessing.md) documentation for more information.
 
 
 ## lws_post *post*
 
 Context: server, location
 
-Sets the filename of a post Lua chunk. This chunk is run after main chunks at the location.
+Sets the filename of a post Lua chunk. This chunk is run after main chunks at the location. Please
+see the [request processing](RequestProcessing.md) documentation for more information.
 
 
 ## lws_path *path*
@@ -69,7 +73,7 @@ Context: server, location
 
 Sets the maximum number of Lua states per worker process and location. If more concurrent requests
 arrive than *max_states*, the requests are queued until a Lua state becomes available. A value of
-`0` disables this logic, making the number of states unrestricted. The default value for
+`0` disables this logic, making the number of Lua states unrestricted. The default value for
 *max_states* is `0`. The queue accepts up to *max_requests* requests. A 503 Service Unavailable
 status is returned if the queue overflows. A value of `0` disables this logic, making the queue
 unrestricted. The default value for *max_requests* is `0`. You can use the `k` and `m` suffixes
@@ -80,10 +84,29 @@ with *max_states* and *max_requests* to set multiples of 1024 or 1024², respect
 
 Context: server, location
 
-Sets the maximum memory of a Lua state. If the memory allocated by a Lua state exceeds
+Sets the maximum memory of a Lua state. If the memory allocated by a Lua state would exceed
 *max_memory* bytes, a Lua memory error is generated. A value of `0` disables this logic. The
 default value for *max_memory* is `0`. You can use the `k` and `m` suffixes with *max_memory* to
 set kilobytes or megabytes, respectively.
+
+> [!NOTE]
+> The term *memory* in the context of lws-nginx and Lua states generally refers to the memory
+> allocated by the Lua state per se, i.e., through its memory allocator. This memory does *not*
+> include memory allocated outside of the Lua state, such as in Lua C libraries or in NGINX.
+
+
+## lws_gc *gc*
+
+Context: server, location
+
+Sets the memory threshold of a Lua state which triggers an explicit garbage collection cycle. If
+the memory allocated by a Lua state exceeds *gc* bytes when a request completes, an explicit, full
+garbage collection cycle is performed. A value of `0` disables this logic. The default value for
+*gc* is `0`. Setting the value to `1` performs a full garbage collection cycle after each request.
+You can use the `k` and `m` suffixes with *gc* to set kilobytes or megabytes, respectively.
+
+> [!NOTE]
+> Please see the note on the term *memory* above.
 
 
 ## lws_max_requests *max_requests*
@@ -119,17 +142,6 @@ for *timeout* is `0`. You can use the `ms`, `s`, `m`, `h`, `d`, `w`, and `M` suf
 *timeout* to set milliseconds, seconds, minutes, hours, days, weeks, or months, respectively.
 
 
-## lws_gc *gc*
-
-Context: server, location
-
-Sets the memory threshold of a Lua state which triggers an explicit garbage collection cycle. If
-the memory allocated by a Lua state exceeds *gc* bytes when a request completes, an explicit, full
-garbage collection cycle is performed. A value of `0` disables this logic. The default value for
-*gc* is `0`. Setting the value to `1` performs a full garbage collection cycle after each request.
-You can use the `k` and `m` suffixes with *gc* to set kilobytes or megabytes, respectively.
-
-
 ## lws_variable *variable*
 
 Context: server, location
@@ -163,7 +175,7 @@ value of *thread_pool_name* is `default`.
 
 > [!NOTE]
 > If the thread pool name is different from `default`, the named thread pool must be defined with
-> the NGINX `thread_pool` directive in the main context of the server.
+> the NGINX `thread_pool` directive in the main context of the NGINX configuration.
 
 
 ## lws_stat_cache *cap* *timeout*
@@ -182,7 +194,7 @@ with *timeout* to set seconds, minutes, hours, days, weeks, months, or years, re
 
 Context: location
 
-Enables the LWS [monitor](Monitor.md) at the loation. The LWS monitor is a web API that provides
+Enables the [LWS monitor](Monitor.md) at the loation. The LWS monitor is a web API that provides
 read-write access to central LWS characteristics. This directive is exclusive with the `lws`
 directive.
 

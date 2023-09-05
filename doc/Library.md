@@ -4,21 +4,21 @@ The LWS library provides functions and other values for implementing web service
 library is loaded automatically.
 
 
-## log([level,] message)
+## lws.log ([level,] message)
 
 Logs a message in the error log of the server. The argument *message* must be a string value, and
 the optional argument *level* can take the values `debug`, `info`, `notice`, `warn`, `err`,
 `crit`, `alert`, and `emerg`; it defaults to `err`.
 
 
-## getvariable(variable)
+## lws.getvariable (variable)
 
 Returns the value of the NGINX variable with name *variable*. If the variable is not present,
 the function returns `nil`. NGINX variables must be declared with the `lws_variable`
 [directive](Directives.md).
 
 
-## redirect(location [, args])
+## lws.redirect (location [, args])
 
 Schedules an internal redirect to *location*. If *location* starts with `@`, it refers to
 a named location. Otherwise, *location* is a path, and *args* are optional query parameters. Both
@@ -29,26 +29,26 @@ to proceed directly to the post chunk, skipping the main chunk. A Lua chunk shou
 scheduling an internal redirect.
 
 
-## setcomplete()
+## lws.setcomplete ()
 
 Marks the request as complete. This function can be called from a pre chunk and causes processing
 to proceed directly to the post chunk, skipping the main chunk. A Lua chunk should return after
 marking the request as complete.
 
 
-## setclose()
+## lws.setclose ()
 
 Marks the Lua state to be closed. When the request completes, the Lua state is closed.
 
 
-## parseargs(args)
+## lws.parseargs (args)
 
 Parses the request query parameters in *args* and returns them as a table. For repeated keys,
 only the final value is provided. This function also parses request bodies with a content type of
 `application/x-www-form-urlencoded`, i.e., HTML form submissions with the `POST` method.
 
 
-## status
+## lws.status
 
 Represents a table of common HTTP status codes with strings as keys and integers as values.
 Indexing this table is strict and generates a Lua error if a key is not present.

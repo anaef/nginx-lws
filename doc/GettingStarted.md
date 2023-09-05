@@ -1,4 +1,4 @@
-# Getting Started
+# Getting Started with LWS
 
 LWS comes with a website with examples. You can find the site in the `/examples` folder of this
 repository.
