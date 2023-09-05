@@ -34,7 +34,7 @@ struct lws_state_s {
 	unsigned         in_use:1;        /* state in use */
 	unsigned         init:1;          /* state initialized */
 	unsigned         close:1;         /* state is to be closed */
-	unsigned         profiling:1;     /* profiler status; 0 = disabled */
+	unsigned         profiler:2;      /* profiler status; 0 = disabled, 1 = CPU, 2 = wall */
 };
 
 

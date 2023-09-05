@@ -719,9 +719,10 @@ int lws_lua_run (lua_State *L) {
 	}  /* [ctx, chunks] */
 
 	/* start profiler */
-	if (ctx->state->profiling) {
+	if (ctx->state->profiler) {
 		lua_pushcfunction(L, lws_profiler_start);
-		lua_call(L, 0, 0);
+		lua_pushinteger(L, ctx->state->profiler);
+		lua_call(L, 1, 0);
 	}
 
 	/* init */
@@ -753,7 +754,7 @@ int lws_lua_run (lua_State *L) {
 	}
 
 	/* stop profiler */
-	if (ctx->state->profiling) {
+	if (ctx->state->profiler) {
 		lua_pushcfunction(L, lws_profiler_stop);
 		lua_call(L, 0, 0);
 	}

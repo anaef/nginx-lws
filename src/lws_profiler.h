@@ -21,7 +21,7 @@ struct lws_profiler_s {
 	lws_activation_record_t  **stack;        /* stack */
 	size_t                     stack_n;      /* stack count */
 	size_t                     stack_alloc;  /* stack allocated */
-	clockid_t                  clock_id;     /* clock */
+	clockid_t                  clock;        /* clock */
 };
 
 struct lws_activation_record_s {
@@ -41,9 +41,11 @@ int lws_profiler_start(lua_State *L);
 int lws_profiler_stop(lua_State *L);
 
 
-#define LWS_PROFILER          "lws.profiler"          /* profiler metatable */
-#define LWS_PROFILER_CURRENT  "lws.profiler_current"  /* current profiler*/
-#define LWS_PROFILER_KEY_MAX  256                     /* maximum length of function key */
+#define LWS_PROFILER             "lws.profiler"           /* profiler metatable */
+#define LWS_PROFILER_CURRENT     "lws.profiler_current"   /* current profiler*/
+#define LWS_PROFILER_KEY_MAX     256                      /* maximum length of function key */
+#define LWS_PROFILER_CLOCK_CPU   CLOCK_THREAD_CPUTIME_ID  /* CPU profiler clock */
+#define LWS_PROFILER_CLOCK_WALL  CLOCK_MONOTONIC_RAW      /* wall profiller clock */
 
 
 #endif /* _LWS_PROFILER_INCLUDED */

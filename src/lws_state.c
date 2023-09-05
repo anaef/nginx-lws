@@ -227,7 +227,7 @@ lws_state_t *lws_get_state (lws_request_ctx_t *ctx) {
 		}
 	}
 	lmcf = ngx_http_get_module_main_conf(ctx->r, lws);
-	state->profiling = lmcf->monitor ? lmcf->monitor->profiler != 0 : 0;
+	state->profiler = lmcf->monitor ? lmcf->monitor->profiler : 0;
 	state->in_use = 1;
 	return state;
 }
