@@ -85,7 +85,7 @@ static int lws_init (lua_State *L) {
 	luaL_openlibs(L);
 
 	/* open LWS library */
-	luaL_requiref(L, LWS_LIB_NAME, lws_lua_open_lws, 1);
+	luaL_requiref(L, LWS_LIB_NAME, lws_open_lws, 1);
 
 	/* set paths */
 	lws_set_path(L, 1, "path");
@@ -160,7 +160,7 @@ static lws_state_t *lws_create_state (lws_request_ctx_t *ctx) {
 	lua_pushlstring(state->L, (const char *)llcf->cpath.data, llcf->cpath.len);
 	lua_pushboolean(state->L, lmcf->monitor != NULL);
 	if (lua_pcall(state->L, 3, 0, 0) != LUA_OK) {
-		lws_lua_get_msg(state->L, -1, &msg);
+		lws_get_msg(state->L, -1, &msg);
 		ngx_log_error(NGX_LOG_CRIT, log, 0, "[LWS] failed to initialize Lua state: %V",
 				&msg);
 		lws_close_state(state, log);
@@ -168,7 +168,7 @@ static lws_state_t *lws_create_state (lws_request_ctx_t *ctx) {
 	}
 
 	/* push traceback */
-	lua_pushcfunction(state->L, lws_lua_traceback);
+	lua_pushcfunction(state->L, lws_traceback);
 
 	/* set timer */
 	if (llcf->state_time_max) {
@@ -298,7 +298,7 @@ int lws_run_state (lws_request_ctx_t *ctx) {
 
 	/* prepare stack */
 	L = ctx->state->L;
-	lua_pushcfunction(L, lws_lua_run);
+	lua_pushcfunction(L, lws_run);
 	lua_pushlightuserdata(L, ctx);  /* [traceback, function, ctx] */
 
 	/* call */
@@ -311,7 +311,7 @@ int lws_run_state (lws_request_ctx_t *ctx) {
 
 		/* log error */
 		log = ctx->r->connection->log;
-		lws_lua_get_msg(L, -1, &msg);
+		lws_get_msg(L, -1, &msg);
 		ngx_log_error(NGX_LOG_ERR, log, 0, "[LWS] %s error: %V", LUA_VERSION, &msg);
 		if (!ctx->state->llcf->diagnostic) {
 			goto done;
