@@ -115,7 +115,7 @@ static ngx_int_t lws_monitor_content_handler (ngx_http_request_t *r) {
 	for (i = 0; i < lmcf->monitor->functions_n; i++) {
 		f = &lmcf->monitor->functions[i];
 		len += sizeof("\t\t[\"\", , , , , , ],\n") - 1 + 6 * 20;
-		len += ngx_escape_json(NULL, f->key.data, f->key.len);
+		len += f->key.len + ngx_escape_json(NULL, f->key.data, f->key.len);
 	}
 	len += sizeof("\t]\n}") - 1;
 	b->start = ngx_palloc(r->pool, len);
