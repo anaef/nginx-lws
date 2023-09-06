@@ -42,7 +42,7 @@ struct lws_table_entry_s {
 	ngx_str_t                key;    /* key; managed if dup is set */
 	void                    *value;  /* value; managed if free is set */
 	ngx_uint_t               hash;   /* key hash */
-	time_t                   time;   /* base for entry timeout; if timed is set */
+	time_t                   time;   /* set time; if timed is set */
 	lws_table_entry_state_e  state;  /* state [unused, set, deleted] */
 };
 
@@ -58,10 +58,6 @@ int lws_table_set_cap(lws_table_t *t, size_t cap);
 void *lws_table_get(lws_table_t *t, ngx_str_t *key);
 int lws_table_set(lws_table_t *t, ngx_str_t *key, void *value);
 int lws_table_next(lws_table_t *t, ngx_str_t *key, ngx_str_t **next, void **value);
-
-
-#define lws_table_empty(t)  ((t)->count == 0)
-#define lws_table_count(t)  (t)->count
 
 
 #endif /* _LWS_TABLE_INCLUDED */

@@ -49,7 +49,7 @@ lws_table_t *lws_table_create (size_t load) {
 		ngx_free(t);
 		return NULL;
 	}
-	t->load = lws_table_load(t, t->alloc);
+	t->load = lws_table_load(t, t->alloc);  /* t->load >= load */
 	t->entries = ngx_calloc(t->alloc * sizeof(lws_table_entry_t), ngx_cycle->log);
 	if (!t->entries) {
 		ngx_free(t);
@@ -171,14 +171,14 @@ int lws_table_set (lws_table_t *t, ngx_str_t *key, void *value) {
 			entry->value = value;
 		} else {
 			/* evict as needed */
-			if (t->capped && t->count >= t->cap) {
+			if (t->capped && t->count == t->cap) {
 				q = ngx_queue_head(&t->order);
 				evict = ngx_queue_data(q, lws_table_entry_t, order);
 				lws_table_remove(t, evict);
 			}
 
 			/* rehash as needed */
-			if (t->count >= t->load) {
+			if (t->count == t->load) {
 				if (lws_table_rehash(t, t->alloc + 1) != 0) {
 					return -1;
 				}
@@ -328,6 +328,7 @@ static lws_table_entry_t *lws_table_find (lws_table_t *t, ngx_str_t *key, ngx_ui
 	size_t              r, h, q;
 	lws_table_entry_t  *entry;
 
+	/* Brent's method; source: https://maths-people.anu.edu.au/~brent/pd/rpb013.pdf */
 	r = h = hash % t->alloc;
 	q = hash % (t->alloc - 2) + 1;
 	entry = &t->entries[h];
@@ -347,66 +348,63 @@ static lws_table_entry_t *lws_table_find (lws_table_t *t, ngx_str_t *key, ngx_ui
 }
 
 static lws_table_entry_t *lws_table_insert (lws_table_t *t, ngx_str_t *key, ngx_uint_t hash) {
-	/*
-	 * Brent's variation.
-	 * Source: https://maths-people.anu.edu.au/~brent/pd/rpb013.pdf
-	 */
-	size_t              h, q, len, l, q_m, h_m, l_m, entry_m_l;
-	lws_table_entry_t  *entry, *entry_m, *entry_m_old, *entry_m_new;
+	size_t              h, q, len_worst, len, q_move, h_move, len_move, len_entry_move;
+	lws_table_entry_t  *entry, *entry_move, *entry_move_old, *entry_move_new;
 
+	/* Brent's method; source: https://maths-people.anu.edu.au/~brent/pd/rpb013.pdf */
 	/* determine worst case */
 	h = hash % t->alloc;
 	q = hash % (t->alloc - 2) + 1;
 	entry = &t->entries[h];
-	len = 1;
+	len_worst = 1;
 	while (entry->state == LWS_TES_SET) {
 		h = (h + q) % t->alloc;
 		entry = &t->entries[h];
-		len++;
+		len_worst++;
 	}
-	if (len <= 2) {
+	if (len_worst <= 2) {
 		/* "worst" case is optimal overall */
 		return entry;
 	}
 
 	/* check for a better overall outcome by moving conflicting entries */
-	entry_m_old = entry_m_new = NULL;
-	entry_m_l = (size_t)-1;
+	entry_move_old = entry_move_new = NULL;
+	len_entry_move = (size_t)-1;
 	h = hash % t->alloc;
 	entry = &t->entries[h];
-	l = 1;
+	len = 1;
 	do {
-		q_m = entry->hash % (t->alloc - 2) + 1;
-		h_m = (h + q_m) % t->alloc;
-		entry_m = &t->entries[h_m];
-		l_m = 1;
+		q_move = entry->hash % (t->alloc - 2) + 1;
+		h_move = (h + q_move) % t->alloc;
+		entry_move = &t->entries[h_move];
+		len_move = 1;
 		while (1) {
-			if (entry_m->state != LWS_TES_SET) {
+			if (entry_move->state != LWS_TES_SET) {
 				/* we found a better overall outcome */
-				entry_m_old = entry;
-				entry_m_new = entry_m;
-				entry_m_l = l_m;
+				entry_move_old = entry;
+				entry_move_new = entry_move;
+				len_entry_move = len_move;
 				break;
 			}
-			if (l + l_m >= len - 1) {  /* zero-sum at best otherwise */
+			if (len + len_move >= len_worst - 1) {  /* zero-sum at best otherwise */
 				break;
 			}
-			h_m = (h_m + q_m) % t->alloc;
-			entry_m = &t->entries[h_m];
-			l_m++;
+			h_move = (h_move + q_move) % t->alloc;
+			entry_move = &t->entries[h_move];
+			len_move++;
 		}
 		h = (h + q) % t->alloc;
 		entry = &t->entries[h];
-		l++;
-	} while (l < len - 1 && l < entry_m_l);  /* zero-sum at best otherwise */
+		len++;
+	} while (len < len_worst - 1 && len < len_entry_move);  /* zero-sum at best otherwise */
 
 	/* move if a better overall outcome was found */
-	if (entry_m_old) {  /* implied by l >= entry_m_l */
-		*entry_m_new = *entry_m_old;
-		entry_m_new->order.prev->next = &entry_m_new->order;
-		entry_m_new->order.next->prev = &entry_m_new->order;
-		return entry_m_old;
-	}
+	if (entry_move_old) {  /* implied if len < len_entry_move is false */
+		*entry_move_new = *entry_move_old;
+		entry_move_new->order.prev->next = &entry_move_new->order;
+		entry_move_new->order.next->prev = &entry_move_new->order;
+		return entry_move_old;
+	}  /* len is invariably len_worst - 1 at this point */
 
 	/* cannot do better than the worst case */
 	h = (h + q) % t->alloc;
