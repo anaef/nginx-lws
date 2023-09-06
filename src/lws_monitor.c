@@ -11,13 +11,14 @@
 
 static ngx_int_t lws_init_monitor(ngx_shm_zone_t *zone, void *data);
 static ngx_int_t lws_monitor_handler(ngx_http_request_t *r);
-static ngx_int_t lws_monitor_content(ngx_http_request_t *r);
-static ngx_int_t lws_monitor_action(ngx_http_request_t *r);
-static void lws_monitor_body(ngx_http_request_t *r);
-static ngx_int_t lws_monitor_pair(ngx_http_request_t *r, ngx_str_t *key, ngx_str_t *value);
+static ngx_int_t lws_monitor_content_handler(ngx_http_request_t *r);
+static ngx_int_t lws_monitor_action_handler(ngx_http_request_t *r);
+static void lws_monitor_body_handler(ngx_http_request_t *r);
+static ngx_int_t lws_monitor_modification_handler(ngx_http_request_t *r, ngx_str_t *key,
+		ngx_str_t *value);
 
 
-char *lws_monitor(ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
+char *lws_monitor (ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
 	ngx_str_t                  name;
 	lws_loc_conf_t            *llcf;
 	lws_main_conf_t           *lmcf;
@@ -74,17 +75,17 @@ static ngx_int_t lws_init_monitor (ngx_shm_zone_t *zone, void *data) {
 static ngx_int_t lws_monitor_handler (ngx_http_request_t *r) {
 	switch (r->method) {
 	case NGX_HTTP_GET:
-		return lws_monitor_content(r);
+		return lws_monitor_content_handler(r);
 
 	case NGX_HTTP_POST:
-		return lws_monitor_action(r);
+		return lws_monitor_action_handler(r);
 
 	default:
 		return NGX_HTTP_NOT_ALLOWED;
 	}
 }
 
-static ngx_int_t lws_monitor_content (ngx_http_request_t *r) {
+static ngx_int_t lws_monitor_content_handler (ngx_http_request_t *r) {
 	size_t            i, len;
 	ngx_buf_t        *b;
 	ngx_int_t         rc;
@@ -192,18 +193,18 @@ static ngx_int_t lws_monitor_content (ngx_http_request_t *r) {
 	return rc;
 }
 
-static ngx_int_t lws_monitor_action (ngx_http_request_t *r) {
+static ngx_int_t lws_monitor_action_handler (ngx_http_request_t *r) {
 	ngx_int_t  rc;
 
 	/* read request body */
-	rc = ngx_http_read_client_request_body(r, lws_monitor_body);
+	rc = ngx_http_read_client_request_body(r, lws_monitor_body_handler);
 	if (rc >= NGX_HTTP_SPECIAL_RESPONSE) {
 		return rc;
 	}
 	return NGX_DONE;
 }
 
-static void lws_monitor_body (ngx_http_request_t *r) {
+static void lws_monitor_body_handler (ngx_http_request_t *r) {
 	int           state;
 	u_char       *pos, *start, *last;
 	ngx_int_t     rc;
@@ -263,7 +264,7 @@ static void lws_monitor_body (ngx_http_request_t *r) {
 
 		/* process pair */
 		if (value.data) {
-			rc = lws_monitor_pair(r, &key, &value);
+			rc = lws_monitor_modification_handler(r, &key, &value);
 			if (rc != NGX_OK) {
 				ngx_http_finalize_request(r, rc);
 				return;
@@ -277,10 +278,11 @@ static void lws_monitor_body (ngx_http_request_t *r) {
 		}
 		pos++;
 	}
-	ngx_http_finalize_request(r, lws_monitor_content(r));
+	ngx_http_finalize_request(r, lws_monitor_content_handler(r));
 }
 
-static ngx_int_t lws_monitor_pair (ngx_http_request_t * r, ngx_str_t *key, ngx_str_t *value) {
+static ngx_int_t lws_monitor_modification_handler (ngx_http_request_t * r, ngx_str_t *key,
+		ngx_str_t *value) {
 	size_t            i;
 	lws_monitor_t    *m;
 	lws_main_conf_t  *lmcf;
