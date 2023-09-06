@@ -139,7 +139,10 @@ void *lws_table_get (lws_table_t *t, ngx_str_t *key) {
 
 	hash = lws_table_hash(t, key);
 	entry = lws_table_find(t, key, hash);
-	if (t->timed && entry) {
+	if (!entry) {
+		return NULL;
+	}
+	if (t->timed) {
 		if (entry->time + t->timeout <= time(NULL)) {
 			return NULL;
 		}
@@ -148,7 +151,7 @@ void *lws_table_get (lws_table_t *t, ngx_str_t *key) {
 		ngx_queue_remove(&entry->order);
 		ngx_queue_insert_tail(&t->order, &entry->order);
 	}
-	return entry ? entry->value : NULL;
+	return entry->value;
 }
 
 int lws_table_set (lws_table_t *t, ngx_str_t *key, void *value) {
