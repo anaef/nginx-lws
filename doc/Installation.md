@@ -13,9 +13,9 @@ version.
 4. In the NGINX directory, run `./configure --with-compat --add-dynamic-module=../lws-nginx`. If
 debug logging is required, add `--with-debug`.
 5. Run `make modules`.
-6. Copy the `objs/lws.so` shared library into the NGINX modules folder, e.g.,
+6. Copy the `objs/lws_module.so` shared library into the NGINX modules folder, e.g.,
 `/usr/lib/nginx/modules`.
-7. Add the directive `load_module modules/lws.so;` to the NGINX main configuration. (Alternatively,
-you can copy the provided `etc/lws.conf` file into a folder where NGINX is configured to read
-configuration directives from, such as `/etc/nginx/modules-available` with a corresponding symlink
-in `/etc/nginx/modules-enabled`.)
+7. Add the directive `load_module modules/lws_module.so;` to the NGINX main configuration.
+(Alternatively, you can copy the provided `etc/lws.conf` file into a folder where NGINX is
+configured to read configuration directives from, such as `/etc/nginx/modules-available` with a
+corresponding symlink in `/etc/nginx/modules-enabled`.)

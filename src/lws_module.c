@@ -17,7 +17,7 @@ static char *lws_stat_cache(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 static void *lws_create_loc_conf(ngx_conf_t *cf);
 static char *lws_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child);
 static void lws_cleanup_loc_conf(void *data);
-static char *lws_lws(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
+static char *lws(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 static char *lws_max_states(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 static char *lws_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 static char *lws_error_response(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
@@ -25,19 +25,19 @@ static char *lws_error_response(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 static lws_file_status_e lws_get_file_status(ngx_http_request_t *t, ngx_str_t *filename);
 static int lws_set_header(lws_table_t *t, ngx_http_request_t *r, ngx_table_elt_t *header);
 static ngx_int_t lws_handler(ngx_http_request_t *r);
-static void lws_handler_continuation(ngx_http_request_t *r);
-static void lws_handler_state(lws_request_ctx_t *ctx);
-static void lws_handler_thread(void *data, ngx_log_t *log);
-static ssize_t lws_request_read(void *cookie, char *buf, size_t size);
-static void lws_handler_completion(ngx_event_t *ev);
+static void lws_body_handler(ngx_http_request_t *r);
+static void lws_state_handler(lws_request_ctx_t *ctx);
+static void lws_thread_handler(void *data, ngx_log_t *log);
+static ssize_t lws_read_handler(void *cookie, char *buf, size_t size);
+static void lws_finalization_handler(ngx_event_t *ev);
 static void lws_send_error_response(lws_request_ctx_t *ctx, ngx_int_t rc);
 static void lws_send_json_error_response(lws_request_ctx_t *ctx, ngx_int_t rc);
 static void lws_send_html_error_response(lws_request_ctx_t *ctx, ngx_int_t rc);
-static void lws_cleanup_request_ctx (void *data);
+static void lws_cleanup_request_ctx(void *data);
 
 
 static cookie_io_functions_t lws_request_read_functions = {
-	lws_request_read,  /* read */
+	lws_read_handler,  /* read */
 	NULL,              /* write */
 	NULL,              /* seek */
 	NULL               /* close */
@@ -69,7 +69,7 @@ static ngx_command_t lws_commands[] = {
 	{
 		ngx_string("lws"),
 		NGX_HTTP_LOC_CONF | NGX_CONF_TAKE12,
-		lws_lws,
+		lws,
 		NGX_HTTP_LOC_CONF_OFFSET,
 		offsetof(lws_loc_conf_t, main),
 		NULL
@@ -131,6 +131,14 @@ static ngx_command_t lws_commands[] = {
 		NULL
 	},
 	{
+		ngx_string("lws_gc"),
+		NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
+		ngx_conf_set_size_slot,
+		NGX_HTTP_LOC_CONF_OFFSET,
+		offsetof(lws_loc_conf_t, state_gc),
+		NULL
+	},
+	{
 		ngx_string("lws_max_requests"),
 		NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 		ngx_conf_set_num_slot,
@@ -152,14 +160,6 @@ static ngx_command_t lws_commands[] = {
 		ngx_conf_set_msec_slot,
 		NGX_HTTP_LOC_CONF_OFFSET,
 		offsetof(lws_loc_conf_t, state_timeout),
-		NULL
-	},
-	{
-		ngx_string("lws_gc"),
-		NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
-		ngx_conf_set_size_slot,
-		NGX_HTTP_LOC_CONF_OFFSET,
-		offsetof(lws_loc_conf_t, state_gc),
 		NULL
 	},
 	{
@@ -200,7 +200,7 @@ static ngx_http_module_t lws_ctx = {
 	lws_merge_loc_conf     /* merge location configuration */
 };
 
-ngx_module_t lws = {
+ngx_module_t lws_module = {
 	NGX_MODULE_V1,
 	&lws_ctx,
 	lws_commands,
@@ -224,7 +224,7 @@ static void *lws_create_main_conf (ngx_conf_t *cf) {
 	lws_main_conf_t     *lmcf;
 	ngx_pool_cleanup_t  *cln;
 
-	/* allocate and intialize structure */
+	/* allocate and initialize structure */
 	lmcf = ngx_pcalloc(cf->pool, sizeof(lws_main_conf_t));
 	if (!lmcf) {
 		return NULL;
@@ -305,7 +305,7 @@ static void *lws_create_loc_conf (ngx_conf_t *cf) {
 	lws_loc_conf_t      *llcf;
 	ngx_pool_cleanup_t  *cln;
 
-	/* allocate and intialize structure */
+	/* allocate and initialize structure */
 	llcf = ngx_pcalloc(cf->pool, sizeof(lws_loc_conf_t));
 	if (!llcf) {
 		return NULL;
@@ -313,10 +313,10 @@ static void *lws_create_loc_conf (ngx_conf_t *cf) {
 	llcf->states_max = NGX_CONF_UNSET_SIZE;
 	llcf->requests_max = NGX_CONF_UNSET_SIZE;
 	llcf->state_memory_max = NGX_CONF_UNSET_SIZE;
+	llcf->state_gc = NGX_CONF_UNSET_SIZE;
 	llcf->state_requests_max = NGX_CONF_UNSET;
 	llcf->state_time_max = NGX_CONF_UNSET_MSEC;
 	llcf->state_timeout = NGX_CONF_UNSET_MSEC;
-	llcf->state_gc = NGX_CONF_UNSET_SIZE;
 	llcf->error_response = NGX_CONF_UNSET_UINT;
 	llcf->diagnostic = NGX_CONF_UNSET;
 	if (ngx_array_init(&llcf->variables, cf->pool, 4, sizeof(lws_variable_t)) != NGX_OK) {
@@ -354,10 +354,10 @@ static char *lws_merge_loc_conf (ngx_conf_t *cf, void *parent, void *child) {
 	ngx_conf_merge_size_value(conf->states_max, prev->states_max, 0);
 	ngx_conf_merge_size_value(conf->requests_max, prev->requests_max, 0);
 	ngx_conf_merge_size_value(conf->state_memory_max, prev->state_memory_max, 0);
+	ngx_conf_merge_size_value(conf->state_gc, prev->state_gc, 0);
 	ngx_conf_merge_value(conf->state_requests_max, prev->state_requests_max, 0);
 	ngx_conf_merge_msec_value(conf->state_time_max, prev->state_time_max, 0);
 	ngx_conf_merge_msec_value(conf->state_timeout, prev->state_timeout, 0);
-	ngx_conf_merge_size_value(conf->state_gc, prev->state_gc, 0);
 	if (!ngx_array_push_n(&conf->variables, prev->variables.nelts)) {
 		return NGX_CONF_ERROR;
 	}
@@ -378,7 +378,7 @@ static void lws_cleanup_loc_conf (void *data) {
 	lws_close_states(llcf);
 }
 
-static char *lws_lws (ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
+static char *lws (ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
 	ngx_str_t                        *values;
 	lws_loc_conf_t                   *llcf;
 	ngx_http_core_loc_conf_t         *clcf;
@@ -505,7 +505,7 @@ static lws_file_status_e lws_get_file_status (ngx_http_request_t *r, ngx_str_t *
 	lws_main_conf_t   *lmcf;
 	lws_file_status_e  fs;
 
-	lmcf = ngx_http_get_module_main_conf(r, lws);
+	lmcf = ngx_http_get_module_main_conf(r, lws_module);
 	if (lmcf->stat_cache) {
 		fs = (uintptr_t)lws_table_get(lmcf->stat_cache, filename);
 		ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
@@ -545,7 +545,7 @@ static int lws_set_header (lws_table_t *t, ngx_http_request_t *r, ngx_table_elt_
 		value->len = len;
 		value->data = (u_char *)value + sizeof(ngx_str_t);
 		p = ngx_cpymem(value->data, existing->data, existing->len);
-		p = ngx_cpymem(p, ", ", 2);
+		p = lws_cpylit(p, ", ");
 		ngx_memcpy(p, header->value.data, header->value.len);
 	}
 	if (lws_table_set(t, &header->key, value) != 0) {
@@ -570,7 +570,7 @@ static ngx_int_t lws_handler (ngx_http_request_t *r) {
 	ngx_http_variable_value_t  *variable_value;
 
 	/* check if enabled */
-	llcf = ngx_http_get_module_loc_conf(r, lws);
+	llcf = ngx_http_get_module_loc_conf(r, lws_module);
 	if (!llcf->main) {
 		return NGX_DECLINED;
 	}
@@ -592,7 +592,7 @@ static ngx_int_t lws_handler (ngx_http_request_t *r) {
 		ngx_log_error(NGX_LOG_CRIT, log, 0, "[LWS] failed to allocate request context");
 		return NGX_HTTP_INTERNAL_SERVER_ERROR;
 	}
-	ngx_http_set_ctx(r, ctx, lws);
+	ngx_http_set_ctx(r, ctx, lws_module);
 	cln = ngx_pool_cleanup_add(r->pool, 0);
 	if (!cln) {
 		ngx_log_error(NGX_LOG_CRIT, log, 0, "[LWS] failed to add request cleanup");
@@ -668,14 +668,14 @@ static ngx_int_t lws_handler (ngx_http_request_t *r) {
 	}
 
 	/* read request body */
-	rc = ngx_http_read_client_request_body(r, lws_handler_continuation);
+	rc = ngx_http_read_client_request_body(r, lws_body_handler);
 	if (rc >= NGX_HTTP_SPECIAL_RESPONSE) {
 		return rc;
 	}
 	return NGX_DONE;
 }
 
-static void lws_handler_continuation (ngx_http_request_t *r) {
+static void lws_body_handler (ngx_http_request_t *r) {
 	ngx_log_t          *log;
 	lws_loc_conf_t     *llcf;
 	lws_main_conf_t    *lmcf;
@@ -683,7 +683,7 @@ static void lws_handler_continuation (ngx_http_request_t *r) {
 
 	/* prepare request body */
 	log = r->connection->log;
-	ctx = ngx_http_get_module_ctx(r, lws);
+	ctx = ngx_http_get_module_ctx(r, lws_module);
 	if (!r->request_body) {
 		ngx_log_error(NGX_LOG_ERR, log, errno, "[LWS] missing request body");
 		ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
@@ -702,13 +702,13 @@ static void lws_handler_continuation (ngx_http_request_t *r) {
 	}
 
 	/* get state, queue, or abort */
-	llcf = ngx_http_get_module_loc_conf(ctx->r, lws);
+	llcf = ngx_http_get_module_loc_conf(r, lws_module);
 	if (!ngx_queue_empty(&llcf->states) || llcf->states_max == 0
 			|| llcf->states_n < llcf->states_max) {
-		lws_handler_state(ctx);
+		lws_state_handler(ctx);
 	} else if (llcf->requests_max == 0 || llcf->requests_n < llcf->requests_max) {
 		llcf->requests_n++;
-		lmcf = ngx_http_get_module_main_conf(r, lws);
+		lmcf = ngx_http_get_module_main_conf(r, lws_module);
 		if (lmcf->monitor) {
 			ngx_atomic_fetch_add(&lmcf->monitor->requests_n, 1);
 		}
@@ -722,7 +722,7 @@ static void lws_handler_continuation (ngx_http_request_t *r) {
 	}
 }
 
-static void lws_handler_state (lws_request_ctx_t *ctx) {
+static void lws_state_handler (lws_request_ctx_t *ctx) {
 	ngx_log_t           *log;
 	lws_main_conf_t     *lmcf;
 	ngx_thread_task_t   *task;
@@ -746,12 +746,12 @@ static void lws_handler_state (lws_request_ctx_t *ctx) {
 		return;
 	}
 	*(lws_request_ctx_t **)task->ctx = ctx;
-	task->handler = lws_handler_thread;
-	task->event.handler = lws_handler_completion;
+	task->handler = lws_thread_handler;
+	task->event.handler = lws_finalization_handler;
 	task->event.data = ctx;
 
 	/* post task */
-	lmcf = ngx_http_get_module_main_conf(r, lws);
+	lmcf = ngx_http_get_module_main_conf(r, lws_module);
 	if (ngx_thread_task_post(lmcf->thread_pool, task) != NGX_OK) {
 		lws_put_state(ctx, ctx->state);
 		ngx_log_error(NGX_LOG_CRIT, log, 0, "[LWS] failed to post thread task");
@@ -760,14 +760,14 @@ static void lws_handler_state (lws_request_ctx_t *ctx) {
 	}
 }
 
-static void lws_handler_thread (void *data, ngx_log_t *log) {
+static void lws_thread_handler (void *data, ngx_log_t *log) {
 	lws_request_ctx_t  *ctx;
 
 	ctx = *(lws_request_ctx_t **)data;
 	ctx->rc = lws_run_state(ctx);
 }
 
-static ssize_t lws_request_read (void *cookie, char *buf, size_t size) {
+static ssize_t lws_read_handler (void *cookie, char *buf, size_t size) {
 	size_t              count;
 	ngx_buf_t          *b;
 	lws_request_ctx_t  *ctx;
@@ -784,7 +784,7 @@ static ssize_t lws_request_read (void *cookie, char *buf, size_t size) {
 	if (count > size) {
 		count = size;
 	}
-	memcpy(buf, b->pos, count);
+	ngx_memcpy(buf, b->pos, count);
 	b->pos += count;
 	if (b->pos == b->last) {
 		ctx->cl = ctx->cl->next;
@@ -792,11 +792,12 @@ static ssize_t lws_request_read (void *cookie, char *buf, size_t size) {
 	return count;
 }
 
-static void lws_handler_completion (ngx_event_t *ev) {
+static void lws_finalization_handler (ngx_event_t *ev) {
 	ngx_buf_t           *b;
 	ngx_int_t            rc;
 	ngx_log_t           *log;
 	ngx_str_t           *key, *value;
+	ngx_str_t            name;
 	ngx_queue_t         *q;
 	ngx_chain_t         *out;
 	lws_loc_conf_t      *llcf;
@@ -813,17 +814,17 @@ static void lws_handler_completion (ngx_event_t *ev) {
 
 	/* check for queued requests */
 	r = ctx->r;
-	llcf = ngx_http_get_module_loc_conf(r, lws);
+	llcf = ngx_http_get_module_loc_conf(r, lws_module);
 	if (!ngx_queue_empty(&llcf->requests)) {
 		q = ngx_queue_head(&llcf->requests);
 		ngx_queue_remove(q);
 		llcf->requests_n--;
-		lmcf = ngx_http_get_module_main_conf(r, lws);
+		lmcf = ngx_http_get_module_main_conf(r, lws_module);
 		if (lmcf->monitor) {
 			ngx_atomic_fetch_add(&lmcf->monitor->requests_n, -1);
 		}
 		ctx_next = ngx_queue_data(q, lws_request_ctx_t, queue);
-		lws_handler_state(ctx_next);
+		lws_state_handler(ctx_next);
 	}
 
 	/* Lua error generated? */
@@ -833,13 +834,13 @@ static void lws_handler_completion (ngx_event_t *ev) {
 	}
 
 	/* internal redirect? */
-	if (ctx->redirect) {
-		if (ctx->redirect->data[0] != '@') {
-			rc = ngx_http_internal_redirect(r, ctx->redirect, ctx->redirect_args);
+	if (ctx->redirect.len) {
+		if (ctx->redirect.data[0] != '@') {
+			rc = ngx_http_internal_redirect(r, &ctx->redirect, &ctx->redirect_args);
 		} else {
-			ctx->redirect->data++;
-			ctx->redirect->len--;
-			rc = ngx_http_named_location(r, ctx->redirect);
+			name.data = ctx->redirect.data + 1;
+			name.len = ctx->redirect.len - 1;
+			rc = ngx_http_named_location(r, &name);
 		}
 		ngx_http_finalize_request(r, rc);
 		return;
@@ -994,7 +995,7 @@ static void lws_send_error_response (lws_request_ctx_t *ctx, ngx_int_t rc) {
 	}
 
 	/* send full error response */
-	llcf = ngx_http_get_module_loc_conf(r, lws);
+	llcf = ngx_http_get_module_loc_conf(r, lws_module);
 	switch (llcf->error_response) {
 	case LWS_ER_JSON:
 		lws_send_json_error_response(ctx, rc);
@@ -1025,18 +1026,16 @@ static void lws_send_json_error_response (lws_request_ctx_t *ctx, ngx_int_t rc) 
 	if (status) {
 		len += sizeof(",\n\t\t\"message\": \"\"") - 1 + status->message.len;
 	}
-	if (ctx->diagnostic) {
-		dia.len = ctx->diagnostic->len;
-		dia.len += ngx_escape_json(NULL, ctx->diagnostic->data, ctx->diagnostic->len);
+	dia.len = ctx->diagnostic.len;
+	if (dia.len) {
+		dia.len += ngx_escape_json(NULL, ctx->diagnostic.data, ctx->diagnostic.len);
 		dia.data = ngx_palloc(r->pool, dia.len);
 		if (!dia.data) {
 			ngx_http_finalize_request(r, rc);
 			return;
 		}
-		ngx_escape_json(dia.data, ctx->diagnostic->data, ctx->diagnostic->len);
+		ngx_escape_json(dia.data, ctx->diagnostic.data, ctx->diagnostic.len);
 		len += sizeof(",\n\t\t\"diagnostic\": \"\"") - 1 + dia.len;
-	} else {
-		dia.len = 0;
 	}
 
 	/* allocate buffer */
@@ -1056,7 +1055,7 @@ static void lws_send_json_error_response (lws_request_ctx_t *ctx, ngx_int_t rc) 
 	b->last = b->pos;
 
 	/* build JSON */
-	b->last = ngx_cpymem(b->last, "{\n\t\"error\": {", sizeof("{\n\t\"error\": {") - 1);
+	b->last = lws_cpylit(b->last, "{\n\t\"error\": {");
 	b->last = ngx_sprintf(b->last, "\n\t\t\"code\": %ui", rc);
 	if (status) {
 		b->last = ngx_sprintf(b->last, ",\n\t\t\"message\": \"%V\"", &status->message);
@@ -1064,7 +1063,7 @@ static void lws_send_json_error_response (lws_request_ctx_t *ctx, ngx_int_t rc) 
 	if (dia.len) {
 		b->last = ngx_sprintf(b->last, ",\n\t\t\"diagnostic\": \"%V\"", &dia);
 	}
-	b->last = ngx_cpymem(b->last, "\n\t}\n}", sizeof("\n\t}\n}") - 1);
+	b->last = lws_cpylit(b->last, "\n\t}\n}");
 
 	/* send headers */
 	r->headers_out.status = rc;
@@ -1105,7 +1104,7 @@ static void lws_send_html_error_response (lws_request_ctx_t *ctx, ngx_int_t rc) 
 
 	/* no diagnostic? use server error pages */
 	r = ctx->r;
-	if (!ctx->diagnostic) {
+	if (!ctx->diagnostic.len) {
 		ngx_http_finalize_request(r, rc);
 		return;
 	}
@@ -1134,14 +1133,14 @@ static void lws_send_html_error_response (lws_request_ctx_t *ctx, ngx_int_t rc) 
 		"</html>");
 
 	/* escape message */
-	dia.len = ctx->diagnostic->len;
-	dia.len += ngx_escape_html(NULL, ctx->diagnostic->data, ctx->diagnostic->len);
+	dia.len = ctx->diagnostic.len;
+	dia.len += ngx_escape_html(NULL, ctx->diagnostic.data, ctx->diagnostic.len);
 	dia.data = ngx_palloc(r->pool, dia.len);
 	if (!dia.data) {
 		ngx_http_finalize_request(r, rc);
 		return;
 	}
-	ngx_escape_html(dia.data, ctx->diagnostic->data, ctx->diagnostic->len);
+	ngx_escape_html(dia.data, ctx->diagnostic.data, ctx->diagnostic.len);
 
 	/* send headers */
 	r->headers_out.status = rc;
@@ -1224,7 +1223,7 @@ static void lws_cleanup_request_ctx (void *data) {
 		fclose(ctx->response_body);
 		free(ctx->response_body_str.data);
 	}
-	ngx_free(ctx->redirect);
-	ngx_free(ctx->redirect_args);
-	ngx_free(ctx->diagnostic);
+	ngx_free(ctx->redirect.data);
+	ngx_free(ctx->redirect_args.data);
+	ngx_free(ctx->diagnostic.data);
 }

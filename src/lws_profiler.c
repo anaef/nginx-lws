@@ -249,7 +249,7 @@ int lws_profiler_stop (lua_State *L) {
 	}
 
 	/* synchronize profiled functions into monitor */
-	lmcf = ngx_http_cycle_get_module_main_conf(ngx_cycle, lws);
+	lmcf = ngx_http_cycle_get_module_main_conf(ngx_cycle, lws_module);
 	ngx_shmtx_lock(&lmcf->monitor_pool->mutex);
 	for (i = 0; i < lmcf->monitor->functions_n; i++) {
 		f = &lmcf->monitor->functions[i];

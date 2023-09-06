@@ -34,10 +34,10 @@ char *lws_monitor(ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
 	llcf->monitor = 1;
 
 	/* add shared memory zone */
-	lmcf = ngx_http_conf_get_module_main_conf(cf, lws);
+	lmcf = ngx_http_conf_get_module_main_conf(cf, lws_module);
 	if (!lmcf->monitor_shm) {
 		ngx_str_set(&name, "lws_monitor");
-		lmcf->monitor_shm = ngx_shared_memory_add(cf, &name, LWS_MONITOR_SIZE, &lws);
+		lmcf->monitor_shm = ngx_shared_memory_add(cf, &name, LWS_MONITOR_SIZE, &lws_module);
 		if (!lmcf->monitor_shm) {
 			return NGX_CONF_ERROR;
 		}
@@ -101,7 +101,7 @@ static ngx_int_t lws_monitor_content (ngx_http_request_t *r) {
 	}
 
 	/* build JSON */
-	lmcf = ngx_http_cycle_get_module_main_conf(ngx_cycle, lws);
+	lmcf = ngx_http_cycle_get_module_main_conf(ngx_cycle, lws_module);
 	ngx_shmtx_lock(&lmcf->monitor_pool->mutex);
 	len = sizeof("{\n") - 1;
 	len += sizeof("\t\"states_n\": ,\n") - 1  + 20;
@@ -285,7 +285,7 @@ static ngx_int_t lws_monitor_pair (ngx_http_request_t * r, ngx_str_t *key, ngx_s
 	lws_monitor_t    *m;
 	lws_main_conf_t  *lmcf;
 
-	lmcf = ngx_http_get_module_main_conf(r, lws);
+	lmcf = ngx_http_get_module_main_conf(r, lws_module);
 	m = lmcf->monitor;
 	switch (key->len) {
 	case 8:

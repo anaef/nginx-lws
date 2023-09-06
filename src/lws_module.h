@@ -48,20 +48,20 @@ struct lws_main_conf_s {
 };
 
 struct lws_loc_conf_s {
-	ngx_http_complex_value_t  *main;       /* filename of main chunk */
-	ngx_http_complex_value_t  *path_info;  /* sub-path arguments */
-	ngx_str_t    init;                     /* filename of init chunk (run once) */
-	ngx_str_t    pre;                      /* filename of pre chunk */
-	ngx_str_t    post;                     /* filename of post chunk */
+	ngx_http_complex_value_t  *main;       /* filename of main Lua chunk */
+	ngx_http_complex_value_t  *path_info;  /* path info */
+	ngx_str_t    init;                     /* filename of init Lua chunk (runs once) */
+	ngx_str_t    pre;                      /* filename of pre Lua chunk */
+	ngx_str_t    post;                     /* filename of post Lua chunk */
 	ngx_str_t    path;                     /* Lua path */
 	ngx_str_t    cpath;                    /* Lua C path */
 	size_t       states_max;               /* maximum Lua states; 0 = unrestricted */
 	size_t       requests_max;             /* maximum queued requests; 0 = unrestricted */
 	size_t       state_memory_max;         /* maximum Lua state memory; 0 = unrestricted */
-	ngx_int_t    state_requests_max;       /* maximum Lua state requests; 0 = unlimitted */
+	size_t       state_gc;                 /* Lua state explicit GC threshold; 0 = never */
+	ngx_int_t    state_requests_max;       /* maximum Lua state requests; 0 = unlimited */
 	ngx_msec_t   state_time_max;           /* maximum Lua state lifetime; 0 = unlimited */
 	ngx_msec_t   state_timeout;            /* Lua state idle timeout; 0 = unlimited */
-	size_t       state_gc;                 /* Lua state explicit GC threshold; 0 = never */
 	ngx_uint_t   error_response;           /* error response [json, html] */
 	ngx_flag_t   diagnostic;               /* include diagnostic w/ error response */
 	ngx_flag_t   monitor;                  /* monitor enabled */
@@ -75,8 +75,8 @@ struct lws_loc_conf_s {
 struct lws_request_ctx_s {
 	ngx_queue_t          queue;              /* location configuration queue */
 	ngx_http_request_t  *r;                  /* NGINX HTTP request */
-	ngx_str_t            main;               /* filename of main chunk */
-	ngx_str_t            path_info;          /* sub-path arguments */
+	ngx_str_t            main;               /* filename of main Lua chunk */
+	ngx_str_t            path_info;          /* request path info */
 	lws_state_t         *state;              /* active Lua state */
 	lws_table_t         *variables;          /* request variables */
 	lws_table_t         *request_headers;    /* request headers */
@@ -87,9 +87,9 @@ struct lws_request_ctx_s {
 	lws_table_t         *response_headers;   /* HTTP response headers */
 	FILE                *response_body;      /* HTTP response body stream */
 	ngx_str_t            response_body_str;  /* HTTP response body string */
-	ngx_str_t           *redirect;           /* NGINX internal redirect; @ prefix for name */
-	ngx_str_t           *redirect_args;      /* NGINX internal redirect args */
-	ngx_str_t           *diagnostic;         /* diagnostic response */
+	ngx_str_t            redirect;           /* NGINX internal redirect; @ prefix for name */
+	ngx_str_t            redirect_args;      /* NGINX internal redirect args */
+	ngx_str_t            diagnostic;         /* diagnostic response */
 };
 
 struct lws_variable_s {
@@ -98,7 +98,7 @@ struct lws_variable_s {
 };
 
 
-extern ngx_module_t lws;
+extern ngx_module_t lws_module;
 
 
 #define LWS_THREAD_POOL_NAME_DEFAULT    "default"
