@@ -261,7 +261,7 @@ static char *lws_init_main_conf (ngx_conf_t *cf, void *conf) {
 	ngx_conf_init_size_value(lmcf->stat_cache_cap, LWS_STAT_CACHE_CAP_DEFAULT);
 	ngx_conf_init_value(lmcf->stat_cache_timeout, LWS_STAT_CACHE_TIMEOUT_DEFAULT);
 	if (lmcf->stat_cache_cap) {
-		lmcf->stat_cache = lws_table_create(32);
+		lmcf->stat_cache = lws_table_create(32, &cf->cycle->new_log);
 		if (!lmcf->stat_cache) {
 			return NGX_CONF_ERROR;
 		}
@@ -620,7 +620,7 @@ static ngx_int_t lws_handler (ngx_http_request_t *r) {
 	}
 
 	/* prepare request variables */
-	ctx->variables = lws_table_create(llcf->variables.nelts);
+	ctx->variables = lws_table_create(llcf->variables.nelts, log);
 	if (!ctx->variables) {
 		ngx_log_error(NGX_LOG_ERR, log, 0, "[LWS] failed to create variables");
 		return NGX_HTTP_INTERNAL_SERVER_ERROR;
@@ -642,7 +642,7 @@ static ngx_int_t lws_handler (ngx_http_request_t *r) {
 	}
 
 	/* prepare request headers */
-	ctx->request_headers = lws_table_create(32);
+	ctx->request_headers = lws_table_create(32, log);
 	if (!ctx->request_headers) {
 		ngx_log_error(NGX_LOG_CRIT, log, 0, "[LWS] failed to create request headers");
 		return NGX_HTTP_INTERNAL_SERVER_ERROR;
@@ -660,7 +660,7 @@ static ngx_int_t lws_handler (ngx_http_request_t *r) {
 	}
 
 	/* prepare response headers */
-	ctx->response_headers = lws_table_create(8);
+	ctx->response_headers = lws_table_create(8, log);
 	if (!ctx->response_headers) {
 		ngx_log_error(NGX_LOG_CRIT, log, 0, "[LWS] failed to create response headers");
 		return NGX_HTTP_INTERNAL_SERVER_ERROR;

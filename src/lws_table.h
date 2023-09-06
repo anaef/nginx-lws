@@ -17,6 +17,7 @@ typedef struct lws_table_s lws_table_t;
 typedef struct lws_table_entry_s lws_table_entry_t;
 
 struct lws_table_s {
+	ngx_log_t           *log;       /* log */
 	size_t               alloc;     /* allocated slots */
 	size_t               load;      /* load limit for rehash */
 	size_t               count;     /* number of entries */
@@ -47,7 +48,7 @@ struct lws_table_entry_s {
 };
 
 
-lws_table_t *lws_table_create(size_t load);
+lws_table_t *lws_table_create(size_t load, ngx_log_t *log);
 void lws_table_free(lws_table_t *t);
 void lws_table_clear(lws_table_t *t);
 int lws_table_set_dup(lws_table_t *t, int dup);

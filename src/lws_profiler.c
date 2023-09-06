@@ -131,7 +131,7 @@ static void lws_profiler_hook (lua_State *L, lua_Debug *ar) {
 		/* get or create activation record */
 		par = lws_table_get(p->functions, &key);
 		if (!par) {
-			par = ngx_calloc(sizeof(lws_activation_record_t), ngx_cycle->log);
+			par = ngx_calloc(sizeof(lws_activation_record_t), p->log);
 			if (!par) {
 				luaL_error(L, "failed to allocate profiler activation record");
 			}
@@ -144,7 +144,7 @@ static void lws_profiler_hook (lua_State *L, lua_Debug *ar) {
 		if (p->stack_n == p->stack_alloc) {
 			stack_alloc_new = p->stack_alloc * 2;
 			stack_new = ngx_alloc(stack_alloc_new * sizeof(lws_activation_record_t *),
-					ngx_cycle->log);
+					p->log);
 			if (!stack_new) {
 				luaL_error(L, "failed to grow profiler stack");
 			}
@@ -194,7 +194,8 @@ int lws_open_profiler (lua_State *L) {
 }
 
 int lws_start_profiler (lua_State *L) {
-	lws_profiler_t  *p;
+	lws_profiler_t     *p;
+	lws_request_ctx_t  *ctx;
 
 	/* create and set profiler */
 	p = lua_newuserdata(L, sizeof(lws_profiler_t));
@@ -204,18 +205,20 @@ int lws_start_profiler (lua_State *L) {
 	lua_setfield(L, LUA_REGISTRYINDEX, LWS_PROFILER_CURRENT);
 
 	/* initialize profiler */
-	p->functions = lws_table_create(32);
+	ctx = (void *)lua_topointer(L, 1);
+	p->log = ctx->r->connection->log;
+	p->functions = lws_table_create(32, p->log);
 	if (!p->functions) {
 		return luaL_error(L, "failed to create profiler functions");
 	}
 	lws_table_set_dup(p->functions, 1);
 	lws_table_set_free(p->functions, 1);
 	p->stack_alloc = 32;
-	p->stack = ngx_alloc(p->stack_alloc * sizeof(lws_activation_record_t *), ngx_cycle->log);
+	p->stack = ngx_alloc(p->stack_alloc * sizeof(lws_activation_record_t *), p->log);
 	if (!p->stack) {
 		return luaL_error(L, "faild to allocate profiler stack");
 	}
-	p->clock = lua_tointeger(L, 1) == 1 ? LWS_PROFILER_CLOCK_CPU : LWS_PROFILER_CLOCK_WALL;
+	p->clock = ctx->state->profiler == 1 ? LWS_PROFILER_CLOCK_CPU : LWS_PROFILER_CLOCK_WALL;
 
 	/* set hook */
 	lua_sethook(L, lws_profiler_hook, LUA_MASKCALL | LUA_MASKRET, 0);
@@ -261,7 +264,7 @@ int lws_stop_profiler (lua_State *L) {
 				functions_new = ngx_slab_alloc_locked(lmcf->monitor_pool,
 						functions_alloc_new * sizeof(lws_function_t));
 				if (!functions_new) {
-					ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "[LWS] "
+					ngx_log_error(NGX_LOG_ERR, p->log, 0, "[LWS] "
 							"failed to allocate monitor functions");
 					lmcf->monitor->out_of_memory = 1;
 					break;
@@ -276,8 +279,8 @@ int lws_stop_profiler (lua_State *L) {
 			f = &lmcf->monitor->functions[lmcf->monitor->functions_n];
 			f->key.data = ngx_slab_alloc_locked(lmcf->monitor_pool, key->len);
 			if (!f->key.data) {
-				ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "[LWS] "
-						"failed to allocate monitor function key");
+				ngx_log_error(NGX_LOG_ERR, p->log, 0,
+						"[LWS] failed to allocate monitor function key");
 				lmcf->monitor->out_of_memory = 1;
 				break;
 			}

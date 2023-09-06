@@ -17,6 +17,7 @@ typedef struct lws_profiler_s lws_profiler_t;
 typedef struct lws_activation_record_s lws_activation_record_t;
 
 struct lws_profiler_s {
+	ngx_log_t                 *log;          /* log */
 	lws_table_t               *functions;    /* functions */
 	size_t                     stack_n;      /* stack count */
 	size_t                     stack_alloc;  /* stack allocated */

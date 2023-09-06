@@ -36,21 +36,22 @@ static size_t lws_table_sizes[] = {
 static int lws_table_sizes_n = 112;
 
 
-lws_table_t *lws_table_create (size_t load) {
+lws_table_t *lws_table_create (size_t load, ngx_log_t *log) {
 	size_t        alloc;
 	lws_table_t  *t;
 
-	t = ngx_calloc(sizeof(lws_table_t), ngx_cycle->log);
+	t = ngx_calloc(sizeof(lws_table_t), log);
 	if (!t) {
 		return NULL;
 	}
+	t->log = log;
 	alloc = load + (load < lws_table_sizes[lws_table_sizes_n - 1] ? load / 7 + 3 : 0);
 	if ((t->alloc = lws_table_size(t, alloc)) == (size_t)-1) {
 		ngx_free(t);
 		return NULL;
 	}
 	t->load = lws_table_load(t, t->alloc);  /* t->load >= load */
-	t->entries = ngx_calloc(t->alloc * sizeof(lws_table_entry_t), ngx_cycle->log);
+	t->entries = ngx_calloc(t->alloc * sizeof(lws_table_entry_t), t->log);
 	if (!t->entries) {
 		ngx_free(t);
 		return NULL;
@@ -190,7 +191,7 @@ int lws_table_set (lws_table_t *t, ngx_str_t *key, void *value) {
 			/* new entry */
 			entry = lws_table_insert(t, key, hash);
 			if (t->dup) {
-				entry->key.data = ngx_alloc(key->len, ngx_cycle->log);
+				entry->key.data = ngx_alloc(key->len, t->log);
 				if (!entry->key.data) {
 					return -1;
 				}
@@ -279,8 +280,7 @@ static size_t lws_table_size (lws_table_t *t, size_t size) {
 		}
 	}
 	if (lower >= lws_table_sizes_n) {
-		ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "[LWS] table size too large: %z",
-				size);
+		ngx_log_error(NGX_LOG_ERR, t->log, 0, "[LWS] table size too large: %z", size);
 		return (size_t)-1;
 	}
 	return lws_table_sizes[lower];
@@ -299,9 +299,9 @@ static int lws_table_rehash (lws_table_t *t, size_t alloc) {
 	if ((alloc_new = lws_table_size(t, alloc)) == (size_t)-1) {
 		return -1;
 	}
-	ngx_log_debug3(NGX_LOG_DEBUG_HTTP, ngx_cycle->log, 0,
-			"[LWS] table rehash t:%p old:%z new:%z", t, t->alloc, alloc_new);
-	entries_new = ngx_calloc(alloc_new * sizeof(lws_table_entry_t), ngx_cycle->log);
+	ngx_log_debug3(NGX_LOG_DEBUG_HTTP, t->log, 0, "[LWS] table rehash t:%p old:%z new:%z", t,
+			t->alloc, alloc_new);
+	entries_new = ngx_calloc(alloc_new * sizeof(lws_table_entry_t), t->log);
 	if (!entries_new) {
 		return -1;
 	}

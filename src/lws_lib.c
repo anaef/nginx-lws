@@ -11,7 +11,7 @@
 #include <lws_http.h>
 
 
-static void lws_strdup(lua_State *L, ngx_str_t *dst, ngx_str_t *src);
+static void lws_strdup(lws_lua_request_ctx_t *lctx, ngx_str_t *dst, ngx_str_t *src);
 static void lws_unescape_url(u_char **dst, u_char **src, size_t n);
 
 static lws_lua_request_ctx_t *lws_create_lua_request_ctx(lua_State *L);
@@ -41,7 +41,7 @@ static int lws_setcomplete(lua_State *L);
 static int lws_setclose(lua_State *L);
 static int lws_parseargs(lua_State *L);
 
-static void lws_push_env(lws_request_ctx_t *ctx);
+static void lws_push_env(lws_lua_request_ctx_t *lctx);
 static int lws_call(lws_lua_request_ctx_t *lctx, ngx_str_t *filename, lws_lua_chunk_e chunk);
 
 
@@ -51,10 +51,10 @@ static int lws_call(lws_lua_request_ctx_t *lctx, ngx_str_t *filename, lws_lua_ch
 
 static const char* lws_chunk_names[] = { "init", "pre", "main", "post" };
 
-static void lws_strdup (lua_State *L, ngx_str_t *dst, ngx_str_t *src) {
-	dst->data = ngx_alloc(src->len, ngx_cycle->log);
+static void lws_strdup (lws_lua_request_ctx_t *lctx, ngx_str_t *dst, ngx_str_t *src) {
+	dst->data = ngx_alloc(src->len, lctx->ctx->r->connection->log);
 	if (!dst->data) {
-		luaL_error(L, "failed to allocate string");
+		luaL_error(lctx->ctx->state->L, "failed to allocate string");
 	}
 	ngx_memcpy(dst->data, src->data, src->len);
 	dst->len = src->len;
@@ -197,7 +197,7 @@ static int lws_lua_table_newindex (lua_State *L) {
 	}
 	key.data = (u_char *)luaL_checklstring(L, 2, &key.len);
 	value.data = (u_char *)luaL_checklstring(L, 3, &value.len);
-	dup = ngx_alloc(sizeof(ngx_str_t) + value.len, ngx_cycle->log);
+	dup = ngx_alloc(sizeof(ngx_str_t) + value.len, lt->t->log);
 	if (!dup) {
 		return luaL_error(L, "failed to allocate string");
 	}
@@ -392,10 +392,10 @@ static int lws_redirect (lua_State *L) {
 	if (redirect.data[0] != '@') {
 		args.data = (u_char *)luaL_optlstring(L, 2, NULL, &args.len);
 		if (args.data) {
-			lws_strdup(L, &lctx->ctx->redirect_args, &args);
+			lws_strdup(lctx, &lctx->ctx->redirect_args, &args);
 		}
 	}
-	lws_strdup(L, &lctx->ctx->redirect, &redirect);
+	lws_strdup(lctx, &lctx->ctx->redirect, &redirect);
 	if (lctx->chunk == LWS_LC_PRE) {
 		lctx->complete = 1;
 	}
@@ -579,14 +579,16 @@ int lws_traceback (lua_State *L) {
  * run
  */
 
-static void lws_push_env (lws_request_ctx_t *ctx) {
+static void lws_push_env (lws_lua_request_ctx_t *lctx) {
 	lua_State           *L;
 	luaL_Stream         *request_body, *response_body;
 	lws_lua_table_t     *lt;
+	lws_request_ctx_t   *ctx;
 	ngx_connection_t    *c;
 	ngx_http_request_t  *r;
 
 	/* create environment */
+	ctx = lctx->ctx;
 	L = ctx->state->L;
 	lua_newtable(L);
 	lua_createtable(L, 0, 1);
@@ -721,7 +723,7 @@ int lws_run (lua_State *L) {
 	/* start profiler */
 	if (ctx->state->profiler) {
 		lua_pushcfunction(L, lws_start_profiler);
-		lua_pushinteger(L, ctx->state->profiler);
+		lua_pushlightuserdata(L, ctx);
 		lua_call(L, 1, 0);
 	}
 
@@ -734,7 +736,7 @@ int lws_run (lua_State *L) {
 	}
 
 	/* push environment */
-	lws_push_env(ctx);  /* [ctx, chunks, env] */
+	lws_push_env(lctx);  /* [ctx, chunks, env] */
 
 	/* pre chunk */
 	if (ctx->state->llcf->pre.len) {
