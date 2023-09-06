@@ -26,6 +26,7 @@ static lws_file_status_e lws_get_file_status(ngx_http_request_t *t, ngx_str_t *f
 static int lws_set_header(lws_table_t *t, ngx_http_request_t *r, ngx_table_elt_t *header);
 static ngx_int_t lws_handler(ngx_http_request_t *r);
 static void lws_body_handler(ngx_http_request_t *r);
+static void lws_queue_handler(ngx_event_t *ev);
 static void lws_state_handler(lws_request_ctx_t *ctx);
 static void lws_thread_handler(void *data, ngx_log_t *log);
 static ssize_t lws_read_handler(void *cookie, char *buf, size_t size);
@@ -324,6 +325,9 @@ static void *lws_create_loc_conf (ngx_conf_t *cf) {
 	}
 	ngx_queue_init(&llcf->states);
 	ngx_queue_init(&llcf->requests);
+	llcf->qev.data = llcf;
+	llcf->qev.handler = lws_queue_handler;
+	llcf->qev.log = &cf->cycle->new_log;
 
 	/* add cleanup */
 	cln = ngx_pool_cleanup_add(cf->pool, 0);
@@ -708,7 +712,7 @@ static void lws_body_handler (ngx_http_request_t *r) {
 		return;
 	}
 
-	/* get state, queue, or abort */
+	/* proceed, queue, or abort */
 	llcf = ngx_http_get_module_loc_conf(r, lws_module);
 	if (!ngx_queue_empty(&llcf->states) || llcf->states_max == 0
 			|| llcf->states_n < llcf->states_max) {
@@ -723,9 +727,30 @@ static void lws_body_handler (ngx_http_request_t *r) {
 				llcf->requests_n, llcf->requests_max);
 		ngx_queue_insert_tail(&llcf->requests, &ctx->queue);
 	} else {
-		ngx_log_error(NGX_LOG_ERR, log, 0, "[LWS] request queue overflow n:%z max:%z",
+		ngx_log_error(NGX_LOG_CRIT, log, 0, "[LWS] request queue overflow n:%z max:%z",
 				llcf->requests_n, llcf->requests_max);
 		ngx_http_finalize_request(r, NGX_HTTP_SERVICE_UNAVAILABLE);
+	}
+}
+
+static void lws_queue_handler (ngx_event_t *ev) {
+	ngx_queue_t        *q;
+	lws_loc_conf_t     *llcf;
+	lws_main_conf_t    *lmcf;
+	lws_request_ctx_t  *ctx;
+
+	llcf = ev->data;
+	lmcf = ngx_http_cycle_get_module_main_conf(ngx_cycle, lws_module);
+	while (!ngx_queue_empty(&llcf->requests) && (!ngx_queue_empty(&llcf->states)
+			|| llcf->states_max == 0 || llcf->states_n < llcf->states_max)) {
+		q = ngx_queue_head(&llcf->requests);
+		ngx_queue_remove(q);
+		llcf->requests_n--;
+		if (lmcf->monitor) {
+			ngx_atomic_fetch_add(&lmcf->monitor->requests_n, -1);
+		}
+		ctx = ngx_queue_data(q, lws_request_ctx_t, queue);
+		lws_state_handler(ctx);
 	}
 }
 
@@ -746,8 +771,8 @@ static void lws_state_handler (lws_request_ctx_t *ctx) {
 	log = r->connection->log;
 	task = ngx_thread_task_alloc(r->pool, sizeof(lws_request_ctx_t *));
 	if (!task) {
-		lws_release_state(ctx);
 		ngx_log_error(NGX_LOG_CRIT, log, 0, "[LWS] failed to allocate thread task");
+		lws_release_state(ctx);
 		ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
 		return;
 	}
@@ -759,8 +784,8 @@ static void lws_state_handler (lws_request_ctx_t *ctx) {
 	/* post task */
 	lmcf = ngx_http_get_module_main_conf(r, lws_module);
 	if (ngx_thread_task_post(lmcf->thread_pool, task) != NGX_OK) {
-		lws_release_state(ctx);
 		ngx_log_error(NGX_LOG_CRIT, log, 0, "[LWS] failed to post thread task");
+		lws_release_state(ctx);
 		ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
 		return;
 	}
@@ -804,12 +829,10 @@ static void lws_finalization_handler (ngx_event_t *ev) {
 	ngx_log_t           *log;
 	ngx_str_t           *key, *value;
 	ngx_str_t            name;
-	ngx_queue_t         *q;
 	ngx_chain_t         *out;
 	lws_loc_conf_t      *llcf;
-	lws_main_conf_t     *lmcf;
 	ngx_table_elt_t     *h;
-	lws_request_ctx_t   *ctx, *ctx_next;
+	lws_request_ctx_t   *ctx;
 	ngx_http_request_t  *r;
 
 	/* get request */
@@ -821,16 +844,8 @@ static void lws_finalization_handler (ngx_event_t *ev) {
 	/* check for queued requests */
 	r = ctx->r;
 	llcf = ngx_http_get_module_loc_conf(r, lws_module);
-	if (!ngx_queue_empty(&llcf->requests)) {
-		q = ngx_queue_head(&llcf->requests);
-		ngx_queue_remove(q);
-		llcf->requests_n--;
-		lmcf = ngx_http_get_module_main_conf(r, lws_module);
-		if (lmcf->monitor) {
-			ngx_atomic_fetch_add(&lmcf->monitor->requests_n, -1);
-		}
-		ctx_next = ngx_queue_data(q, lws_request_ctx_t, queue);
-		lws_state_handler(ctx_next);
+	if (!ngx_queue_empty(&llcf->requests) && !llcf->qev.timer_set) {
+		ngx_add_timer(&llcf->qev, 0);
 	}
 
 	/* Lua error generated? */

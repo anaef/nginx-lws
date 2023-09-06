@@ -70,6 +70,7 @@ struct lws_loc_conf_s {
 	ngx_queue_t  states;                   /* inactive Lua states */
 	ngx_uint_t   requests_n;               /* number of queued requests */
 	ngx_queue_t  requests;                 /* queued requests */
+	ngx_event_t  qev;                      /* queue event */
 };
 
 struct lws_request_ctx_s {
