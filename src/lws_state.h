@@ -26,7 +26,7 @@ struct lws_state_s {
 	lua_State       *L;               /* Lua state */
 	size_t           memory_used;     /* used memory */
 	size_t           memory_max;      /* maximum memory */
-	size_t           memory_monitor;  /* monitor memory */
+	size_t           memory_monitor;  /* memory accounted for in monitor */
 	ngx_int_t        request_count;   /* requests served */
 	ngx_msec_t       time_max;        /* maximum lifetime */
 	ngx_msec_t       timeout;         /* idle timeout */
@@ -38,10 +38,10 @@ struct lws_state_s {
 };
 
 
-lws_state_t *lws_get_state(lws_request_ctx_t *ctx);
-void lws_put_state(lws_request_ctx_t *ctx, lws_state_t *state);
+void lws_close_state(lws_state_t *state, ngx_log_t *log);
+int lws_acquire_state(lws_request_ctx_t *ctx);
+void lws_release_state(lws_request_ctx_t *ctx);
 int lws_run_state(lws_request_ctx_t *ctx);
-void lws_close_states(lws_loc_conf_t *llcf);
 
 
 #endif /* _LWS_STATE_INCLUDED */

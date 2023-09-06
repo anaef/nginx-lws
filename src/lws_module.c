@@ -372,10 +372,17 @@ static char *lws_merge_loc_conf (ngx_conf_t *cf, void *parent, void *child) {
 }
 
 static void lws_cleanup_loc_conf (void *data) {
+	lws_state_t  *state;
+	ngx_queue_t  *q;
 	lws_loc_conf_t  *llcf;
 
 	llcf = data;
-	lws_close_states(llcf);
+	while (!ngx_queue_empty(&llcf->states)) {
+		q = ngx_queue_head(&llcf->states);
+		ngx_queue_remove(q);
+		state = ngx_queue_data(q, lws_state_t, queue);
+		lws_close_state(state, ngx_cycle->log);
+	}
 }
 
 static char *lws (ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
@@ -728,10 +735,9 @@ static void lws_state_handler (lws_request_ctx_t *ctx) {
 	ngx_thread_task_t   *task;
 	ngx_http_request_t  *r;
 
-	/* get state */
+	/* acquire state */
 	r = ctx->r;
-	ctx->state = lws_get_state(ctx);
-	if (!ctx->state) {
+	if (lws_acquire_state(ctx) != 0) {
 		ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
 		return;
 	}
@@ -740,7 +746,7 @@ static void lws_state_handler (lws_request_ctx_t *ctx) {
 	log = r->connection->log;
 	task = ngx_thread_task_alloc(r->pool, sizeof(lws_request_ctx_t *));
 	if (!task) {
-		lws_put_state(ctx, ctx->state);
+		lws_release_state(ctx);
 		ngx_log_error(NGX_LOG_CRIT, log, 0, "[LWS] failed to allocate thread task");
 		ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
 		return;
@@ -753,7 +759,7 @@ static void lws_state_handler (lws_request_ctx_t *ctx) {
 	/* post task */
 	lmcf = ngx_http_get_module_main_conf(r, lws_module);
 	if (ngx_thread_task_post(lmcf->thread_pool, task) != NGX_OK) {
-		lws_put_state(ctx, ctx->state);
+		lws_release_state(ctx);
 		ngx_log_error(NGX_LOG_CRIT, log, 0, "[LWS] failed to post thread task");
 		ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
 		return;
@@ -809,8 +815,8 @@ static void lws_finalization_handler (ngx_event_t *ev) {
 	/* get request */
 	ctx = ev->data;
 
-	/* put state */
-	lws_put_state(ctx, ctx->state);
+	/* release state */
+	lws_release_state(ctx);
 
 	/* check for queued requests */
 	r = ctx->r;

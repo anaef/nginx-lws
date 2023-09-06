@@ -12,17 +12,16 @@
 #include <lws_profiler.h>
 
 
-static void *lws_lua_alloc_unchecked(void *ud, void *ptr, size_t osize, size_t nsize);
-static void *lws_lua_alloc_checked(void *ud, void *ptr, size_t osize, size_t nsize);
-static void lws_lua_set_path(lua_State *L, int index, const char *field);
-static int lws_lua_init(lua_State *L);
+static void *lws_alloc_unchecked(void *ud, void *ptr, size_t osize, size_t nsize);
+static void *lws_alloc_checked(void *ud, void *ptr, size_t osize, size_t nsize);
+static void lws_set_path(lua_State *L, int index, const char *field);
+static int lws_init(lua_State *L);
 static void lws_set_state_timer(lws_state_t *state);
 static void lws_state_timer_handler(ngx_event_t *ev);
 static lws_state_t *lws_create_state(lws_request_ctx_t *ctx);
-static void lws_close_state(lws_state_t *state, ngx_log_t *log);
 
 
-static void *lws_lua_alloc_unchecked (void *ud, void *ptr, size_t osize, size_t nsize) {
+static void *lws_alloc_unchecked (void *ud, void *ptr, size_t osize, size_t nsize) {
 	if (nsize == 0) {
 		free(ptr);
 		return NULL;
@@ -30,10 +29,11 @@ static void *lws_lua_alloc_unchecked (void *ud, void *ptr, size_t osize, size_t 
 	return realloc(ptr, nsize);
 }
 
-static void *lws_lua_alloc_checked (void *ud, void *ptr, size_t osize, size_t nsize) {
-	size_t  memory_used;
+static void *lws_alloc_checked (void *ud, void *ptr, size_t osize, size_t nsize) {
+	size_t        memory_used;
+	lws_state_t  *state;
 
-	lws_state_t *state = ud;
+	state = ud;
 	if (nsize == 0) {
 		free(ptr);
 		state->memory_used -= osize;
@@ -50,7 +50,7 @@ static void *lws_lua_alloc_checked (void *ud, void *ptr, size_t osize, size_t ns
 	return ptr;
 }
 
-static void lws_lua_set_path (lua_State *L, int index, const char *field) {
+static void lws_set_path (lua_State *L, int index, const char *field) {
 	size_t       path_len;
 	const char  *path;
 
@@ -80,7 +80,7 @@ static void lws_lua_set_path (lua_State *L, int index, const char *field) {
         lua_pop(L, 1);
 }
 
-static int lws_lua_init (lua_State *L) {
+static int lws_init (lua_State *L) {
 	/* open standard libraries */
 	luaL_openlibs(L);
 
@@ -88,8 +88,8 @@ static int lws_lua_init (lua_State *L) {
 	luaL_requiref(L, LWS_LIB_NAME, lws_lua_open_lws, 1);
 
 	/* set paths */
-	lws_lua_set_path(L, 1, "path");
-	lws_lua_set_path(L, 2, "cpath");
+	lws_set_path(L, 1, "path");
+	lws_set_path(L, 2, "cpath");
 
 	/* open profiler */
 	if (lua_toboolean(L, 3)) {
@@ -144,9 +144,9 @@ static lws_state_t *lws_create_state (lws_request_ctx_t *ctx) {
 	/* create Lua state */
 	if (llcf->state_memory_max > 0) {
 		state->memory_max = llcf->state_memory_max;
-		state->L = lua_newstate(lws_lua_alloc_checked, state);
+		state->L = lua_newstate(lws_alloc_checked, state);
 	} else {
-		state->L = lua_newstate(lws_lua_alloc_unchecked, NULL);
+		state->L = lua_newstate(lws_alloc_unchecked, NULL);
 	}
 	if (!state->L) {
 		ngx_log_error(NGX_LOG_CRIT, log, 0, "[LWS] failed to create Lua state");
@@ -155,7 +155,7 @@ static lws_state_t *lws_create_state (lws_request_ctx_t *ctx) {
 
 	/* initialize Lua state */
 	lmcf = ngx_http_get_module_main_conf(ctx->r, lws_module);
-	lua_pushcfunction(state->L, lws_lua_init);
+	lua_pushcfunction(state->L, lws_init);
 	lua_pushlstring(state->L, (const char *)llcf->path.data, llcf->path.len);
 	lua_pushlstring(state->L, (const char *)llcf->cpath.data, llcf->cpath.len);
 	lua_pushboolean(state->L, lmcf->monitor != NULL);
@@ -191,7 +191,7 @@ static lws_state_t *lws_create_state (lws_request_ctx_t *ctx) {
 	return state;
 }
 
-static void lws_close_state (lws_state_t *state, ngx_log_t *log) {
+void lws_close_state (lws_state_t *state, ngx_log_t *log) {
 	lws_main_conf_t  *lmcf;
 
 	lua_close(state->L);
@@ -205,7 +205,7 @@ static void lws_close_state (lws_state_t *state, ngx_log_t *log) {
 	ngx_free(state);
 }
 
-lws_state_t *lws_get_state (lws_request_ctx_t *ctx) {
+int lws_acquire_state (lws_request_ctx_t *ctx) {
 	lws_state_t      *state;
 	ngx_queue_t      *q;
 	lws_loc_conf_t   *llcf;
@@ -223,20 +223,23 @@ lws_state_t *lws_get_state (lws_request_ctx_t *ctx) {
 	} else {
 		state = lws_create_state(ctx);
 		if (!state) {
-			return NULL;
+			return -1;
 		}
 	}
 	lmcf = ngx_http_get_module_main_conf(ctx->r, lws_module);
 	state->profiler = lmcf->monitor ? lmcf->monitor->profiler : 0;
 	state->in_use = 1;
-	return state;
+	ctx->state = state;
+	return 0;
 }
 
-void lws_put_state (lws_request_ctx_t *ctx, lws_state_t *state) {
+void lws_release_state (lws_request_ctx_t *ctx) {
+	lws_state_t      *state;
 	lws_loc_conf_t   *llcf;
 	lws_main_conf_t  *lmcf;
 
 	/* count request */
+	state = ctx->state;
 	state->request_count++;
 	lmcf = ngx_http_get_module_main_conf(ctx->r, lws_module);
 	if (lmcf->monitor) {
@@ -244,7 +247,7 @@ void lws_put_state (lws_request_ctx_t *ctx, lws_state_t *state) {
 	}
 
 	/* close state? */
-	llcf = ngx_http_get_module_loc_conf(ctx->r, lws_module);
+	llcf = state->llcf;
 	if (state->close || state->tev.timedout || (llcf->state_requests_max > 0
 			&& state->request_count >= llcf->state_requests_max)) {
 		lws_close_state(state, ctx->r->connection->log);
@@ -329,16 +332,4 @@ int lws_run_state (lws_request_ctx_t *ctx) {
 	lua_pop(L, 1);  /* [traceback] */
 
 	return result;
-}
-
-void lws_close_states (lws_loc_conf_t *llcf) {
-	lws_state_t  *state;
-	ngx_queue_t  *q;
-
-	while (!ngx_queue_empty(&llcf->states)) {
-		q = ngx_queue_head(&llcf->states);
-		ngx_queue_remove(q);
-		state = ngx_queue_data(q, lws_state_t, queue);
-		lws_close_state(state, ngx_cycle->log);
-	}
 }
