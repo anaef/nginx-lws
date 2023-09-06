@@ -181,7 +181,7 @@ static void lws_profiler_hook (lua_State *L, lua_Debug *ar) {
 	}
 }
 
-int lws_profiler_open (lua_State *L) {
+int lws_open_profiler (lua_State *L) {
 	/* profiler */
 	luaL_newmetatable(L, LWS_PROFILER);
 	lua_pushcfunction(L, lws_profiler_tostring);
@@ -193,7 +193,7 @@ int lws_profiler_open (lua_State *L) {
 	return 0;
 }
 
-int lws_profiler_start (lua_State *L) {
+int lws_start_profiler (lua_State *L) {
 	lws_profiler_t  *p;
 
 	/* create and set profiler */
@@ -215,18 +215,7 @@ int lws_profiler_start (lua_State *L) {
 	if (!p->stack) {
 		return luaL_error(L, "faild to allocate profiler stack");
 	}
-	switch (lua_tointeger(L, 1)) {
-	case 1:
-		p->clock = LWS_PROFILER_CLOCK_CPU;
-		break;
-
-	case 2:
-		p->clock = LWS_PROFILER_CLOCK_WALL;
-		break;
-
-	default:
-		return luaL_error(L, "bad profiler");
-	}
+	p->clock = lua_tointeger(L, 1) == 1 ? LWS_PROFILER_CLOCK_CPU : LWS_PROFILER_CLOCK_WALL;
 
 	/* set hook */
 	lua_sethook(L, lws_profiler_hook, LUA_MASKCALL | LUA_MASKRET, 0);
@@ -234,7 +223,7 @@ int lws_profiler_start (lua_State *L) {
 	return 0;
 }
 
-int lws_profiler_stop (lua_State *L) {
+int lws_stop_profiler (lua_State *L) {
 	size_t                    i, functions_alloc_new;
 	ngx_str_t                *key;
 	lws_function_t           *f, *functions_new;
@@ -266,7 +255,7 @@ int lws_profiler_stop (lua_State *L) {
 	if (!lmcf->monitor->out_of_memory) {
 		key = NULL;
 		while (lws_table_next(p->functions, key, &key, (void**)&par) == 0) {
-			/* add new*/
+			/* add new */
 			if (lmcf->monitor->functions_n == lmcf->monitor->functions_alloc) {
 				functions_alloc_new = lmcf->monitor->functions_alloc * 2;
 				functions_new = ngx_slab_alloc_locked(lmcf->monitor_pool,

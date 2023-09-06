@@ -720,7 +720,7 @@ int lws_run (lua_State *L) {
 
 	/* start profiler */
 	if (ctx->state->profiler) {
-		lua_pushcfunction(L, lws_profiler_start);
+		lua_pushcfunction(L, lws_start_profiler);
 		lua_pushinteger(L, ctx->state->profiler);
 		lua_call(L, 1, 0);
 	}
@@ -755,7 +755,7 @@ int lws_run (lua_State *L) {
 
 	/* stop profiler */
 	if (ctx->state->profiler) {
-		lua_pushcfunction(L, lws_profiler_stop);
+		lua_pushcfunction(L, lws_stop_profiler);
 		lua_call(L, 0, 0);
 	}
 

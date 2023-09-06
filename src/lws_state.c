@@ -93,7 +93,7 @@ static int lws_init (lua_State *L) {
 
 	/* open profiler */
 	if (lua_toboolean(L, 3)) {
-		lua_pushcfunction(L, lws_profiler_open);
+		lua_pushcfunction(L, lws_open_profiler);
 		lua_call(L, 0, 0);
 	}
 

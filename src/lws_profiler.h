@@ -18,9 +18,9 @@ typedef struct lws_activation_record_s lws_activation_record_t;
 
 struct lws_profiler_s {
 	lws_table_t               *functions;    /* functions */
-	lws_activation_record_t  **stack;        /* stack */
 	size_t                     stack_n;      /* stack count */
 	size_t                     stack_alloc;  /* stack allocated */
+	lws_activation_record_t  **stack;        /* stack */
 	clockid_t                  clock;        /* clock */
 };
 
@@ -28,17 +28,17 @@ struct lws_activation_record_s {
 	ngx_uint_t       depth;             /* call depth */
 	ngx_uint_t       calls;             /* number of calls */
 	struct timespec  time_self_start;   /* start time for self time */
-	struct timespec  time_total_start;  /* start time for total time */
 	struct timespec  time_self;         /* self time */
+	struct timespec  time_total_start;  /* start time for total time */
 	struct timespec  time_total;        /* total time */
 	size_t           memory_start;      /* start memory */
 	size_t           memory;            /* allocated memory */
 };
 
 
-int lws_profiler_open(lua_State *L);
-int lws_profiler_start(lua_State *L);
-int lws_profiler_stop(lua_State *L);
+int lws_open_profiler(lua_State *L);
+int lws_start_profiler(lua_State *L);
+int lws_stop_profiler(lua_State *L);
 
 
 #define LWS_PROFILER             "lws.profiler"           /* profiler metatable */
