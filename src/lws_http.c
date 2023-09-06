@@ -98,7 +98,7 @@ lws_http_status_t lws_http_status[LWS_HTTP_STATUS_N] = {
 const int lws_http_status_n = LWS_HTTP_STATUS_N;
 
 
-lws_http_status_t *lws_http_find_status (int code) {
+lws_http_status_t *lws_find_http_status (int code) {
 	int  lower, upper, mid;
 
 	lower = 0;

@@ -1028,7 +1028,7 @@ static void lws_send_json_error_response (lws_request_ctx_t *ctx, ngx_int_t rc) 
 	/* calculate length */
 	r = ctx->r;
 	len = sizeof("{\n\t\"error\": {\n\t\t\"code\": 100\n\t}\n}") - 1;
-	status = lws_http_find_status(rc);
+	status = lws_find_http_status(rc);
 	if (status) {
 		len += sizeof(",\n\t\t\"message\": \"\"") - 1 + status->message.len;
 	}

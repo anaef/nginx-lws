@@ -24,7 +24,7 @@ extern lws_http_status_t lws_http_status[];
 extern const int lws_http_status_n;
 
 
-lws_http_status_t *lws_http_find_status(int code);
+lws_http_status_t *lws_find_http_status(int code);
 
 
 #endif /* _LWS_HTTP_INCLUDED */
