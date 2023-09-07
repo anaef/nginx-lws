@@ -12,10 +12,10 @@
 
 static int lws_profiler_tostring(lua_State *L);
 static int lws_profiler_gc(lua_State *L);
-static inline void lws_timespec_add(struct timespec *base, const struct timespec *inc);
-static inline void lws_timespec_add_delta(struct timespec *base, const struct timespec *from,
+static inline void lws_add_timespec(struct timespec *base, const struct timespec *inc);
+static inline void lws_add_timespec_delta(struct timespec *base, const struct timespec *from,
 		const struct timespec *to);
-static inline void lws_memory_add_delta(size_t *base, size_t from, size_t to);
+static inline void lws_add_memory_delta(size_t *base, size_t from, size_t to);
 static void lws_profiler_hook(lua_State *L, lua_Debug *ar);
 
 
@@ -34,13 +34,11 @@ static int lws_profiler_gc (lua_State *L) {
 	if (p->functions) {
 		lws_table_free(p->functions);
 	}
-	if (p->stack) {
-		ngx_free(p->stack);
-	}
+	ngx_free(p->stack);
 	return 0;
 }
 
-static inline void lws_timespec_add (struct timespec *base, const struct timespec *inc) {
+static inline void lws_add_timespec (struct timespec *base, const struct timespec *inc) {
 	base->tv_nsec += inc->tv_nsec;
 	base->tv_sec += inc->tv_sec;
 	if (base->tv_nsec > 1000000000) {
@@ -49,7 +47,7 @@ static inline void lws_timespec_add (struct timespec *base, const struct timespe
 	}
 }
 
-static inline void lws_timespec_add_delta (struct timespec *base, const struct timespec *from,
+static inline void lws_add_timespec_delta (struct timespec *base, const struct timespec *from,
 		const struct timespec *to) {
 	base->tv_nsec += to->tv_nsec - from->tv_nsec;
 	base->tv_sec += to->tv_sec - from->tv_sec;
@@ -62,7 +60,7 @@ static inline void lws_timespec_add_delta (struct timespec *base, const struct t
 	}
 }
 
-static inline void lws_memory_add_delta (size_t *base, size_t from, size_t to) {
+static inline void lws_add_memory_delta (size_t *base, size_t from, size_t to) {
 	if (to > from) {
 		*base += to - from;
 	}
@@ -94,12 +92,12 @@ static void lws_profiler_hook (lua_State *L, lua_Debug *ar) {
 	/* process function exit */
 	if (p->stack_n > 0) {
 		par = p->stack[p->stack_n - 1];
-		lws_timespec_add_delta(&par->time_self, &par->time_self_start, &time);
-		lws_memory_add_delta(&par->memory, par->memory_start, memory);
+		lws_add_timespec_delta(&par->time_self, &par->time_self_start, &time);
+		lws_add_memory_delta(&par->memory, par->memory_start, memory);
 		if (ar->event == LUA_HOOKTAILCALL || ar->event == LUA_HOOKRET) {
 			par->depth--;
 			if (par->depth == 0) {
-				lws_timespec_add_delta(&par->time_total, &par->time_total_start,
+				lws_add_timespec_delta(&par->time_total, &par->time_total_start,
 						&time);
 			}
 			p->stack_n--;
@@ -249,8 +247,8 @@ int lws_stop_profiler (lua_State *L) {
 		if (par) {
 			/* update existing */
 			f->calls += par->calls;
-			lws_timespec_add(&f->time_self, &par->time_self);
-			lws_timespec_add(&f->time_total, &par->time_total);
+			lws_add_timespec(&f->time_self, &par->time_self);
+			lws_add_timespec(&f->time_total, &par->time_total);
 			f->memory += par->memory;
 			lws_table_set(p->functions, &f->key, NULL);  /* to avoid adding */
 		}
