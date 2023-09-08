@@ -23,7 +23,7 @@ such as establishing a context or performing logging.
 
 > [!NOTE]
 > The pre, main, and post Lua chunks run with a *request* environment that indexes the global
-> environment for keys that are not present. When a request completes, the request environment
+> environment for keys that are not present. After a request is finalized, the request environment
 > is removed.
 
 
@@ -68,7 +68,7 @@ error as well.
 
 A positive integer result from the pre or main chunk instructs the web server to send an error
 response for the corresponding HTTP status code. For example, returning `lws.status.NOT_FOUND`
-(or, equivalently, `404`), sends a "Not Found" page. You can control the content of the error
+(or, equivalently, `404`) sends a "Not Found" page. You can control the content of the error
 response with the `lws_error_response` and `error_page` directives. Positive integers outside
 the range of 100 to 599 are processed as `500` and thus send an "Internal Server Error" response.
 Returning a positive integer result from the pre chunk additionally marks the request as
@@ -76,7 +76,7 @@ Returning a positive integer result from the pre chunk additionally marks the re
 
 A positive integer result from the init or the post chunk is ignored.
 
-> [!NOTE]
+> [!IMPORTANT]
 > Most main chunks produce a response body directly and must set `response.status` rather than
 > returning an HTTP status code. Returning an HTTP status code *replaces* any response body
 > written by the chunk with the error response.
@@ -92,7 +92,7 @@ processing is aborted.
 
 If the pre chunk marks the request as *complete*, processing proceeds directly to the post chunk,
 skipping the main chunk. The pre chunk can mark the request as complete by instructing the server
-to send an error response (see above), or by calling a [library function](Library.md) with this
+to send an error response (see above) or by calling a [library function](Library.md) with this
 effect, such as `redirect`.
 
 The following figure illustrates the request processing sequence.
@@ -102,17 +102,19 @@ The following figure illustrates the request processing sequence.
 
 ## Lifecycle of Lua States
 
-Lua states are kept open to handle subsequent requests when a request completes.
+Lua states are managed independently for each location. By default, the Lua states are kept open
+to handle subsequent requests after a request is finalized.
 
 > [!WARNING]
 > Developers must be careful not to leak information among requests, such as through the global
 > environment or the Lua registry. Any request-specific state should be constrained to the request
-> environment, and local variables.
+> environment and local variables.
 
 Lua states read the Lua chunks from the file system only once. The resulting functions are then
 cached. This is a performance optimization.
 
-If processing is aborted due to a Lua error, the Lua state is closed after the request completes.
+You can control the lifecycle of Lua states with [directives](Directives.md), such as
+`lws_max_requests`, and with the `setclose` [library function](Library.md).
 
-You can control the closing of Lua states with [directives](Directives.md), such as
-`lws_max_requests`.
+If processing is aborted due to a Lua error, the affected Lua state is closed after finalizing
+the request.

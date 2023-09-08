@@ -13,8 +13,6 @@ this:
 server {
 	listen localhost:8080;
 	
-	error_log /var/log/nginx/error.log;
-
 	location / {
 		alias /var/www/lws-examples/static/;
 	}
@@ -23,7 +21,7 @@ server {
 		lws /var/www/lws-examples/services/$1.lua $2;
 		lws_init /var/www/lws-examples/handlers/init.lua;
 		lws_pre /var/www/lws-examples/handlers/pre.lua;
-		lws_path +/var/www/lws-examples/modules/?.lua;
+		lws_path "+/var/www/lws-examples/modules/?.lua;/var/www/lws-examples/modules/?/init.lua";
 		lws_max_requests 1;
 	}
 
@@ -41,16 +39,16 @@ server {
 This configuration defines a web server with four locations:
 - A root location that serves static content from the `static` subfolder.
 - A `/services/` location that provides the web services implemented in Lua.
-- A `/internal/` location that is only accessible via internal redirects.
+- A `/internal/` location only accessible via internal redirects.
 - A `/lws-monitor/` location that provides read-write access to central LWS characteristics.
 
 The `/services` location uses the central `lws` directive to enable the LWS handler. The directive
 maps paths to files with main Lua chunks that implement a web service. Specifically, the path
 `/services/{name}` is mapped to the main Lua chunk `/var/www/lws-examples/services/{name}.lua`
-using variable `$1` which corresponds to the first capture group of the location path, i.e.,
+using variable `$1`, which corresponds to the first capture group of the location path, i.e.,
 `(\w+)`. Optional extra path information following the service name is provided as path info to
-the Lua code using variable `$2` which corresponds to the 2nd capture group of the location path,
-i.e., `(/.*)?`.
+the Lua code using the variable `$2`, which corresponds to the 2nd capture group of the location
+path, i.e., `(/.*)?`.
 
 Further used directives include:
 
@@ -61,7 +59,7 @@ per request, before the main Lua chunk.
 - `lws_path`, which sets the Lua path where Lua searches for packages. Due to the `+` sign, the
 set path is appended to the default Lua path.
 
-Please refer to the [directives](Directives.md) documentation for more information.
+For more information, please refer to the [directives](Directives.md) documentation.
 
 
 ## Enabling the Examples Website
@@ -69,24 +67,24 @@ Please refer to the [directives](Directives.md) documentation for more informati
 The exact steps to enable the website with the examples depend on the specifics of your NGINX
 installation.
 
-As a first step, you must completed the LWS installation, as described in the
+As a first step, you must complete the LWS installation as described in the
 [installation](Installation.md) document. In particular, the LWS module must be loaded in NGINX.
 
-Second, you must copy the files of the website to a suitable location. In the configuration shown
-above, that location is defined as `/var/www/lws-examples`. You can choose a different
-location and adapt the configuration accordingly.
+Second, you must copy the website files to a suitable location. The configuration above defines
+that location as `/var/www/lws-examples`. You can choose a different location and adapt the
+configuration accordingly.
 
 Third, you must enable the configuration. On some systems, this can be done by copying the
 configuration to the `/etc/nginx/sites-available` folder and creating a corresponding symlink in
 `/etc/nginx/sites-enabled`. The particularities depend on your system and NGINX installation.
 
-Finally, you must instruct NGINX to reload its configuration, by issuing a command such as
+Finally, you must instruct NGINX to reload its configuration by issuing a command such as
 
 ```
 sudo service nginx reload
 ```
 
-If the website does not launch, it is advisable to check the error log of NGINX.
+If the website does not launch, checking the NGINX error log is advisable.
 
 
 ## Exploring the Examples Website
@@ -94,7 +92,7 @@ If the website does not launch, it is advisable to check the error log of NGINX.
 Once these steps are completed, you can point a browser to `http://localhost:8080/` and explore
 the examples.
 
-The first example is a classical "Hello, world!" example. Its source code looks like this:
+The first example is a classical "Hello, world!". Its source code looks like this:
 
 ```lua
 -- Say hello

@@ -33,11 +33,17 @@ The following table describes the keys of the document.
 | --- | --- | --- |
 | `states_n` | `number` | Number of Lua states (active + inactive) |
 | `requests_n` | `number` | Number of queued requests |
-| `memory_used` | `number` | Memory used by Lua, in bytes |
+| `memory_used` | `number` | Memory used by Lua states, in bytes |
 | `request_count` | `number` | Total number of requests served |
 | `out_of_memory` | `number` | Monitor has run out of memory; `0` = no, `1` = yes |
 | `profiler` | `number` | Profiler status; `0` = disabled, `1` = CPU, `2` = wall |
 | `functions` | `array` | Profiled functions (see below) |
+
+> [!NOTE]
+> The term *memory* in the context of lws-nginx and Lua states generally refers to the memory
+> allocated by the Lua states per se, i.e., through their memory allocators. This memory does
+> *not* include memory allocated outside of Lua states, such as in Lua C libraries or NGINX.
+
 
 ### Profiled Function
 
@@ -47,11 +53,14 @@ An array with the following values represents each profiled function.
 | --- | --- | --- |
 | 0 | `string` | Function key |
 | 1 | `number` | Number of calls |
-| 2 | `number` | Self time, seconds |
-| 3 | `number` | Self time, nanoseconds |
+| 2 | `number` | Self-time, seconds |
+| 3 | `number` | Self-time, nanoseconds |
 | 4 | `number` | Total time, seconds |
 | 5 | `number` | Total time, nanoseconds |
 | 6 | `number` | Allocated memory, in bytes |
+
+> [!NOTE]
+> Please take note of the following definitions and restrictions as regards the LWS profiler.
 
 The profiler uses the fixed-size shared memory zone of the LWS monitor. If the zone runs out of
 memory, an error is logged, and the `out_of_memory` flag is set. In this case, the list of
@@ -61,17 +70,21 @@ Lua functions are first-class values without a fixed name. The profiler identifi
 through a key, which is a string. This may sometimes result in distinct functions being folded
 into the same key, such as `[C]: ?`, or the same function being aliased through multiple keys.
 
-Self time and total time are measured in thread CPU time or wall time, depending on the
+Self-time and total time are measured in thread CPU time or wall time, depending on the
 `profiler` value. Each time is represented with a second and a nanosecond component. Due to
-profiler overhead, all time values are approximations. Self time is the time spent in the function
-per se. In contrast, total time additionally includes the time spent in child functions, i.e.,
-functions directly or indirectly called from the function under consideration. A proper tail call
-is processed as an exit from the calling function and thus does not accumulate child time for the
-calling function (unless the calling function is already active further down in the call stack,
-which implies that it did not perform a proper tail call at that stack location.)
+profiler overhead, all time values are approximations.
+
+Self-time is the time spent in the function per se. In contrast, total time additionally includes
+the time spent in child functions, i.e., functions directly or indirectly called from the function
+under consideration.
+
+A proper tail call is processed as an exit from the calling function and thus does not accumulate
+child time for the calling function (unless the calling function is already active further down in
+the call stack, which implies that it did not perform a proper tail call at that stack location.)
 
 Allocated memory is the amount of Lua memory allocated during the execution of the function per
 se. Due to potential garbage collection and profiler overhead, this is an approximation.
+
 
 ### Response Status
 
@@ -104,8 +117,8 @@ happen due to a concurrent modification or an invalid transition.
 
 ## Examples Website
 
-The [examples website](GettingStarted.md) includes a self-contained web page that displays data
-from the LWS monitor with periodic updates and allows for controlling the profiler. The page
+The [examples website](GettingStarted.md) includes a self-contained web page that displays
+periodically updated data from the LWS monitor and allows for controlling the profiler. The page
 looks similar to the following figure.
 
 ![Monitor web page](images/Monitor.png)

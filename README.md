@@ -6,45 +6,65 @@ written in Lua, running directly in the server.
 Some central design considerations for lws-nginx are the following:
 
 - **Use [PUC-Lua](https://www.lua.org/).** PUC-Lua is the original implementation of Lua
-maintained by the language's creators. While [LuaJIT](https://luajit.org/) is without a doubt
-an amazing feat of engineering with impressive performance, it remains based on Lua 5.1 with
-select extensions. The latest PUC-Lua release is 5.4. PUC-Lua has added new language features
-over the years, including 64-bit integers, bit operators, and variable attributes that are not
-directly supported in LuaJIT. Perhaps more worryingly, writing "fast" LuaJIT code promotes using
-language idioms that are amenable to its optimization while eschewing language features that are
-"slow".[^1] *If* the performance of the Lua VM is deemed insufficient for a particular function
-of a web service, there is always the option of implementing the function in C. Furthermore,
-the research team at PUC-Rio is working on ahead-of-time compilation through Pallene.[^2]
+maintained by the language's creators.
 
-- **Allow Lua web services to block.** To this end, lws-nginx uses a thread pool that runs Lua
-services asynchronously without blocking the NGINX event processing loop. Large parts of the
-existing Lua ecosystem are *not* non-blocking. The chosen design allows them be be used as is,
-on the condition that their libraries are conditionally thread-safe. There is substantial
-discussion and research on the topic of non-blocking event architectures vs. multi-threaded
-architectures.[^3][^4][^5][^6][^7][^8] Ultimately, this is a trade-off between resource use and
-complexity. An event processing loop is arguably less demanding on resources than threads.
-However, the resource demand of threads has been coming down over the years with advances
-in operating systems. The complexity in the implementation of web services and libraries is
-arguably lower if they can simply block instead of having to implement logic for cooperative
-multitasking through yielding and asynchronous continuation. Less complexity generally means
-less bugs. The lws-nginx module further avoids complex synchronization logic by keeping the
-dispatch logic to the thread pool in the single-threaded event processing loop of NGINX. Given
-the existing Lua ecosystem and these considerations, using threads seems a reasonable, pragmatic
-approach today.
+- **Allow Lua web services to block.** The lws-nginx module uses a thread pool that runs Lua
+services asynchronously without blocking the NGINX event processing loop. As large parts of the
+existing Lua ecosystem are *not* non-blocking, this design allows them to be used as is, on the
+condition that their libraries are conditionally thread-safe.
 
-- **Efficient use of Lua states.** Loading and parsing Lua code can take a signficiant amount of
-time. For this reason, lws-nginx can re-use Lua states for subsequent requests. A broad range of
-directives allows control over the lifecycle of Lua states.
+- **Make efficient use of Lua states.** Loading Lua code can take a significant amount of time.
+For this reason, lws-nginx can reuse Lua states for subsequent requests. A broad range of
+[directives](doc/Directives.md) allows for control over the lifecycle of Lua states.
 
-- **Focus on web services.** The purpose of lws-nginx is implementing web services in Lua. This
+- **Ensure manageability.** The lws-nginx module includes a [monitor](doc/Monitor.md) web API that
+provides access to central LWS characteristics, including a built-in function profiler. A
+self-contained web page that displays periodically updated data from the LWS monitor and allows
+for controlling the profiler is also provided.
+
+- **Focus on web services.** The purpose of lws-nginx is to implement web services in Lua. This
 focus streamlines the design of lws-nginx. For other extension areas in NGINX (including
-rewriting, access, and filters), there are numerous highly configurable modules that address
-these functions.
+rewriting, access, and filters), numerous highly configurable modules exist that address these
+functions.
+
+
+## Discussion
+
+This section briefly discusses the motivations for using PUC-Lua instead of LuaJIT and allowing
+Lua web services to block instead of using an event-based, non-blocking architecture.
+
+While [LuaJIT](https://luajit.org/) is undoubtedly an amazing feat of engineering with impressive
+performance, it remains based on Lua 5.1 with select extensions. The latest PUC-Lua release is
+5.4. PUC-Lua has added new language features over the years, including 64-bit integers, bit
+operators, and variable attributes, which are not directly supported in LuaJIT. Perhaps more
+worryingly, writing "fast" LuaJIT code promotes using language idioms that are amenable to its
+optimization while eschewing language features that are "slow".[^1] It is not ideal if a JIT
+compiler informs how a language is used.
+
+In practice, the PUC-Lua VM is more than fast enough for a broad range of workloads. If its
+performance is deemed insufficient for a particular function of a web service, implementing that
+function in C is always possible. Furthermore, the research team at PUC-Rio is working on
+ahead-of-time compilation through Pallene.[^2]
+
+Regarding server architectures, there is substantial research and discussion on
+non-blocking event architectures vs. multi-threaded architectures.[^3] [^4] [^5] [^6] [^7] [^8]
+
+Ultimately, this is a trade-off between resource use and complexity. An event processing loop is
+arguably less demanding on resources than threads. However, threads' resource demand has been
+decreasing over the years with advances in operating systems. On the other hand, the complexity
+of implementing web services and libraries is arguably lower if they can block instead of
+implementing the logic for cooperative multitasking through yielding and asynchronous
+continuation. Less complexity generally means fewer bugs. The lws-nginx module further avoids
+complex synchronization logic by keeping the dispatch logic to the thread pool in the
+single-threaded event processing loop of NGINX.
+
+Given these considerations and that large parts of the existing Lua ecosystem are *not*
+non-blocking, using threads seems a reasonable, pragmatic approach today.
 
 
 ## Documentation
 
-Please refer to the [doc](doc) folder.
+Please browse the extensive documentation in the [doc](doc) folder.
 
 
 ## Status

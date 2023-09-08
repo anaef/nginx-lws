@@ -38,7 +38,7 @@ marking the request as complete.
 
 ## lws.setclose ()
 
-Marks the Lua state to be closed. When the request completes, the Lua state is closed.
+Marks the Lua state to be closed. After the request is finalized, the Lua state is closed.
 
 
 ## lws.parseargs (args)
