@@ -638,7 +638,10 @@ static ngx_int_t lws_handler (ngx_http_request_t *r) {
 		}
 		value->len = variable_value->len;
 		value->data = variable_value->data;
-		lws_table_set(ctx->variables, &variables[i].name, value);
+		if (lws_table_set(ctx->variables, &variables[i].name, value) != 0) {
+			ngx_log_error(NGX_LOG_ERR, log, 0, "[LWS] failed to set variable");
+			return NGX_HTTP_INTERNAL_SERVER_ERROR;
+		}
 	}
 
 	/* prepare request headers */
