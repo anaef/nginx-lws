@@ -19,7 +19,7 @@ static inline void lws_add_memory_delta(size_t *base, size_t from, size_t to);
 static void lws_profiler_hook(lua_State *L, lua_Debug *ar);
 
 
-static const char *const lws_profiler_state_names[] = {"disabled", "thread CPU", "wall"};
+static const char *const lws_profiler_state_names[] = {"disabled", "CPU", "wall"};
 
 
 static int lws_profiler_tostring (lua_State *L) {
@@ -136,6 +136,7 @@ static void lws_profiler_hook (lua_State *L, lua_Debug *ar) {
 				luaL_error(L, "failed to allocate profiler activation record");
 			}
 			if (lws_table_set(p->functions, &key, par) != 0) {
+				ngx_free(par);
 				luaL_error(L, "failed to set profiler activation record");
 			}
 		}
@@ -220,6 +221,9 @@ int lws_start_profiler (lua_State *L) {
 	}
 	p->state = ctx->state->profiler;
 	p->clock = p->state == 1 ? LWS_PROFILER_CLOCK_CPU : LWS_PROFILER_CLOCK_WALL;
+
+	/* set hook */
+	lua_sethook(L, lws_profiler_hook, LUA_MASKCALL | LUA_MASKRET, 0);
 #ifdef NGX_DEBUG
 	struct timespec  res;
 	if (clock_getres(p->clock, &res) != 0) {
@@ -233,9 +237,6 @@ int lws_start_profiler (lua_State *L) {
 				(ngx_int_t)res.tv_nsec);
 	}
 #endif
-
-	/* set hook */
-	lua_sethook(L, lws_profiler_hook, LUA_MASKCALL | LUA_MASKRET, 0);
 
 	return 0;
 }
@@ -308,7 +309,6 @@ int lws_stop_profiler (lua_State *L) {
 		}
 	}
 	ngx_shmtx_unlock(&lmcf->monitor_pool->mutex);
-	ngx_log_debug0(NGX_LOG_DEBUG_HTTP, p->log, 0, "[LWS] profiler stopped");
 
 	/* clear hook */
 	lua_sethook(L, NULL, 0, 0);
@@ -316,6 +316,7 @@ int lws_stop_profiler (lua_State *L) {
 	/* clear profiler */
 	lua_pushnil(L);
 	lua_setfield(L, LUA_REGISTRYINDEX, LWS_PROFILER_CURRENT);
+	ngx_log_debug0(NGX_LOG_DEBUG_HTTP, p->log, 0, "[LWS] profiler stopped");
 
 	return 0;
 }
