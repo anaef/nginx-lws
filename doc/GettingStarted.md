@@ -22,6 +22,7 @@ server {
 		lws_init /var/www/lws-examples/handlers/init.lua;
 		lws_pre /var/www/lws-examples/handlers/pre.lua;
 		lws_path "+/var/www/lws-examples/modules/?.lua;/var/www/lws-examples/modules/?/init.lua";
+		lws_error_response json diagnostic;
 		lws_max_requests 1;
 	}
 
@@ -50,14 +51,17 @@ using variable `$1`, which corresponds to the first capture group of the locatio
 the Lua code using the variable `$2`, which corresponds to the 2nd capture group of the location
 path, i.e., `(/.*)?`.
 
-Further used directives include:
+Further used directives are:
 
 - `lws_init`, which refers to a Lua chunk that initializes the state. This chunk is run once per
 state.
 - `lws_pre`, which refers to a Lua chunk that prepares a state for a request. This chunk is run
 per request, before the main Lua chunk.
 - `lws_path`, which sets the Lua path where Lua searches for packages. Due to the `+` sign, the
-set path is appended to the default Lua path.
+specified path is appended to the default Lua path.
+- `lws_error_response`, which enables JSON error responses including diagnostic information.
+- `lws_max_requests`, which causes Lua states to be closed after each request. This is useful
+during local development to pick up code changes.
 
 For more information, please refer to the [directives](Directives.md) documentation.
 
