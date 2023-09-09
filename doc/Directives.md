@@ -15,7 +15,7 @@ Context: http
 Sets the name of the thread pool used by LWS for serving requests asynchronously. The default
 value of *thread_pool_name* is `default`.
 
-> [!NOTE]
+> [!IMPORTANT]
 > If the thread pool name is different from `default`, the named thread pool must be defined with
 > the NGINX `thread_pool` directive in the main context of the NGINX configuration.
 
@@ -199,6 +199,11 @@ the values `json` or `html`. The default value for *error_response* is `json`. T
 the value `diagnostic`. Diagnostic information includes the error message, file names, line
 numbers, function identifiers, and a stack traceback. By default, and if the attribute is omitted,
 diagnostic information is not included.
+
+> [!WARNING]
+> Diagnostic information can be helpful during development. Enabling diagnostic information on
+> non-development systems is however not recommended, as such information can be exploited by
+> attackers.
 
 
 ### lws_monitor

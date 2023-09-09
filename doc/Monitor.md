@@ -60,11 +60,11 @@ An array with the following values represents each profiled function.
 | 6 | `number` | Allocated memory, in bytes |
 
 > [!NOTE]
-> Please take note of the following definitions and restrictions as regards the LWS profiler.
+> Please take note of the following definitions and limitations as regards the LWS profiler.
 
-The profiler uses the fixed-size shared memory zone of the LWS monitor. If the zone runs out of
-memory, an error is logged, and the `out_of_memory` flag is set. In this case, the list of
-profiled functions is incomplete.
+The profiler uses the fixed-size shared memory zone of the LWS monitor (currently 128 KB). If the
+zone runs out of memory, an error is logged, and the `out_of_memory` flag is set. In this case,
+the list of profiled functions is incomplete.
 
 Lua functions are first-class values without a fixed name. The profiler identifies each function
 through a key, which is a string. This may sometimes result in distinct functions being folded
