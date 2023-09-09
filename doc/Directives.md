@@ -127,8 +127,8 @@ to set kilobytes or megabytes, respectively.
 
 > [!NOTE]
 > The term *memory* in the context of lws-nginx and Lua states generally refers to the memory
-> allocated by the Lua state per se, i.e., through its memory allocator. This memory does *not*
-> include memory allocated outside of the Lua state, such as in Lua C libraries or NGINX.
+> allocated by the Lua states per se, i.e., through their memory allocators. This memory does
+> *not* include memory allocated outside of Lua states, such as in Lua C libraries or NGINX.
 
 
 ### lws_gc *gc*
@@ -136,7 +136,7 @@ to set kilobytes or megabytes, respectively.
 Context: server, location
 
 Sets the memory threshold of a Lua state that triggers an explicit garbage collection cycle. If
-the memory allocated by a Lua state exceeds *gc* bytes after a request is finalized, an explicit,
+the memory allocated by a Lua state exceeds *gc* bytes when a request is finalized, an explicit,
 full garbage collection cycle is performed. A value of `0`, the default, turns off this logic.
 Setting the value to `1` performs a full garbage collection cycle after each request. You can use
 the `k` and `m` suffixes with *gc* to set kilobytes or megabytes, respectively.
