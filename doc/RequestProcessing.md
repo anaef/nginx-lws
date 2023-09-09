@@ -23,7 +23,7 @@ such as establishing a context or performing logging.
 
 > [!NOTE]
 > The pre, main, and post Lua chunks run with a *request* environment that indexes the global
-> environment for keys that are not present. After a request is finalized, the request environment
+> environment for keys that are not present. When a request is finalized, the request environment
 > is removed.
 
 
@@ -45,6 +45,8 @@ manage information pertinent to the HTTP request.
 | `body` | `file` | HTTP request body (Lua file handle interface, read-only) |
 | `path_info` | `string` | Path info, as defined with the `lws` directive |
 | `ip` | `string`, `nil` | Remote IP address of the connection |
+
+IP addresses are provided for IPv4 and IPv6 connections.
 
 
 ### `response` Value
@@ -102,8 +104,8 @@ The following figure illustrates the request processing sequence.
 
 ## Lifecycle of Lua States
 
-Lua states are managed independently for each location. By default, the Lua states are kept open
-to handle subsequent requests after a request is finalized.
+Lua states are managed independently for each location. By default, Lua states are kept open to
+handle subsequent requests after a request is finalized.
 
 > [!WARNING]
 > Developers must be careful not to leak information among requests, such as through the global
