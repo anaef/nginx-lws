@@ -36,7 +36,7 @@ The following table describes the keys of the document.
 | `memory_used` | `number` | Memory used by Lua states, in bytes |
 | `request_count` | `number` | Total number of requests served |
 | `out_of_memory` | `number` | Monitor has run out of memory; `0` = no, `1` = yes |
-| `profiler` | `number` | Profiler status; `0` = disabled, `1` = CPU, `2` = wall |
+| `profiler` | `number` | Profiler state; `0` = disabled, `1` = CPU, `2` = wall |
 | `functions` | `array` | Profiled functions (see below) |
 
 > [!NOTE]
@@ -93,13 +93,13 @@ The response has a 200 OK status.
 
 ## `POST` Method
 
-The `POST` method modifies the status of the LWS monitor. The content type of the request body
+The `POST` method modifies the state of the LWS monitor. The content type of the request body
 must be `application/x-www-form-urlencoded`. The following table describes the keys that can be
 modified.
 
 | Key | Description |
 | --- | --- |
-| `profiler` | Profiler status; `0` = disabled, `1` = CPU, `2` = wall |
+| `profiler` | Profiler state; `0` = disabled, `1` = CPU, `2` = wall |
 | `functions` | Profiled functions; `[]` to clear |
 
 For the `profiler` key, valid transitions are from the disabled state to one of the enabled

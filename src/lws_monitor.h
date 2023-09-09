@@ -22,7 +22,7 @@ struct lws_monitor_s {
 	ngx_atomic_t     requests_n;       /* number of queued requests */
 	ngx_atomic_t     memory_used;      /* used memory */
 	ngx_atomic_t     request_count;    /* requests served */
-	ngx_atomic_t     profiler;         /* profiler status; 0 = disabled, 1 = CPU, 2 = wall */
+	ngx_atomic_t     profiler;         /* profiler state; 0 = disabled, 1 = CPU, 2 = wall */
 	ngx_int_t        out_of_memory;    /* out-of-memory; 0 = no */
 	size_t           functions_n;      /* number of profiled functions */
 	size_t           functions_alloc;  /* allocated profiled functions */

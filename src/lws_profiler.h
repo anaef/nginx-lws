@@ -22,6 +22,7 @@ struct lws_profiler_s {
 	size_t                     stack_n;      /* stack count */
 	size_t                     stack_alloc;  /* stack allocated */
 	lws_activation_record_t  **stack;        /* stack */
+	unsigned int               state;        /* state; 0 = disabled, 1 = CPU, 2 = wall */
 	clockid_t                  clock;        /* clock */
 };
 

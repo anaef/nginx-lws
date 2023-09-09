@@ -19,6 +19,9 @@ static inline void lws_add_memory_delta(size_t *base, size_t from, size_t to);
 static void lws_profiler_hook(lua_State *L, lua_Debug *ar);
 
 
+static const char *const lws_profiler_state_names[] = {"disabled", "thread CPU", "wall"};
+
+
 static int lws_profiler_tostring (lua_State *L) {
 	lws_profiler_t  *p;
 
@@ -84,8 +87,7 @@ static void lws_profiler_hook (lua_State *L, lua_Debug *ar) {
 
 	/* get time and memory on hook entry */
 	if (clock_gettime(p->clock, &time) != 0) {
-		luaL_error(L, "failed to get profiler %s time",
-				p->clock == LWS_PROFILER_CLOCK_CPU ? "CPU" : "wall");
+		luaL_error(L, "failed to get profiler %s time", lws_profiler_state_names[p->state]);
 	}
 	memory = (size_t)lua_gc(L, LUA_GCCOUNT, 0) * 1024 + lua_gc(L, LUA_GCCOUNTB, 0);
 
@@ -165,7 +167,7 @@ static void lws_profiler_hook (lua_State *L, lua_Debug *ar) {
 	if (par) {
 		if (clock_gettime(p->clock, &time) != 0) {
 			luaL_error(L, "failed to get profiler %s time",
-					p->clock == LWS_PROFILER_CLOCK_CPU ? "CPU" : "wall");
+					lws_profiler_state_names[p->state]);
 		}
 		par->time_self_start = time;
 		par->memory_start = memory;
@@ -216,7 +218,21 @@ int lws_start_profiler (lua_State *L) {
 	if (!p->stack) {
 		return luaL_error(L, "faild to allocate profiler stack");
 	}
-	p->clock = ctx->state->profiler == 1 ? LWS_PROFILER_CLOCK_CPU : LWS_PROFILER_CLOCK_WALL;
+	p->state = ctx->state->profiler;
+	p->clock = p->state == 1 ? LWS_PROFILER_CLOCK_CPU : LWS_PROFILER_CLOCK_WALL;
+#ifdef NGX_DEBUG
+	struct timespec  res;
+	if (clock_getres(p->clock, &res) != 0) {
+		ngx_log_error(NGX_LOG_ERR, p->log, 0,
+				"[LWS] failed to get profiler %s clock resolution",
+				lws_profiler_state_names[p->state]);
+	} else {
+		ngx_log_debug3(NGX_LOG_DEBUG_HTTP, p->log, 0,
+				"[LWS] profiler started, clock:%s res:%is%ins",
+				lws_profiler_state_names[p->state], (ngx_int_t)res.tv_sec,
+				(ngx_int_t)res.tv_nsec);
+	}
+#endif
 
 	/* set hook */
 	lua_sethook(L, lws_profiler_hook, LUA_MASKCALL | LUA_MASKRET, 0);
@@ -292,6 +308,7 @@ int lws_stop_profiler (lua_State *L) {
 		}
 	}
 	ngx_shmtx_unlock(&lmcf->monitor_pool->mutex);
+	ngx_log_debug0(NGX_LOG_DEBUG_HTTP, p->log, 0, "[LWS] profiler stopped");
 
 	/* clear hook */
 	lua_sethook(L, NULL, 0, 0);
