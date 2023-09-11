@@ -74,8 +74,12 @@ lws-nginx is a work in progress.
 
 ## Limitations
 
-lws-nginx has been tested with Ubuntu 20.04.6 LTS, Lua 5.3.3, and NGINX 1.18.0. Your mileage
-may vary with other software versions.
+lws-nginx has been tested with the following software versions:
+
+* Ubuntu 20.04.6 LTS, Lua 5.3.3, and NGINX 1.18.0
+* Unbutu 22.04.3 LTS, Lua 5.4.4, and NGINX 1.18.0
+
+Your mileage may vary with other software versions.
 
 Lua libraries used with lws-nginx must be conditionally thread-safe.
 
