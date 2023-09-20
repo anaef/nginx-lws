@@ -62,14 +62,14 @@ Given these considerations and that large parts of the existing Lua ecosystem ar
 non-blocking, using threads seems a reasonable, pragmatic approach today.
 
 
+## Release Notes
+
+Please see the [release notes](NEWS.md) document.
+
+
 ## Documentation
 
 Please browse the extensive documentation in the [doc](doc) folder.
-
-
-## Status
-
-lws-nginx is a work in progress.
 
 
 ## Limitations
