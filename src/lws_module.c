@@ -525,9 +525,8 @@ static lws_file_status_e lws_get_file_status (ngx_http_request_t *r, ngx_str_t *
 			return fs;
 		}
 	}
-	fs = stat((const char *)filename->data, &sb) == 0
-			&& (S_ISREG(sb.st_mode) || S_ISLNK(sb.st_mode))
-			? LWS_FS_FOUND : LWS_FS_NOT_FOUND;
+	fs = stat((const char *)filename->data, &sb) == 0 && S_ISREG(sb.st_mode) ? LWS_FS_FOUND
+			: LWS_FS_NOT_FOUND;
 	if (lmcf->stat_cache) {
 		lws_table_set(lmcf->stat_cache, filename, (void *)fs);
 		ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
