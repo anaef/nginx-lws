@@ -1,31 +1,30 @@
 # Lua Web Services for NGINX
 
-lws-nginx is a module for the [NGINX](https://nginx.org/) server that supports web services
-written in Lua, running directly in the server.
+Lua Web Services (LWS) is a module for the [NGINX](https://nginx.org/) server that supports web
+services written in Lua, running directly in the server.
 
-Some central design considerations for lws-nginx are the following:
+Some central design considerations for LWS are the following:
 
 - **Use [PUC-Lua](https://www.lua.org/).** PUC-Lua is the original implementation of Lua
 maintained by the language's creators.
 
-- **Allow Lua web services to block.** The lws-nginx module uses a thread pool that runs Lua
-services asynchronously without blocking the NGINX event processing loop. As large parts of the
-existing Lua ecosystem are *not* non-blocking, this design allows them to be used as is, on the
-condition that their libraries are conditionally thread-safe.
+- **Allow Lua web services to block.** The LWS  module uses a thread pool that runs Lua services
+asynchronously without blocking the NGINX event processing loop. As large parts of the existing
+Lua ecosystem are *not* non-blocking, this design allows them to be used as is, on the condition
+that their libraries are conditionally thread-safe.
 
 - **Make efficient use of Lua states.** Loading Lua code can take a significant amount of time.
-For this reason, lws-nginx can reuse Lua states for subsequent requests. A broad range of
+For this reason, LWS can reuse Lua states for subsequent requests. A broad range of
 [directives](doc/Directives.md) allows for control over the lifecycle of Lua states.
 
-- **Ensure manageability.** The lws-nginx module includes a [monitor](doc/Monitor.md) web API that
+- **Ensure manageability.** The LWS module includes a [monitor](doc/Monitor.md) web API that
 provides access to central LWS characteristics, including a built-in function profiler. A
 self-contained web page that displays periodically updated data from the LWS monitor and allows
 for controlling the profiler is also provided.
 
-- **Focus on web services.** The purpose of lws-nginx is to implement web services in Lua. This
-focus streamlines the design of lws-nginx. For other extension areas in NGINX (including
-rewriting, access, and filters), numerous highly configurable modules exist that address these
-functions.
+- **Focus on web services.** The purpose of LWS is to implement web services in Lua. This focus
+streamlines the design of LWS. For other extension areas in NGINX (including rewriting, access,
+and filters), numerous highly configurable modules exist that address these functions.
 
 
 ## Discussion
@@ -54,9 +53,9 @@ arguably less demanding on resources than threads. However, threads' resource de
 decreasing over the years with advances in operating systems. On the other hand, the complexity
 of implementing web services and libraries is arguably lower if they can block instead of
 implementing the logic for cooperative multitasking through yielding and asynchronous
-continuation. Less complexity generally means fewer bugs. The lws-nginx module further avoids
-complex synchronization logic by keeping the dispatch logic to the thread pool in the
-single-threaded event processing loop of NGINX.
+continuation. Less complexity generally means fewer bugs. The LWS module further avoids complex
+synchronization logic by keeping the dispatch logic to the thread pool in the single-threaded
+event processing loop of NGINX.
 
 Given these considerations and that large parts of the existing Lua ecosystem are *not*
 non-blocking, using threads seems a reasonable, pragmatic approach today.
@@ -74,14 +73,14 @@ Please browse the extensive documentation in the [doc](doc) folder.
 
 ## Limitations
 
-lws-nginx has been tested with the following software versions:
+LWS has been tested with the following software versions:
 
 * Ubuntu 20.04.6 LTS, Lua 5.3.3, and NGINX 1.18.0
 * Ubuntu 22.04.3 LTS, Lua 5.4.4, and NGINX 1.18.0
 
 Your mileage may vary with other software versions.
 
-Lua libraries used with lws-nginx must be conditionally thread-safe.
+Lua libraries used with LWS must be conditionally thread-safe.
 
 
 ## Trademarks
@@ -93,7 +92,7 @@ All other trademarks are the property of their respective owners.
 
 ## License
 
-lws-nginx is released under the MIT license. See LICENSE for license terms.
+LWS is released under the MIT license. See LICENSE for license terms.
 
 
 [^1]: Hugo Musso Gualandi. The Pallene Programming Language. 2020.

@@ -1,6 +1,6 @@
 # LWS Directives
 
-This document describes the NGINX directives provided by lws-nginx.
+This document describes the NGINX directives provided by LWS.
 
 
 ## HTTP Main Configuration
@@ -126,9 +126,9 @@ making the amount of memory unrestricted. You can use the `k` and `m` suffixes w
 to set kilobytes or megabytes, respectively.
 
 > [!NOTE]
-> The term *memory* in the context of lws-nginx and Lua states generally refers to the memory
-> allocated by the Lua states per se, i.e., through their memory allocators. This memory does
-> *not* include memory allocated outside of Lua states, such as in Lua C libraries or NGINX.
+> The term *memory* in the context of LWS and Lua states generally refers to the memory allocated
+> by the Lua states per se, i.e., through their memory allocators. This memory does *not* include
+> memory allocated outside of Lua states, such as in Lua C libraries or NGINX.
 
 
 ### lws_gc *gc*

@@ -40,9 +40,9 @@ The following table describes the keys of the document.
 | `functions` | `array` | Profiled functions (see below) |
 
 > [!NOTE]
-> The term *memory* in the context of lws-nginx and Lua states generally refers to the memory
-> allocated by the Lua states per se, i.e., through their memory allocators. This memory does
-> *not* include memory allocated outside of Lua states, such as in Lua C libraries or NGINX.
+> The term *memory* in the context of LWS and Lua states generally refers to the memory allocated
+> by the Lua states per se, i.e., through their memory allocators. This memory does *not* include
+> memory allocated outside of Lua states, such as in Lua C libraries or NGINX.
 
 
 ### Profiled Function
