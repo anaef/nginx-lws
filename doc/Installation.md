@@ -13,7 +13,7 @@ and change the `lws_lua` variable accordingly.
 1. Download the [NGINX source code](https://nginx.org/download/) with the identified version,
 and unpack it into a sibling folder of the lws-nginx directory.
 1. In the NGINX directory, run
-`./configure --with-compat --with-threads --add-dynamic-module=../lws-nginx`. If debug logging is
+`./configure --with-compat --with-threads --add-dynamic-module=../nginx-lws`. If debug logging is
 required, add `--with-debug`.
 1. Run `make modules`.
 1. Copy the `objs/lws_module.so` shared library into the NGINX modules folder, e.g.,
