@@ -1,17 +1,17 @@
 # LWS Installation
 
-To install lws-nginx, you may find it helpful to first review this
+To install LWS, you may find it helpful to first review this
 [general blog post](https://www.nginx.com/blog/compiling-dynamic-modules-nginx-plus/)
 on compiling dynamic modules for NGINX if you are not familiar with the process.
 
 In brief:
 
-1. Clone this repository, i.e., lws-nginx.
-1. If you require a Lua version other than 5.3, edit the `config` file in the lws-nginx directory,
+1. Clone this repository, i.e., nginx-lws.
+1. If you require a Lua version other than 5.3, edit the `config` file in the nginx-lws directory,
 and change the `lws_lua` variable accordingly.
 1. Determine your NGINX version by typing `nginx -v`.
 1. Download the [NGINX source code](https://nginx.org/download/) with the identified version,
-and unpack it into a sibling folder of the lws-nginx directory.
+and unpack it into a sibling folder of the nginx-lws directory.
 1. In the NGINX directory, run
 `./configure --with-compat --with-threads --add-dynamic-module=../nginx-lws`. If debug logging is
 required, add `--with-debug`.

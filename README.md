@@ -75,8 +75,9 @@ Please browse the extensive documentation in the [doc](doc) folder.
 
 LWS has been tested with the following software versions:
 
-* Ubuntu 20.04.6 LTS, Lua 5.3.3, and NGINX 1.18.0
-* Ubuntu 22.04.3 LTS, Lua 5.4.4, and NGINX 1.18.0
+* NGINX 1.18.0 and 1.24.0
+* Lua 5.1, 5.2, 5.3, and 5.4
+* Ubuntu 20.04.6 LTS and 22.04.3 LTS
 
 Your mileage may vary with other software versions.
 
