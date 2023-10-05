@@ -9,6 +9,7 @@
 #define _LWS_LIBRARY_INCLUDED
 
 
+#include <ngx_config.h>
 #include <lua.h>
 #include <lws_module.h>
 

@@ -9,9 +9,9 @@
 #define _LWS_STATE_INCLUDED
 
 
-#include <lua.h>
 #include <ngx_config.h>
 #include <ngx_core.h>
+#include <lua.h>
 
 
 typedef struct lws_state_s lws_state_t;
