@@ -36,6 +36,9 @@ struct lws_lua_table_s {
 };
 
 
+#if LUA_VERSION_NUM < 502
+void *lws_testudata(lua_State *L, int index, const char *name);
+#endif
 void lws_get_msg(lua_State *L, int index, ngx_str_t *msg);
 int lws_traceback(lua_State *L);
 int lws_open_lws(lua_State *L);
@@ -48,6 +51,7 @@ int lws_run(lua_State *L);
 #define LWS_TABLE                "lws.table"                /* table metatable */
 #define LWS_RESPONSE             "lws.response"             /* response metatable */
 #define LWS_CHUNKS               "lws.chunks"               /* loaded chunks */
+#define LWS_FILE                 "lws.file"                 /* file environment (Lua 5.1) */
 
 
 #endif /* _LWS_LIBRARY_INCLUDED */

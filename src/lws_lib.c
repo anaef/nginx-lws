@@ -7,42 +7,130 @@
 
 #include <lws_lib.h>
 #include <lauxlib.h>
+#include <lualib.h>
 #include <lws_profiler.h>
 #include <lws_http.h>
 
 
+#if LUA_VERSION_NUM < 502
+typedef struct {
+	FILE  *f;  /* file */
+} luaL_Stream;
+#endif
+
+
+/* compatibility */
+static inline int lws_getfield(lua_State *L, int index, const char *key);
+static inline int lws_rawget(lua_State *L, int index);
+#if LUA_VERSION_NUM < 502
+static lua_Integer lua_tointegerx(lua_State *L, int index, int *isnum);
+static void luaL_setmetatable(lua_State *L, const char *name);
+#endif
+
+/* helpers */
 static void lws_strdup(lws_lua_request_ctx_t *lctx, ngx_str_t *dst, ngx_str_t *src);
 static void lws_unescape_url(u_char **dst, u_char **src, size_t n);
 
+/* request context */
 static lws_lua_request_ctx_t *lws_create_lua_request_ctx(lua_State *L);
 static lws_lua_request_ctx_t *lws_get_lua_request_ctx(lua_State *L);
 static int lws_lua_request_ctx_tostring(lua_State *L);
 
+/* table */
 static lws_lua_table_t *lws_create_lua_table(lua_State *L);
 static int lws_lua_table_index(lua_State *L);
 static int lws_lua_table_newindex(lua_State *L);
 static int lws_lua_table_next(lua_State *L);
+#if LUA_VERSION_NUM >= 502
 static int lws_lua_table_pairs(lua_State *L);
+#endif
 static int lws_lua_table_tostring(lua_State *L);
 static int lws_lua_table_gc(lua_State *L);
 
+/* response */
 static int lws_lua_response_index(lua_State *L);
 static int lws_lua_response_newindex(lua_State *L);
 
+/* strict */
 static int lws_lua_strict_index(lua_State *L);
 
+/* file */
 static luaL_Stream *lws_create_file(lua_State *L);
 static int lws_close_file(lua_State *L);
 
+/* functions */
 static int lws_log(lua_State *L);
 static int lws_getvariable(lua_State *L);
 static int lws_redirect(lua_State *L);
 static int lws_setcomplete(lua_State *L);
 static int lws_setclose(lua_State *L);
 static int lws_parseargs(lua_State *L);
+#if LUA_VERSION_NUM < 502
+static int lws_pairs(lua_State *L);
+#endif
 
+/* run */
 static void lws_push_env(lws_lua_request_ctx_t *lctx);
 static int lws_call(lws_lua_request_ctx_t *lctx, ngx_str_t *filename, lws_lua_chunk_e chunk);
+
+
+#if LUA_VERSION_NUM < 502
+#define LUA_OK                              0
+#define luaL_loadfilex(L, filename, mode)   luaL_loadfile(L, filename)
+#define luaL_testudata(L, index, name)      lws_testudata(L, index, name)
+#endif
+
+
+/*
+ * compatibility
+ */
+
+static inline int lws_getfield (lua_State *L, int index, const char *key) {
+#if LUA_VERSION_NUM >= 503
+	return lua_getfield(L, index, key);
+#else
+	lua_getfield(L, index, key);
+	return lua_type(L, -1);
+#endif
+}
+
+static inline int lws_rawget (lua_State *L, int index) {
+#if LUA_VERSION_NUM >= 503
+	return lua_rawget(L, index);
+#else
+	lua_rawget(L, index);
+	return lua_type(L, -1);
+#endif
+}
+
+#if LUA_VERSION_NUM < 502
+static lua_Integer lua_tointegerx (lua_State *L, int index, int *isnum) {
+	if (isnum) {
+		*isnum = lua_isnumber(L, index);
+	}
+	return lua_tointeger(L, index);
+}
+
+static void luaL_setmetatable (lua_State *L, const char *name) {
+	lua_getfield(L, LUA_REGISTRYINDEX, name);
+	lua_setmetatable(L, -2);
+}
+
+void *lws_testudata (lua_State *L, int index, const char *name) {
+	void  *userdata;
+
+	userdata = lua_touserdata(L, index);
+	if (!userdata || !lua_getmetatable(L, index)) {
+		return NULL;
+	}
+	luaL_getmetatable(L, name);
+	if (!lua_rawequal(L, -1, -2)) {
+		userdata = NULL;
+	}
+	lua_pop(L, 2);
+	return userdata;
+}
+#endif
 
 
 /*
@@ -231,12 +319,14 @@ static int lws_lua_table_next (lua_State *L) {
 	return 2;
 }
 
+#if LUA_VERSION_NUM >= 502
 static int lws_lua_table_pairs (lua_State *L) {
 	lua_pushcfunction(L, lws_lua_table_next);
 	lua_pushvalue(L, 1);
 	lua_pushnil(L);
 	return 3;
 }
+#endif
 
 static int lws_lua_table_tostring (lua_State *L) {
 	lws_lua_table_t  *lt;
@@ -325,7 +415,12 @@ static luaL_Stream *lws_create_file (lua_State *L) {
 
 	s = lua_newuserdata(L, sizeof(luaL_Stream));
 	s->f = NULL;
+#if LUA_VERSION_NUM >= 502
 	s->closef = lws_close_file;
+#else
+	lua_getfield(L, LUA_REGISTRYINDEX, LWS_FILE);
+	lua_setfenv(L, -2);
+#endif
 	luaL_setmetatable(L, LUA_FILEHANDLE);
 	return s;
 }
@@ -457,7 +552,14 @@ static int lws_parseargs (lua_State *L) {
 		n = pos - start;
 		if (n > 0) {
 			luaL_buffinit(L, &B);
+#if LUA_VERSION_NUM >= 502
 			u_start = u_pos = (u_char *)luaL_prepbuffsize(&B, n);
+#else
+			if (n > LUAL_BUFFERSIZE) {
+				return luaL_error(L, "argument too long");
+			}
+			u_start = u_pos = (u_char *)luaL_prepbuffer(&B);
+#endif
 			lws_unescape_url(&u_pos, &start, n);
 			luaL_addsize(&B, u_pos - u_start);
 			luaL_pushresult(&B);
@@ -487,6 +589,16 @@ static int lws_parseargs (lua_State *L) {
 	return 1;
 }
 
+#if LUA_VERSION_NUM < 502
+static int lws_pairs (lua_State *L) {
+	(void)luaL_checkudata(L, 1, LWS_TABLE);
+	lua_pushcfunction(L, lws_lua_table_next);
+	lua_pushvalue(L, 1);
+	lua_pushnil(L);
+	return 3;
+}
+#endif
+
 static luaL_Reg lws_lua_functions[] = {
 	{ "log", lws_log },
 	{ "getvariable", lws_getvariable },
@@ -494,6 +606,9 @@ static luaL_Reg lws_lua_functions[] = {
 	{ "setcomplete", lws_setcomplete },
 	{ "setclose", lws_setclose },
 	{ "parseargs", lws_parseargs },
+#if LUA_VERSION_NUM < 502
+	{ "pairs", lws_pairs },
+#endif
 	{ NULL, NULL }
 };
 
@@ -502,7 +617,11 @@ int lws_open_lws (lua_State *L) {
 	lws_http_status_t  *status;
 
 	/* functions */
+#if LUA_VERSION_NUM >= 502
 	luaL_newlib(L, lws_lua_functions);
+#else
+	luaL_register(L, luaL_checkstring(L, 1), lws_lua_functions);
+#endif
 
 	/* status */
 	lua_createtable(L, 0, lws_http_status_n);
@@ -530,8 +649,10 @@ int lws_open_lws (lua_State *L) {
 	lua_setfield(L, -2, "__index");
 	lua_pushcfunction(L, lws_lua_table_newindex);
 	lua_setfield(L, -2, "__newindex");
+#if LUA_VERSION_NUM >= 502
 	lua_pushcfunction(L, lws_lua_table_pairs);
 	lua_setfield(L, -2, "__pairs");
+#endif
 	lua_pushcfunction(L, lws_lua_table_tostring);
 	lua_setfield(L, -2, "__tostring");
 	lua_pushcfunction(L, lws_lua_table_gc);
@@ -545,6 +666,14 @@ int lws_open_lws (lua_State *L) {
 	lua_pushcfunction(L, lws_lua_response_newindex);
 	lua_setfield(L, -2, "__newindex");
 	lua_pop(L, 1);
+
+#if LUA_VERSION_NUM < 502
+	/* file environment */
+	luaL_newmetatable(L, LWS_FILE);
+	lua_pushcfunction(L, lws_close_file);
+	lua_setfield(L, -2, "__close");
+	lua_pop(L, 1);
+#endif
 
 	return 1;
 }
@@ -570,7 +699,18 @@ int lws_traceback (lua_State *L) {
 	ngx_str_t  msg;
 
 	lws_get_msg(L, 1, &msg);
+#if LUA_VERSION_NUM >= 502
 	luaL_traceback(L, L, (const char *)msg.data, 1);
+#else
+	if (lws_getfield(L, LUA_GLOBALSINDEX, LUA_DBLIBNAME) == LUA_TTABLE
+			&& lws_getfield(L, -1, "traceback") == LUA_TFUNCTION) {
+		lua_pushlstring(L, (char *)msg.data, msg.len);
+		lua_pushinteger(L, 2);
+		lua_call(L, 2, 1);
+	} else {
+		lua_pushlstring(L, (char *)msg.data, msg.len);
+	}
+#endif
 	return 1;
 }
 
@@ -592,7 +732,11 @@ static void lws_push_env (lws_lua_request_ctx_t *lctx) {
 	L = ctx->state->L;
 	lua_newtable(L);
 	lua_createtable(L, 0, 1);
+#if LUA_VERSION_NUM >= 502
 	lua_rawgeti(L, LUA_REGISTRYINDEX, LUA_RIDX_GLOBALS);
+#else
+	lua_pushvalue(L, LUA_GLOBALSINDEX);
+#endif
 	lua_setfield(L, -2, "__index");
 	lua_setmetatable(L, -2);
 
@@ -650,7 +794,7 @@ static int lws_call (lws_lua_request_ctx_t *lctx, ngx_str_t *filename, lws_lua_c
 	L = lctx->ctx->state->L;
 	lua_pushlstring(L, (const char *)filename->data, filename->len);  /* [filename] */
 	lua_pushvalue(L, -1);  /* [filename, filename] */
-	if (lua_rawget(L, 2) != LUA_TFUNCTION) {  /* [filename, x] */
+	if (lws_rawget(L, 2) != LUA_TFUNCTION) {  /* [filename, x] */
 		lua_pop(L, 1);  /* [filename] */
 		if (luaL_loadfilex(L, lua_tostring(L, -1), "bt") != LUA_OK) {
 			return lua_error(L);
@@ -664,9 +808,17 @@ static int lws_call (lws_lua_request_ctx_t *lctx, ngx_str_t *filename, lws_lua_c
 	if (chunk != LWS_LC_INIT) {
 		lua_pushvalue(L, 3);
 	} else {
+#if LUA_VERSION_NUM >= 502
 		lua_rawgeti(L, LUA_REGISTRYINDEX, LUA_RIDX_GLOBALS);
+#else
+		lua_pushvalue(L, LUA_GLOBALSINDEX);
+#endif
 	}  /* [filename, function, env] */
-	lua_setupvalue(L, -2, 1);  /* _ENV is the first upvalue; [filename, function] */
+#if LUA_VERSION_NUM >= 502
+	lua_setupvalue(L, -2, 1);  /* _ENV is the first upvalue */
+#else
+	lua_setfenv(L, -2);
+#endif  /* [filename, function] */
 
 	/* call the function */
 	ngx_log_debug2(NGX_LOG_DEBUG_HTTP, lctx->ctx->r->connection->log, 0,
@@ -713,7 +865,7 @@ int lws_run (lua_State *L) {
 	lua_setfield(L, LUA_REGISTRYINDEX, LWS_REQUEST_CTX_CURRENT);  /* [ctx] */
 
 	/* get chunks */
-	if (lua_getfield(L, LUA_REGISTRYINDEX, LWS_CHUNKS) != LUA_TTABLE) {
+	if (lws_getfield(L, LUA_REGISTRYINDEX, LWS_CHUNKS) != LUA_TTABLE) {
 		lua_pop(L, 1);
 		lua_newtable(L);
 		lua_pushvalue(L, -1);

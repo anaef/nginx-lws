@@ -1,14 +1,14 @@
 -- Renders a variable w/ comment
 local function render_var (name, comment)
-	local value = load("return " .. name, nil, "t", _ENV)()
+	local value = eval("return " .. name)
 	response.body:write(string.format("%-30s: %-10s  -- %s", name, tostring(value), comment),
 			"\n")
 end
 
 -- Executes and renders a statement
 local function execute_statement (statement)
+	eval(statement)
 	response.body:write("\n\n- After statement '", statement, "':\n")
-	load(statement, nil, "t", _ENV)()
 end
 
 -- Render variables from global and request environment

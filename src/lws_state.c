@@ -12,6 +12,11 @@
 #include <lws_profiler.h>
 
 
+static inline int lws_getfield(lua_State *L, int index, const char *key);
+static inline int lws_getglobal(lua_State *L, const char *key);
+#if LUA_VERSION_NUM < 502
+static void luaL_requiref(lua_State *L, const char *name, lua_CFunction openf, int glb);
+#endif
 static void *lws_alloc_unchecked(void *ud, void *ptr, size_t osize, size_t nsize);
 static void *lws_alloc_checked(void *ud, void *ptr, size_t osize, size_t nsize);
 static void lws_set_path(lua_State *L, int index, const char *field);
@@ -20,6 +25,45 @@ static void lws_set_state_timer(lws_state_t *state);
 static void lws_state_timer_handler(ngx_event_t *ev);
 static lws_state_t *lws_create_state(lws_request_ctx_t *ctx);
 
+
+#if LUA_VERSION_NUM < 502
+#define LUA_OK  0
+#endif
+
+
+static inline int lws_getfield (lua_State *L, int index, const char *key) {
+#if LUA_VERSION_NUM >= 503
+	return lua_getfield(L, index, key);
+#else
+	lua_getfield(L, index, key);
+	return lua_type(L, -1);
+#endif
+}
+
+static inline int lws_getglobal (lua_State *L, const char *key) {
+#if LUA_VERSION_NUM >= 503
+	return lua_getglobal(L, key);
+#else
+	lua_getglobal(L, key);
+	return lua_type(L, -1);
+#endif
+}
+
+#if LUA_VERSION_NUM < 502
+static void luaL_requiref (lua_State *L, const char *name, lua_CFunction openf, int glb) {
+	lua_pushcfunction(L, openf);
+	lua_pushstring(L, name);
+	lua_call(L, 1, 1);
+	lua_getfield(L, LUA_REGISTRYINDEX, "_LOADED");
+	lua_pushvalue(L, -2);
+	lua_setfield(L, -2, name);
+	lua_pop(L, 1);
+	if (glb) {
+		lua_pushvalue(L, -1);
+		lua_setglobal(L, name);
+	}
+}
+#endif
 
 static void *lws_alloc_unchecked (void *ud, void *ptr, size_t osize, size_t nsize) {
 	if (nsize == 0) {
@@ -61,13 +105,13 @@ static void lws_set_path (lua_State *L, int index, const char *field) {
 	}
 
 	/* get loader */
-	if (lua_getglobal(L, LUA_LOADLIBNAME) != LUA_TTABLE) {
+	if (lws_getglobal(L, LUA_LOADLIBNAME) != LUA_TTABLE) {
 		luaL_error(L, "failed to get loader");
 	}
 
 	/* process path */
 	if (path[0] == '+') {
-		if (lua_getfield(L, -1, field) != LUA_TSTRING) {
+		if (lws_getfield(L, -1, field) != LUA_TSTRING) {
 			luaL_error(L, "failed to get loader %s", field);
 		}
 		lua_pushliteral(L, ";");

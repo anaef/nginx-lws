@@ -48,6 +48,15 @@ only the final value is provided. This function also parses request bodies with 
 `application/x-www-form-urlencoded`, i.e., HTML form submissions with the `POST` method.
 
 
+## lws.pairs (args)
+
+Enables pairs-like iteration over request and response headers.
+
+> [!NOTE]
+> The function is only provided for Lua 5.1. As of Lua 5.2, you can use the regular `pairs`
+> function.
+
+
 ## lws.status
 
 Represents a table of common HTTP status codes with strings as keys and integers as values.

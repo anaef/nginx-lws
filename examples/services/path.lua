@@ -1,6 +1,6 @@
 -- Renders a variable
 local function render_var (name, comment)
-	local value = load("return " .. name, nil, "t", _ENV)()
+	local value = eval("return " .. name)
 	response.body:write(string.format("%-30s: %s", name, tostring(value)), "\n")
 end
 

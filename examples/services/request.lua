@@ -1,7 +1,7 @@
 -- Renders a variable
 local function render_var (name, comment)
-        local value = load("return " .. name, nil, "t", _ENV)()
-        response.body:write(string.format("%-30s: %s", name, tostring(value)), "\n")
+	local value = eval("return " .. name)
+	response.body:write(string.format("%-30s: %s", name, tostring(value)), "\n")
 end
 
 -- Render output
@@ -15,8 +15,14 @@ render_var("request.ip")
 
 -- Render the headers
 response.body:write("\n\n", "* HTTP Request Headers", "\n\n")
-for key, value in pairs(request.headers) do
-	response.body:write(string.format("%-30s: %s", key, value), "\n")
+if _VERSION > "Lua 5.1" then
+	for key, value in pairs(request.headers) do
+		response.body:write(string.format("%-30s: %s", key, value), "\n")
+	end
+else
+	for key, value in lws.pairs(request.headers) do
+		response.body:write(string.format("%-30s: %s", key, value), "\n")
+	end
 end
 
 -- Finish
