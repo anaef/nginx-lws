@@ -14,6 +14,15 @@
 #include <lws_module.h>
 
 
+#define LWS_LIB_NAME             "lws"                      /* library name */
+#define LWS_REQUEST_CTX          "lws.request_ctx"          /* request context metatable */
+#define LWS_REQUEST_CTX_CURRENT  "lws.request_ctx_current"  /* current request context */
+#define LWS_TABLE                "lws.table"                /* table metatable */
+#define LWS_RESPONSE             "lws.response"             /* response metatable */
+#define LWS_CHUNKS               "lws.chunks"               /* loaded chunks */
+#define LWS_FILE                 "lws.file"                 /* file environment (Lua 5.1) */
+
+
 typedef struct lws_lua_request_ctx_s lws_lua_request_ctx_t;
 typedef struct lws_lua_table_s lws_lua_table_t;
 
@@ -44,15 +53,6 @@ void lws_get_msg(lua_State *L, int index, ngx_str_t *msg);
 int lws_traceback(lua_State *L);
 int lws_open_lws(lua_State *L);
 int lws_run(lua_State *L);
-
-
-#define LWS_LIB_NAME             "lws"                      /* library name */
-#define LWS_REQUEST_CTX          "lws.request_ctx"          /* request context metatable */
-#define LWS_REQUEST_CTX_CURRENT  "lws.request_ctx_current"  /* current request context */
-#define LWS_TABLE                "lws.table"                /* table metatable */
-#define LWS_RESPONSE             "lws.response"             /* response metatable */
-#define LWS_CHUNKS               "lws.chunks"               /* loaded chunks */
-#define LWS_FILE                 "lws.file"                 /* file environment (Lua 5.1) */
 
 
 #endif /* _LWS_LIBRARY_INCLUDED */

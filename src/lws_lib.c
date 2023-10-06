@@ -13,6 +13,13 @@
 
 
 #if LUA_VERSION_NUM < 502
+#define LUA_OK                              0
+#define luaL_loadfilex(L, filename, mode)   luaL_loadfile(L, filename)
+#define luaL_testudata(L, index, name)      lws_testudata(L, index, name)
+#endif
+
+
+#if LUA_VERSION_NUM < 502
 typedef struct {
 	FILE  *f;  /* file */
 } luaL_Stream;
@@ -74,11 +81,11 @@ static void lws_push_env(lws_lua_request_ctx_t *lctx);
 static int lws_call(lws_lua_request_ctx_t *lctx, ngx_str_t *filename, lws_lua_chunk_e chunk);
 
 
-#if LUA_VERSION_NUM < 502
-#define LUA_OK                              0
-#define luaL_loadfilex(L, filename, mode)   luaL_loadfile(L, filename)
-#define luaL_testudata(L, index, name)      lws_testudata(L, index, name)
-#endif
+static const char *lws_chunk_names[] = {"init", "pre", "main", "post"};
+static const char *const lws_lua_log_levels[] = {
+	"emerg", "alert", "crit", "err", "warn", "notice", "info", "debug", NULL
+};
+
 
 
 /*
@@ -136,8 +143,6 @@ void *lws_testudata (lua_State *L, int index, const char *name) {
 /*
  * helpers
  */
-
-static const char* lws_chunk_names[] = { "init", "pre", "main", "post" };
 
 static void lws_strdup (lws_lua_request_ctx_t *lctx, ngx_str_t *dst, ngx_str_t *src) {
 	dst->data = ngx_alloc(src->len, lctx->ctx->r->connection->log);
@@ -435,10 +440,6 @@ static int lws_close_file (lua_State *L) {
  * functions
  */
 
-static const char *const lws_lua_log_levels[] = {
-	"emerg", "alert", "crit", "err", "warn", "notice", "info", "debug", NULL
-};
-
 static int lws_log (lua_State *L) {
 	int                     index;
 	ngx_str_t               msg;
@@ -599,22 +600,22 @@ static int lws_pairs (lua_State *L) {
 }
 #endif
 
-static luaL_Reg lws_lua_functions[] = {
-	{ "log", lws_log },
-	{ "getvariable", lws_getvariable },
-	{ "redirect", lws_redirect },
-	{ "setcomplete", lws_setcomplete },
-	{ "setclose", lws_setclose },
-	{ "parseargs", lws_parseargs },
-#if LUA_VERSION_NUM < 502
-	{ "pairs", lws_pairs },
-#endif
-	{ NULL, NULL }
-};
-
 int lws_open_lws (lua_State *L) {
 	int                 i;
 	lws_http_status_t  *status;
+	static luaL_Reg     lws_lua_functions[] = {
+		{"log", lws_log},
+		{"getvariable", lws_getvariable},
+		{"redirect", lws_redirect},
+		{"setcomplete", lws_setcomplete},
+		{"setclose", lws_setclose},
+		{"parseargs", lws_parseargs},
+#if LUA_VERSION_NUM < 502
+		{"pairs", lws_pairs},
+#endif
+		{NULL, NULL}
+	};
+
 
 	/* functions */
 #if LUA_VERSION_NUM >= 502

@@ -45,9 +45,9 @@ static cookie_io_functions_t lws_request_read_functions = {
 };
 
 static ngx_conf_enum_t lws_error_responses[] = {
-	{ ngx_string("json"), LWS_ER_JSON },
-	{ ngx_string("html"), LWS_ER_HTML },
-	{ ngx_null_string, 0 }
+	{ngx_string("json"), LWS_ER_JSON},
+	{ngx_string("html"), LWS_ER_HTML},
+	{ngx_null_string, 0}
 };
 
 static ngx_command_t lws_commands[] = {

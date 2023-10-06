@@ -14,6 +14,12 @@
 #include <ngx_http.h>
 
 
+#define LWS_THREAD_POOL_NAME_DEFAULT    "default"
+#define LWS_STAT_CACHE_CAP_DEFAULT      1024
+#define LWS_STAT_CACHE_TIMEOUT_DEFAULT  30
+#define lws_cpylit(p, lit)              ngx_cpymem(p, lit, sizeof(lit) - 1)
+
+
 typedef struct lws_main_conf_s lws_main_conf_t;
 typedef struct lws_loc_conf_s lws_loc_conf_t;
 typedef struct lws_request_ctx_s lws_request_ctx_t;
@@ -100,13 +106,6 @@ struct lws_variable_s {
 
 
 extern ngx_module_t lws_module;
-
-
-#define LWS_THREAD_POOL_NAME_DEFAULT    "default"
-#define LWS_STAT_CACHE_CAP_DEFAULT      1024
-#define LWS_STAT_CACHE_TIMEOUT_DEFAULT  30
-
-#define lws_cpylit(p, lit)              ngx_cpymem(p, lit, sizeof(lit) - 1)
 
 
 #endif /* _LWS_MODULE_INCLUDED */

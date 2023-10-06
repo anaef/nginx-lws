@@ -20,11 +20,11 @@ typedef struct lws_http_status_s {
 } lws_http_status_t;
 
 
+lws_http_status_t *lws_find_http_status(int code);
+
+
 extern lws_http_status_t lws_http_status[];
 extern const int lws_http_status_n;
-
-
-lws_http_status_t *lws_find_http_status(int code);
 
 
 #endif /* _LWS_HTTP_INCLUDED */

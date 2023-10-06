@@ -13,9 +13,11 @@
 #include <ngx_core.h>
 
 
+#define LWS_MONITOR_SIZE  (32 * 4096)
+
+
 typedef struct lws_monitor_s lws_monitor_t;
 typedef struct lws_function_s lws_function_t;
-
 
 struct lws_monitor_s {
 	ngx_atomic_t     states_n;         /* number of Lua states (active + inactive) */
@@ -39,9 +41,6 @@ struct lws_function_s {
 
 
 char *lws_monitor(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
-
-
-#define LWS_MONITOR_SIZE  (32 * 4096)
 
 
 #endif /* _LWS_MONITOR_INCLUDED */

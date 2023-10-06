@@ -12,6 +12,11 @@
 #include <lws_profiler.h>
 
 
+#if LUA_VERSION_NUM < 502
+#define LUA_OK  0
+#endif
+
+
 static inline int lws_getfield(lua_State *L, int index, const char *key);
 static inline int lws_getglobal(lua_State *L, const char *key);
 #if LUA_VERSION_NUM < 502
@@ -24,11 +29,6 @@ static int lws_init(lua_State *L);
 static void lws_set_state_timer(lws_state_t *state);
 static void lws_state_timer_handler(ngx_event_t *ev);
 static lws_state_t *lws_create_state(lws_request_ctx_t *ctx);
-
-
-#if LUA_VERSION_NUM < 502
-#define LUA_OK  0
-#endif
 
 
 static inline int lws_getfield (lua_State *L, int index, const char *key) {

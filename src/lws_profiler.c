@@ -11,6 +11,12 @@
 #include <lws_lib.h>
 
 
+#if LUA_VERSION_NUM < 502
+#define LUA_HOOKTAILCALL                LUA_HOOKTAILRET
+#define luaL_testudata(L, index, name)  lws_testudata(L, index, name)
+#endif
+
+
 static int lws_profiler_tostring(lua_State *L);
 static int lws_profiler_gc(lua_State *L);
 static inline void lws_add_timespec(struct timespec *base, const struct timespec *inc);
@@ -18,12 +24,6 @@ static inline void lws_add_timespec_delta(struct timespec *base, const struct ti
 		const struct timespec *to);
 static inline void lws_add_memory_delta(size_t *base, size_t from, size_t to);
 static void lws_profiler_hook(lua_State *L, lua_Debug *ar);
-
-
-#if LUA_VERSION_NUM < 502
-#define LUA_HOOKTAILCALL                LUA_HOOKTAILRET
-#define luaL_testudata(L, index, name)  lws_testudata(L, index, name)
-#endif
 
 
 static const char *const lws_profiler_state_names[] = {"disabled", "CPU", "wall"};

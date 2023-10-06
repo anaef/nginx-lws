@@ -14,6 +14,13 @@
 #include <lws_table.h>
 
 
+#define LWS_PROFILER             "lws.profiler"           /* profiler metatable */
+#define LWS_PROFILER_CURRENT     "lws.profiler_current"   /* current profiler*/
+#define LWS_PROFILER_KEY_MAX     256                      /* maximum length of function key */
+#define LWS_PROFILER_CLOCK_CPU   CLOCK_THREAD_CPUTIME_ID  /* CPU profiler clock */
+#define LWS_PROFILER_CLOCK_WALL  CLOCK_MONOTONIC_RAW      /* wall profiller clock */
+
+
 typedef struct lws_profiler_s lws_profiler_t;
 typedef struct lws_activation_record_s lws_activation_record_t;
 
@@ -42,13 +49,6 @@ struct lws_activation_record_s {
 int lws_open_profiler(lua_State *L);
 int lws_start_profiler(lua_State *L);
 int lws_stop_profiler(lua_State *L);
-
-
-#define LWS_PROFILER             "lws.profiler"           /* profiler metatable */
-#define LWS_PROFILER_CURRENT     "lws.profiler_current"   /* current profiler*/
-#define LWS_PROFILER_KEY_MAX     256                      /* maximum length of function key */
-#define LWS_PROFILER_CLOCK_CPU   CLOCK_THREAD_CPUTIME_ID  /* CPU profiler clock */
-#define LWS_PROFILER_CLOCK_WALL  CLOCK_MONOTONIC_RAW      /* wall profiller clock */
 
 
 #endif /* _LWS_PROFILER_INCLUDED */
