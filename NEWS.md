@@ -1,6 +1,11 @@
 # LWS Release Notes
 
 
+## Release 0.9.2
+
+- A Dockerized version of the website with the examples has been added. Thank you, Gonzalo Luque.
+
+
 ## Release 0.9.1 (2023-10-06)
 
 - Add compatibility with Lua 5.1 and Lua 5.2.
