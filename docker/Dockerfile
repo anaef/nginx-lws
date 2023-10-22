@@ -54,7 +54,9 @@ COPY --from=build \
   /usr/lib/nginx/modules/
 
 COPY examples/lws-examples.conf /etc/nginx/sites-available/default
-COPY etc/lws.conf /etc/nginx/modules-enabled/lws.conf
+RUN sed -i '/\slisten\s/d' /etc/nginx/sites-available/default
+COPY etc/lws.conf /etc/nginx/modules-available/lws.conf
+RUN ln -s /etc/nginx/modules-available/lws.conf /etc/nginx/modules-enabled/lws.conf
 
 COPY examples/ /var/www/lws-examples/
 COPY docker/nginx-entrypoint.sh .
