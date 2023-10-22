@@ -1,0 +1,13 @@
+version: '3.9'
+
+services:
+  lws-example:
+    image: nginx-lws:${TAG:-local}
+    command: [ './nginx-entrypoint.sh' ]
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: runtime
+    ports:
+      - "8080:80"

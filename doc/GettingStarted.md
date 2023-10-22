@@ -3,8 +3,28 @@
 LWS comes with a website with examples. You can find the site in the `/examples` folder of this
 repository.
 
+## Dockerized Examples website
+A Dockerized version of nginx-lws that is self-contained and includes the nginx-lws web server,
+all its required dependencies, and the Examples website from this repository.
 
-## Examples Website Configuration
+This Docker image is designed for easy deployment, providing users with a straightforward command
+to quickly test and explore the full range of capabilities offered by nginx-lws.
+It runs on an Ubuntu 20.04 (Focal Fossa) image.
+
+### Dependencies
+- Docker
+
+### Running the Examples website
+To start the Examples website, simply execute the following commands from the root directory:
+```
+docker compose build
+docker compose up -d
+```
+Once these commands have been executed, you can access the website by navigating to http://localhost:8080 in your web browser.
+
+
+## Running Examples website from scratch
+### Examples Website Configuration
 
 The configuration provided with the examples is called `lws-examples.conf` and looks similar to
 this:
@@ -66,7 +86,7 @@ during local development to pick up code changes.
 For more information, please refer to the [directives](Directives.md) documentation.
 
 
-## Enabling the Examples Website
+### Enabling the Examples Website
 
 The exact steps to enable the website with the examples depend on the specifics of your NGINX
 installation.
