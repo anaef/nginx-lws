@@ -1,30 +1,11 @@
 # Getting Started with LWS
 
 LWS comes with a website with examples. You can find the site in the `/examples` folder of this
-repository.
-
-## Dockerized Examples website
-A Dockerized version of nginx-lws that is self-contained and includes the nginx-lws web server,
-all its required dependencies, and the Examples website from this repository.
-
-This Docker image is designed for easy deployment, providing users with a straightforward command
-to quickly test and explore the full range of capabilities offered by nginx-lws.
-It runs on an Ubuntu 20.04 (Focal Fossa) image.
-
-### Dependencies
-- Docker
-
-### Running the Examples website
-To start the Examples website, simply execute the following commands from the root directory:
-```
-docker compose build
-docker compose up -d
-```
-Once these commands have been executed, you can access the website by navigating to http://localhost:8080 in your web browser.
+repository. For your convenience, there is a Dockerized version of the website that is
+self-contained. Alternatively, you can enable the website manually.
 
 
-## Running Examples website from scratch
-### Examples Website Configuration
+## Examples Website Configuration
 
 The configuration provided with the examples is called `lws-examples.conf` and looks similar to
 this:
@@ -71,7 +52,7 @@ using variable `$1`, which corresponds to the first capture group of the locatio
 the Lua code using the variable `$2`, which corresponds to the 2nd capture group of the location
 path, i.e., `(/.*)?`.
 
-Further used directives are:
+Additionally used directives are:
 
 - `lws_init`, which refers to a Lua chunk that initializes the state. This chunk is run once per
 state.
@@ -85,11 +66,26 @@ during local development to pick up code changes.
 
 For more information, please refer to the [directives](Directives.md) documentation.
 
+## Running the Examples Website With Docker
 
-### Enabling the Examples Website
+The Docker image is designed for easy use, providing users with a straightforward command
+to quickly test and explore LWS. It runs on an Ubuntu 20.04 (Focal Fossa) image.
 
-The exact steps to enable the website with the examples depend on the specifics of your NGINX
-installation.
+> [!IMPORTANT]
+> The following steps require Docker 20.10 or newer.
+
+To build and run the website with the examples, execute the following commands from the root
+directory of this repository:
+
+```
+docker compose build
+docker compose up
+```
+
+## Enabling the Examples Website Manually
+
+Alternatively, you can enable the website with the examples manually. The exact steps depend on
+the specifics of your NGINX installation.
 
 As a first step, you must complete the LWS installation as described in the
 [installation](Installation.md) document. In particular, the LWS module must be loaded in NGINX.
@@ -113,8 +109,8 @@ If the website does not launch, checking the NGINX error log is advisable.
 
 ## Exploring the Examples Website
 
-Once these steps are completed, you can point a browser to `http://localhost:8080/` and explore
-the examples.
+Once the website with examples is up and running, you can access it by navigating to
+`http://localhost:8080` in your web browser.
 
 The first example is a classical "Hello, world!". Its source code looks like this:
 
