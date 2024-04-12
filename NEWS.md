@@ -6,6 +6,7 @@
 - A Dockerized version of the website with the examples has been added. Thank you, Gonzalo Luque.
 - Add unfolding of Set-Cookie response headers.
 - Change size of monitor shared memory zone to 512 kB (up from 128 kB).
+- Improve memory formatting on monitor example page.
 
 
 ## Release 0.9.1 (2023-10-06)

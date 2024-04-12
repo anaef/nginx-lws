@@ -81,11 +81,11 @@
 
 		function formatMemory (value) {
 			if (value > 1024**3) {
-				return Math.floor(value / 1024**2).toLocaleString() + " MB";
+				return (value / 1024**3).toFixed(3) + " GB";
 			} else if (value > 1024**2) {
-				return Math.floor(value / 1024).toLocaleString() + " KB";
+				return (value / 1024**2).toFixed(3) + " MB";
 			} else {
-				return value.toLocaleString() + " B";
+				return (value / 1024).toFixed(3) + " kB";
 			}
 		}
 
