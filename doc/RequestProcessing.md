@@ -3,7 +3,9 @@
 This document describes the general HTTP request processing logic of LWS.
 
 Request processing involves up to four Lua chunks: an init chunk, a pre chunk, a main chunk, and
-a post chunk.
+a post chunk. These chunks are run sequentially in an asynchronous pool thread, and they are allowed
+to block execution. During the processing of a request, the chunks have exclusive, uninterrupted
+access to a Lua state.
 
 
 ## Init Lua Chunk
