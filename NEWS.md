@@ -4,6 +4,7 @@
 ## Release 0.9.2
 
 - A Dockerized version of the website with the examples has been added. Thank you, Gonzalo Luque.
+- Add unfolding of Set-Cookie response headers.
 
 
 ## Release 0.9.1 (2023-10-06)

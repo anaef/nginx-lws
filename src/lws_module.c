@@ -826,6 +826,8 @@ static ssize_t lws_read_handler (void *cookie, char *buf, size_t size) {
 }
 
 static void lws_finalization_handler (ngx_event_t *ev) {
+	int                  unfold;
+	u_char              *vstart, *vend, *vpos;
 	ngx_buf_t           *b;
 	ngx_int_t            rc;
 	ngx_log_t           *log;
@@ -886,6 +888,7 @@ static void lws_finalization_handler (ngx_event_t *ev) {
 			ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
 			return;
 		}
+		unfold = 0;
 		switch (key->len) {
 		case 4:
 			if (lws_is_header("Date")) {
@@ -915,6 +918,12 @@ static void lws_finalization_handler (ngx_event_t *ev) {
 			}
 			break;
 
+		case 10:
+			if (lws_is_header("Set-Cookie")) {
+				unfold = 1;
+			}
+			break;
+
 		case 13:
 			if (lws_is_header("Last-Modified")) {
 				r->headers_out.last_modified = h;
@@ -934,9 +943,39 @@ static void lws_finalization_handler (ngx_event_t *ev) {
 			break;
 		}
 		#undef lws_is_header
-		h->key = *key;
-		h->value = *value;
-		h->hash = 1;
+		if (!unfold) {
+			h->key = *key;
+			h->value = *value;
+			h->hash = 1;
+		} else {
+			vstart = value->data;
+			vend = value->data + value->len;
+			while (1) {
+				vpos = vstart;
+				while (vpos < vend && *vpos != ',') {
+					vpos++;
+				}
+				h->key = *key;
+				h->value.data = vstart;
+				h->value.len = vpos - vstart;
+				h->hash = 1;
+				if (vpos == vend) {
+					break;
+				}
+				vstart = vpos + 1;
+				while (vstart < vend && *vstart == ' ') {
+					vstart++;
+				}
+				if (vstart == vend) {
+					break;
+				}
+				h = ngx_list_push(&r->headers_out.headers);
+				if (!h) {
+					ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+					return;
+				}
+			}
+		}
 	}
 
 	/* error response requested? */
