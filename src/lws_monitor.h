@@ -13,7 +13,7 @@
 #include <ngx_core.h>
 
 
-#define LWS_MONITOR_SIZE  (32 * 4096)
+#define LWS_MONITOR_SIZE  (128 * 4096)
 
 
 typedef struct lws_monitor_s lws_monitor_t;
