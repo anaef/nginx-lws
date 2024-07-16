@@ -927,6 +927,8 @@ static void lws_finalization_handler (ngx_event_t *ev) {
 		case 13:
 			if (lws_is_header("Last-Modified")) {
 				r->headers_out.last_modified = h;
+				r->headers_out.last_modified_time = ngx_parse_http_time(value->data,
+						value->len);
 			} else if (lws_is_header("Content-Range")) {
 				r->headers_out.content_range = h;
 			} else if (lws_is_header("Accept-Ranges")) {

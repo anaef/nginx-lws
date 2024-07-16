@@ -1,6 +1,11 @@
 # LWS Release Notes
 
 
+## Release 0.9.3 (2024-07-16)
+
+- Fix unassigned last modified time in response headers.
+
+
 ## Release 0.9.2 (2024-04-12)
 
 - A Dockerized version of the website with the examples has been added. Thank you, Gonzalo Luque.
