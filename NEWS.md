@@ -1,7 +1,7 @@
 # LWS Release Notes
 
 
-## Release 0.9.4
+## Release 0.9.4 (2024-08-28)
 
 - Fix non-cancelable state timer by making it cancelable to support graceful shutdown.
 - Fix incorrect memory reference when resolving main configuration during shutdown.
