@@ -5,6 +5,7 @@
 
 - Fix non-cancelable state timer by making it cancelable to support graceful shutdown.
 - Fix incorrect memory reference when resolving main configuration during shutdown.
+- The NGINX not-modified processing has been turned off.
 
 
 ## Release 0.9.3 (2024-07-16)

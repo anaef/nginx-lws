@@ -990,6 +990,7 @@ static void lws_finalization_handler (ngx_event_t *ev) {
 	/* send headers */
 	log = r->connection->log;
 	r->headers_out.status = ctx->status;
+	r->disable_not_modified = 1;
 	if (fflush(ctx->response_body) != 0) {
 		ngx_log_error(NGX_LOG_CRIT, log, errno, "[LWS] failed to flush response body");;
 		ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
