@@ -3,7 +3,7 @@
 The LWS monitor is a web API that provides read-write access to central LWS characteristics. It
 is configured through the `lws_monitor` [directive](Directives.md).
 
-> [!WARNING]
+> [!CAUTION]
 > The LWS monitor should *not* be enabled at locations that are publicly accessible. Enabling
 > the monitor at a location without appropriate access controls is a security risk.
 

@@ -115,7 +115,7 @@ The following figure illustrates the request processing sequence.
 Lua states are managed independently for each location. By default, Lua states are kept open to
 handle subsequent requests after a request is finalized.
 
-> [!WARNING]
+> [!CAUTION]
 > Developers must be careful not to leak information among requests, such as through the global
 > environment or the Lua registry. Any request-specific state should be constrained to the request
 > environment and local variables.

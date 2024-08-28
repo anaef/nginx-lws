@@ -200,7 +200,7 @@ the value `diagnostic`. Diagnostic information includes the error message, file 
 numbers, function identifiers, and a stack traceback. By default, and if the attribute is omitted,
 diagnostic information is not included.
 
-> [!WARNING]
+> [!CAUTION]
 > Diagnostic information can be helpful during development. Enabling diagnostic information on
 > non-development systems is however not recommended, as such information can be exploited by
 > attackers.
@@ -214,6 +214,6 @@ Enables the [LWS monitor](Monitor.md) at the location. The LWS monitor is a web 
 read-write access to central LWS characteristics. This directive is exclusive with the `lws`
 directive.
 
-> [!WARNING]
+> [!CAUTION]
 > The LWS monitor should *not* be enabled at locations that are publicly accessible. Enabling
 > the monitor at a location without appropriate access controls is a security risk.
