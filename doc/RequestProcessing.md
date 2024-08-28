@@ -86,10 +86,9 @@ A positive integer result from the init or the post chunk is ignored.
 > written by the chunk with the error response.
 
 > [!NOTE]
-> The built-in not-modified processing of NGINX is turned off in LWS as its logic is more fitting
-> for file servers. Main chunks must handle headers such as `If-Modified-Since` internally and
-> respond with appropriate status codes such as `lws.status.NOT_MODIFIED`. For such responses,
-> returning the HTTP status code may be appropriate.
+> The NGINX not-modified processing is turned off in LWS. Main chunks must handle headers such as
+> `If-Modified-Since` internally and respond with appropriate status codes such as
+> `lws.status.NOT_MODIFIED`. For such responses, returning the HTTP status code may be appropriate.
 
 
 ## Processing Sequence
