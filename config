@@ -1,5 +1,7 @@
 lws_lua=lua5.3
 ngx_addon_name=lws
+
+if test -n "$ngx_module_link"; then
 ngx_module_type=HTTP
 ngx_module_name=lws_module
 ngx_module_srcs="$ngx_addon_dir/src/lws_module.c $ngx_addon_dir/src/lws_state.c $ngx_addon_dir/src/lws_lib.c $ngx_addon_dir/src/lws_profiler.c $ngx_addon_dir/src/lws_monitor.c $ngx_addon_dir/src/lws_http.c $ngx_addon_dir/src/lws_table.c"
@@ -7,3 +9,4 @@ ngx_module_deps="$ngx_addon_dir/src/lws_module.h $ngx_addon_dir/src/lws_state.h 
 ngx_module_incs="`pkg-config --cflags-only-I $lws_lua | sed 's/\-I//g'` $ngx_addon_dir/src"
 ngx_module_libs=`pkg-config --libs $lws_lua`
 . auto/module
+fi
