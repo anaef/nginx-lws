@@ -182,6 +182,8 @@ static lws_state_t *lws_create_state (lws_request_ctx_t *ctx) {
 		ngx_log_error(NGX_LOG_CRIT, log, 0, "[LWS] failed to allocate state");
 		return NULL;
 	}
+	lmcf = ngx_http_get_module_main_conf(ctx->r, lws_module);
+	state->lmcf = lmcf;
 	llcf = ngx_http_get_module_loc_conf(ctx->r, lws_module);
 	state->llcf = llcf;
 
@@ -198,7 +200,6 @@ static lws_state_t *lws_create_state (lws_request_ctx_t *ctx) {
 	}
 
 	/* initialize Lua state */
-	lmcf = ngx_http_get_module_main_conf(ctx->r, lws_module);
 	lua_pushcfunction(state->L, lws_init);
 	lua_pushlstring(state->L, (const char *)llcf->path.data, llcf->path.len);
 	lua_pushlstring(state->L, (const char *)llcf->cpath.data, llcf->cpath.len);
@@ -244,7 +245,7 @@ void lws_close_state (lws_state_t *state, ngx_log_t *log) {
 	state->timeout = NGX_TIMER_INFINITE;
 	lws_set_state_timer(state);
 	state->llcf->states_n--;
-	lmcf = ngx_http_cycle_get_module_main_conf(ngx_cycle, lws_module);
+	lmcf = state->lmcf;
 	if (lmcf->monitor) {
 		ngx_atomic_fetch_add(&lmcf->monitor->states_n, -1);
 		ngx_atomic_fetch_add(&lmcf->monitor->memory_used, 0 - state->memory_monitor);
@@ -274,7 +275,7 @@ int lws_acquire_state (lws_request_ctx_t *ctx) {
 			return -1;
 		}
 	}
-	lmcf = ngx_http_get_module_main_conf(ctx->r, lws_module);
+	lmcf = state->lmcf;
 	state->profiler = lmcf->monitor ? lmcf->monitor->profiler : 0;
 	state->in_use = 1;
 	ctx->state = state;
@@ -289,7 +290,7 @@ void lws_release_state (lws_request_ctx_t *ctx) {
 	/* count request */
 	state = ctx->state;
 	state->request_count++;
-	lmcf = ngx_http_get_module_main_conf(ctx->r, lws_module);
+	lmcf = state->lmcf;
 	if (lmcf->monitor) {
 		ngx_atomic_fetch_add(&lmcf->monitor->request_count, 1);
 	}

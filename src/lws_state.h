@@ -21,20 +21,21 @@ typedef struct lws_state_s lws_state_t;
 
 
 struct lws_state_s {
-	ngx_queue_t      queue;           /* location configuration queue */
-	lws_loc_conf_t  *llcf;            /* location configuration */
-	lua_State       *L;               /* Lua state */
-	size_t           memory_used;     /* used memory */
-	size_t           memory_max;      /* maximum memory */
-	size_t           memory_monitor;  /* memory accounted for in monitor */
-	ngx_int_t        request_count;   /* requests served */
-	ngx_msec_t       time_max;        /* maximum lifetime */
-	ngx_msec_t       timeout;         /* idle timeout */
-	ngx_event_t      tev;             /* time event */
-	unsigned         in_use:1;        /* state in use */
-	unsigned         init:1;          /* state initialized */
-	unsigned         close:1;         /* state is to be closed */
-	unsigned         profiler:2;      /* profiler state; 0 = disabled, 1 = CPU, 2 = wall */
+	ngx_queue_t       queue;           /* location configuration queue */
+	lws_main_conf_t  *lmcf;            /* main configuration */
+	lws_loc_conf_t   *llcf;            /* location configuration */
+	lua_State        *L;               /* Lua state */
+	size_t            memory_used;     /* used memory */
+	size_t            memory_max;      /* maximum memory */
+	size_t            memory_monitor;  /* memory accounted for in monitor */
+	ngx_int_t         request_count;   /* requests served */
+	ngx_msec_t        time_max;        /* maximum lifetime */
+	ngx_msec_t        timeout;         /* idle timeout */
+	ngx_event_t       tev;             /* time event */
+	unsigned          in_use:1;        /* state in use */
+	unsigned          init:1;          /* state initialized */
+	unsigned          close:1;         /* state is to be closed */
+	unsigned          profiler:2;      /* profiler state; 0 = disabled, 1 = CPU, 2 = wall */
 };
 
 
