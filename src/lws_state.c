@@ -223,6 +223,7 @@ static lws_state_t *lws_create_state (lws_request_ctx_t *ctx) {
 	state->timeout = NGX_TIMER_INFINITE;
 	state->tev.data = state;
 	state->tev.handler = lws_state_timer_handler;
+	state->tev.cancelable = 1;
 	state->tev.log = ngx_cycle->log;
 	lws_set_state_timer(state);
 
@@ -239,6 +240,9 @@ void lws_close_state (lws_state_t *state, ngx_log_t *log) {
 	lws_main_conf_t  *lmcf;
 
 	lua_close(state->L);
+	state->time_max = NGX_TIMER_INFINITE;
+	state->timeout = NGX_TIMER_INFINITE;
+	lws_set_state_timer(state);
 	state->llcf->states_n--;
 	lmcf = ngx_http_cycle_get_module_main_conf(ngx_cycle, lws_module);
 	if (lmcf->monitor) {
