@@ -1,7 +1,7 @@
 /*
  * LWS state
  *
- * Copyright (C) 2023 Andre Naef
+ * Copyright (C) 2023,2024 Andre Naef
  */
 
 
