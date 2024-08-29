@@ -5,6 +5,7 @@
 
 - Fix non-cancelable state timer by making it cancelable to support graceful shutdown.
 - Fix incorrect memory reference when resolving main configuration during shutdown.
+- Fix potential double-free of states with the lws_max_time directive.
 - The NGINX not-modified processing has been turned off.
 
 
