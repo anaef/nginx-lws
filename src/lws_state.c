@@ -78,6 +78,11 @@ static void *lws_alloc_checked (void *ud, void *ptr, size_t osize, size_t nsize)
 	lws_state_t  *state;
 
 	state = ud;
+#if LUA_VERSION_NUM >= 502
+	if (!ptr) {
+		osize = 0;
+	}
+#endif
 	if (nsize == 0) {
 		free(ptr);
 		state->memory_used -= osize;

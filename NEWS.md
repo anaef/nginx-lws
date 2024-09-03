@@ -1,6 +1,11 @@
 # LWS Release Notes
 
 
+## Release 0.9.5
+
+- Fix memory accounting error with the lws_max_memory directive.
+
+
 ## Release 0.9.4 (2024-08-28)
 
 - Fix non-cancelable state timer by making it cancelable to support graceful shutdown.
