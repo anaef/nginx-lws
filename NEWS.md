@@ -1,7 +1,7 @@
 # LWS Release Notes
 
 
-## Release 0.9.5
+## Release 0.9.5 (2024-09-10)
 
 - Fix memory accounting error with the lws_max_memory directive.
 
