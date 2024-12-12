@@ -162,7 +162,7 @@ the specified number of requests, it is closed. A value of `0`, the default, tur
 Context: server, location
 
 Sets the maximum lifecycle time of a Lua state. If a Lua state has been alive for a duration of
-`max_time` milliseconds, it is closed. A value of `0`, the default, turns off this logic. You can
+`max_time` seconds, it is closed. A value of `0`, the default, turns off this logic. You can
 use the `ms`, `s`, `m`, `h`, `d`, `w`, and `M` suffixes with *max_time* to set milliseconds,
 seconds, minutes, hours, days, weeks, or months, respectively.
 
@@ -172,7 +172,7 @@ seconds, minutes, hours, days, weeks, or months, respectively.
 Context: server, location
 
 Sets the maximum idle time of a Lua state. If a Lua state has been inactive for a duration of
-`timeout` milliseconds, it is closed. A value of `0`, the default, turns off this logic. You can
+`timeout` seconds, it is closed. A value of `0`, the default, turns off this logic. You can
 use the `ms`, `s`, `m`, `h`, `d`, `w`, and `M` suffixes with *timeout* to set milliseconds,
 seconds, minutes, hours, days, weeks, or months, respectively.
 
