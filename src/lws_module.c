@@ -1,7 +1,7 @@
 /*
  * LWS module
  *
- * Copyright (C) 2023,2024 Andre Naef
+ * Copyright (C) 2023-2025 Andre Naef
  */
 
 
@@ -23,14 +23,16 @@ static char *lws_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 static char *lws_error_response(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 
 static lws_file_status_e lws_get_file_status(ngx_http_request_t *t, ngx_str_t *filename);
-static int lws_set_header(lws_table_t *t, ngx_http_request_t *r, ngx_table_elt_t *header);
+static int lws_set_request_header(lws_table_t *t, ngx_http_request_t *r, ngx_table_elt_t *header);
 static ngx_int_t lws_handler(ngx_http_request_t *r);
 static void lws_body_handler(ngx_http_request_t *r);
 static void lws_queue_handler(ngx_event_t *ev);
 static void lws_state_handler(lws_request_ctx_t *ctx);
 static void lws_thread_handler(void *data, ngx_log_t *log);
 static ssize_t lws_read_handler(void *cookie, char *buf, size_t size);
+static void lws_stream_handler(ngx_event_t *ev);
 static void lws_finalization_handler(ngx_event_t *ev);
+static ngx_int_t lws_set_response_header(lws_request_ctx_t *ctx);
 static void lws_send_error_response(lws_request_ctx_t *ctx, ngx_int_t rc);
 static void lws_send_json_error_response(lws_request_ctx_t *ctx, ngx_int_t rc);
 static void lws_send_html_error_response(lws_request_ctx_t *ctx, ngx_int_t rc);
@@ -180,6 +182,14 @@ static ngx_command_t lws_commands[] = {
 		lws_error_responses
 	},
 	{
+		ngx_string("lws_streaming"),
+		NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_FLAG,
+		ngx_conf_set_flag_slot,
+		NGX_HTTP_LOC_CONF_OFFSET,
+		offsetof(lws_loc_conf_t, streaming),
+		NULL
+	},
+	{
 		ngx_string("lws_monitor"),
 		NGX_HTTP_LOC_CONF | NGX_CONF_NOARGS,
 		lws_monitor,
@@ -320,6 +330,7 @@ static void *lws_create_loc_conf (ngx_conf_t *cf) {
 	llcf->state_timeout = NGX_CONF_UNSET_MSEC;
 	llcf->error_response = NGX_CONF_UNSET_UINT;
 	llcf->diagnostic = NGX_CONF_UNSET;
+	llcf->streaming = NGX_CONF_UNSET;
 	if (ngx_array_init(&llcf->variables, cf->pool, 4, sizeof(lws_variable_t)) != NGX_OK) {
 		return NULL;
 	}
@@ -362,6 +373,9 @@ static char *lws_merge_loc_conf (ngx_conf_t *cf, void *parent, void *child) {
 	ngx_conf_merge_value(conf->state_requests_max, prev->state_requests_max, 0);
 	ngx_conf_merge_msec_value(conf->state_time_max, prev->state_time_max, 0);
 	ngx_conf_merge_msec_value(conf->state_timeout, prev->state_timeout, 0);
+	ngx_conf_merge_uint_value(conf->error_response, prev->error_response, 0);
+	ngx_conf_merge_value(conf->diagnostic, prev->diagnostic, 0);
+	ngx_conf_merge_value(conf->streaming, prev->streaming, 0);
 	if (!ngx_array_push_n(&conf->variables, prev->variables.nelts)) {
 		return NGX_CONF_ERROR;
 	}
@@ -370,8 +384,6 @@ static char *lws_merge_loc_conf (ngx_conf_t *cf, void *parent, void *child) {
 			* conf->variables.size);
 	ngx_memcpy(conf->variables.elts, prev->variables.elts, prev->variables.nelts
 			* conf->variables.size);
-	ngx_conf_merge_uint_value(conf->error_response, prev->error_response, 0);
-	ngx_conf_merge_value(conf->diagnostic, prev->diagnostic, 0);
 	return NGX_CONF_OK;
 }
 
@@ -535,7 +547,7 @@ static lws_file_status_e lws_get_file_status (ngx_http_request_t *r, ngx_str_t *
 	return fs;
 }
 
-static int lws_set_header (lws_table_t *t, ngx_http_request_t *r, ngx_table_elt_t *header) {
+static int lws_set_request_header (lws_table_t *t, ngx_http_request_t *r, ngx_table_elt_t *header) {
 	size_t      len;
 	u_char     *p;
 	ngx_log_t  *log;
@@ -602,6 +614,7 @@ static ngx_int_t lws_handler (ngx_http_request_t *r) {
 		ngx_log_error(NGX_LOG_CRIT, log, 0, "[LWS] failed to allocate request context");
 		return NGX_HTTP_INTERNAL_SERVER_ERROR;
 	}
+	ctx->streaming_pipe[0] = ctx->streaming_pipe[1] = -1;
 	ngx_http_set_ctx(r, ctx, lws_module);
 	cln = ngx_pool_cleanup_add(r->pool, 0);
 	if (!cln) {
@@ -654,7 +667,7 @@ static ngx_int_t lws_handler (ngx_http_request_t *r) {
 	while (part) {
 		headers = part->elts;
 		for (i = 0; i < part->nelts; i++) {
-			if (lws_set_header(ctx->request_headers, r, &headers[i]) != 0) {
+			if (lws_set_request_header(ctx->request_headers, r, &headers[i]) != 0) {
 				return NGX_HTTP_INTERNAL_SERVER_ERROR;
 			}
 		}
@@ -678,6 +691,24 @@ static ngx_int_t lws_handler (ngx_http_request_t *r) {
 	if (!ctx->response_body) {
 		ngx_log_error(NGX_LOG_CRIT, log, 0, "[LWS] failed to open response body stream");
 		return NGX_HTTP_INTERNAL_SERVER_ERROR;
+	}
+	if (llcf->streaming) {
+		if (pipe(ctx->streaming_pipe) != 0) {
+			ngx_log_error(NGX_LOG_CRIT, log, errno, "[LWS] failed to create response streaming pipe");
+			return NGX_HTTP_INTERNAL_SERVER_ERROR;
+		}
+		ctx->streaming_conn = ngx_get_connection(ctx->streaming_pipe[0], log);
+		if (!ctx->streaming_conn) {
+			ngx_log_error(NGX_LOG_CRIT, log, 0, "[LWS] failed to get response streaming connection");
+			return NGX_HTTP_INTERNAL_SERVER_ERROR;
+		}
+		ctx->streaming_conn->data = ctx;
+		ctx->streaming_conn->read->log = log;
+		ctx->streaming_conn->read->handler = lws_stream_handler;
+		if (ngx_add_event(ctx->streaming_conn->read, NGX_READ_EVENT, 0) != NGX_OK) {
+			ngx_log_error(NGX_LOG_CRIT, log, 0, "[LWS] failed to add response streaming event");
+			return NGX_HTTP_INTERNAL_SERVER_ERROR;
+		}
 	}
 
 	/* read request body */
@@ -825,17 +856,83 @@ static ssize_t lws_read_handler (void *cookie, char *buf, size_t size) {
 	return count;
 }
 
+static void lws_stream_handler (ngx_event_t *ev) {
+	size_t              size;
+	ngx_buf_t           *b;
+	ngx_int_t            rc;
+	ngx_chain_t          out;
+	ngx_connection_t    *conn;
+	lws_request_ctx_t   *ctx;
+	ngx_http_request_t  *r;
+
+	/* send header as needed */
+	conn = ev->data;
+	ctx = conn->data;
+	r = ctx->r;
+	if (!r->header_sent) {
+		if (r == r->main && (r->method == NGX_HTTP_HEAD
+				|| r->headers_out.status == NGX_HTTP_NO_CONTENT
+				|| r->headers_out.status == NGX_HTTP_NOT_MODIFIED)) {
+			/* intent to stream response, but filter modules would flag as header-only */
+			ngx_log_error(NGX_LOG_WARN, ev->log, 0, "[LWS] unable to stream response");
+			r->header_only = 1;
+		}
+		if (lws_set_response_header(ctx) != NGX_OK) {
+			ctx->streaming_rc = NGX_HTTP_INTERNAL_SERVER_ERROR;
+			goto error;
+		}
+		r->headers_out.status = ctx->status;
+		r->disable_not_modified = 1;
+		rc = ngx_http_send_header(r);
+		if (rc == NGX_ERROR || rc > NGX_OK || r->header_only) {
+			ctx->streaming_rc = rc;
+			goto error;
+		}
+	}
+
+	/* read from pipe */
+	if (read(conn->fd, &size, sizeof(size_t)) != sizeof(size_t)) {
+		ngx_log_error(NGX_LOG_CRIT, ev->log, errno, "[LWS] failed to read size from response streaming pipe");
+		ctx->streaming_rc = NGX_ERROR;
+		goto error;
+	}
+	b = ngx_create_temp_buf(r->pool, size);
+	if (!b) {
+		ngx_log_error(NGX_LOG_CRIT, ev->log, 0, "[LWS] failed to allocate response streaming pipe buffer");
+		ctx->streaming_rc = NGX_ERROR;
+		goto error;
+	}
+	if (read(conn->fd, b->pos, size) != (ssize_t)size) {
+		ngx_log_error(NGX_LOG_CRIT, ev->log, errno, "[LWS] failed to read content from response streaming pipe");
+		ctx->streaming_rc = NGX_ERROR;
+		goto error;
+	}
+	b->last = b->pos + size;
+	b->last_in_chain = 1;
+	b->flush = 1;
+
+	/* send */
+	out.buf = b;
+	out.next = NULL;
+	if ((ctx->streaming_rc = ngx_http_output_filter(r, &out)) == NGX_ERROR) {
+		goto error;
+	}
+	return;
+
+	error:
+	ngx_close_connection(ctx->streaming_conn);
+	ctx->streaming_conn = NULL;
+	close(ctx->streaming_pipe[1]);
+	ctx->streaming_pipe[1] = -1;
+}
+
 static void lws_finalization_handler (ngx_event_t *ev) {
-	int                  unfold;
-	u_char              *vstart, *vend, *vpos;
 	ngx_buf_t           *b;
 	ngx_int_t            rc;
 	ngx_log_t           *log;
-	ngx_str_t           *key, *value;
 	ngx_str_t            name;
-	ngx_chain_t         *out;
+	ngx_chain_t          out;
 	lws_loc_conf_t      *llcf;
-	ngx_table_elt_t     *h;
 	lws_request_ctx_t   *ctx;
 	ngx_http_request_t  *r;
 
@@ -850,6 +947,21 @@ static void lws_finalization_handler (ngx_event_t *ev) {
 	llcf = ngx_http_get_module_loc_conf(r, lws_module);
 	if (!ngx_queue_empty(&llcf->requests) && !llcf->qev.timer_set) {
 		ngx_add_timer(&llcf->qev, 0);
+	}
+
+	/* finalize streaming response */
+	log = r->connection->log;
+	if (r->header_sent || ctx->streaming_rc != NGX_OK) {
+		if (ctx->rc < 0) {
+			ngx_log_error(NGX_LOG_WARN, log, 0, "[LWS] ignoring Lua error in response streaming mode");
+		}
+		if (!(ctx->streaming_rc == NGX_ERROR || ctx->streaming_rc > NGX_OK || r->header_only) && r == r->main) {
+			rc = ngx_http_send_special(r, NGX_HTTP_LAST | NGX_HTTP_FLUSH);
+		} else {
+			rc = ctx->streaming_rc;
+		}
+		ngx_http_finalize_request(r, rc);
+		return;
 	}
 
 	/* Lua error generated? */
@@ -871,7 +983,81 @@ static void lws_finalization_handler (ngx_event_t *ev) {
 		return;
 	}
 
+	/* set header */
+	if (lws_set_response_header(ctx) != NGX_OK) {
+		ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+		return;
+	}
+
+	/* error response requested? */
+	if (ctx->rc > 0) {
+		rc = ctx->rc >= 100 && ctx->rc < 600 ? ctx->rc : NGX_HTTP_INTERNAL_SERVER_ERROR;
+		lws_send_error_response(ctx, rc);
+		return;
+	}
+
+	/* send header */
+	r->headers_out.status = ctx->status;
+	r->disable_not_modified = 1;
+	if (fflush(ctx->response_body) != 0) {
+		ngx_log_error(NGX_LOG_CRIT, log, errno, "[LWS] failed to flush response body");
+		return ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+	}
+	if (ctx->response_body_str.len > 0) {
+		if (r == r->main && (r->method == NGX_HTTP_HEAD
+				|| r->headers_out.status == NGX_HTTP_NO_CONTENT
+				|| r->headers_out.status == NGX_HTTP_NOT_MODIFIED)) {
+			/* body found, but filter modules would flag as header-only */
+			ngx_log_error(NGX_LOG_WARN, log, 0, "[LWS] ignoring response body");
+			r->header_only = 1;
+		} else {
+			r->headers_out.content_length_n = ctx->response_body_str.len;
+		}
+	} else {
+		if (r == r->main && (r->method != NGX_HTTP_HEAD
+				&& r->headers_out.status != NGX_HTTP_NO_CONTENT
+				&& r->headers_out.status != NGX_HTTP_NOT_MODIFIED
+				&& r->headers_out.status >= NGX_HTTP_OK)) {
+			/* no body, but filter modules would trigger chunked transfer */
+			ngx_log_error(NGX_LOG_WARN, log, 0, "[LWS] response body expected");
+			r->headers_out.content_length_n = 0;
+			r->header_only = 1;
+		}
+	}
+	rc = ngx_http_send_header(r);
+	if (rc == NGX_ERROR || rc > NGX_OK || r->header_only) {
+		ngx_http_finalize_request(r, rc);
+		return;
+	}
+
+	/* send body */
+	b = ngx_calloc_buf(r->pool);
+	if (!b) {
+		ngx_http_finalize_request(r, rc);
+		return;
+	}
+	b->start = ctx->response_body_str.data;
+	b->pos = b->start;
+	b->end = ctx->response_body_str.data + ctx->response_body_str.len;
+	b->last = b->end;
+	b->temporary = 1;
+	b->last_buf = (r == r->main) ? 1 : 0;
+	b->last_in_chain = 1;
+	out.buf = b;
+	out.next = NULL;
+	rc = ngx_http_output_filter(r, &out);
+	ngx_http_finalize_request(r, rc);
+}
+
+static ngx_int_t lws_set_response_header (lws_request_ctx_t *ctx) {
+	int                  unfold;
+	u_char              *vstart, *vend, *vpos;
+	ngx_str_t           *key, *value;
+	ngx_table_elt_t     *h;
+	ngx_http_request_t  *r;
+
 	/* set headers */
+	r = ctx->r;
 	key = NULL;
 	while (lws_table_next(ctx->response_headers, key, &key, (void**)&value) == 0) {
 		#define lws_is_header(literal)  ngx_strncasecmp(key->data, (u_char *)literal,  \
@@ -881,12 +1067,11 @@ static void lws_finalization_handler (ngx_event_t *ev) {
 			r->headers_out.content_type_len = value->len;
 			continue;
 		} else if (key->len == 14 && lws_is_header("Content-Length")) {
-			continue;  /* content length is handled separately below */
+			continue;  /* content length is handled separately before */
 		}
 		h = ngx_list_push(&r->headers_out.headers);
 		if (!h) {
-			ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
-			return;
+			return NGX_ERROR;
 		}
 		unfold = 0;
 		switch (key->len) {
@@ -927,8 +1112,7 @@ static void lws_finalization_handler (ngx_event_t *ev) {
 		case 13:
 			if (lws_is_header("Last-Modified")) {
 				r->headers_out.last_modified = h;
-				r->headers_out.last_modified_time = ngx_parse_http_time(value->data,
-						value->len);
+				r->headers_out.last_modified_time = ngx_parse_http_time(value->data, value->len);
 			} else if (lws_is_header("Content-Range")) {
 				r->headers_out.content_range = h;
 			} else if (lws_is_header("Accept-Ranges")) {
@@ -973,75 +1157,12 @@ static void lws_finalization_handler (ngx_event_t *ev) {
 				}
 				h = ngx_list_push(&r->headers_out.headers);
 				if (!h) {
-					ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
-					return;
+					return NGX_ERROR;
 				}
 			}
 		}
 	}
-
-	/* error response requested? */
-	if (ctx->rc > 0) {
-		rc = ctx->rc >= 100 && ctx->rc < 600 ? ctx->rc : NGX_HTTP_INTERNAL_SERVER_ERROR;
-		lws_send_error_response(ctx, rc);
-		return;
-	}
-
-	/* send headers */
-	log = r->connection->log;
-	r->headers_out.status = ctx->status;
-	r->disable_not_modified = 1;
-	if (fflush(ctx->response_body) != 0) {
-		ngx_log_error(NGX_LOG_CRIT, log, errno, "[LWS] failed to flush response body");;
-		ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
-		return;
-	}
-	if (ctx->response_body_str.len > 0) {
-		if (r == r->main && (r->method == NGX_HTTP_HEAD
-				|| r->headers_out.status == NGX_HTTP_NO_CONTENT
-				|| r->headers_out.status == NGX_HTTP_NOT_MODIFIED)) {
-			/* body found, but filter modules would flag as header-only */
-			ngx_log_error(NGX_LOG_WARN, log, 0, "[LWS] ignoring response body");
-			r->header_only = 1;
-		} else {
-			r->headers_out.content_length_n = ctx->response_body_str.len;
-		}
-	} else {
-		if (r == r->main && (r->method != NGX_HTTP_HEAD
-				&& r->headers_out.status != NGX_HTTP_NO_CONTENT
-				&& r->headers_out.status != NGX_HTTP_NOT_MODIFIED
-				&& r->headers_out.status >= NGX_HTTP_OK)) {
-			/* no body, but filter modules would trigger chunked transfer */
-			ngx_log_error(NGX_LOG_WARN, log, 0, "[LWS] response body expected");
-			r->headers_out.content_length_n = 0;
-			r->header_only = 1;
-		}
-	}
-	rc = ngx_http_send_header(r);
-	if (rc == NGX_ERROR || rc > NGX_OK || r->header_only) {
-		ngx_http_finalize_request(r, rc);
-		return;
-	}
-
-	/* send body */
-	out = ngx_alloc_chain_link(r->pool);
-	b = ngx_calloc_buf(r->pool);
-	if (!out || !b) {
-		ngx_http_finalize_request(r, rc);
-		return;
-	}
-	b->start = ctx->response_body_str.data;
-	b->pos = b->start;
-	b->end = ctx->response_body_str.data + ctx->response_body_str.len;
-	b->last = b->end;
-	b->temporary = 1;
-	b->last_buf = (r == r->main) ? 1 : 0;
-	b->last_in_chain = 1;
-	out->buf = b;
-	out->next = NULL;
-	rc = ngx_http_output_filter(r, out);
-	ngx_free_chain(r->pool, out);
-	ngx_http_finalize_request(r, rc);
+	return NGX_OK;
 }
 
 static void lws_send_error_response (lws_request_ctx_t *ctx, ngx_int_t rc) {
@@ -1287,6 +1408,14 @@ static void lws_cleanup_request_ctx (void *data) {
 	if (ctx->response_body) {
 		fclose(ctx->response_body);
 		free(ctx->response_body_str.data);
+	}
+	if (ctx->streaming_conn) {
+		ngx_close_connection(ctx->streaming_conn);
+	} else if (ctx->streaming_pipe[0] != -1) {
+		close(ctx->streaming_pipe[0]);
+	}
+	if (ctx->streaming_pipe[1] != -1) {
+		close(ctx->streaming_pipe[1]);
 	}
 	ngx_free(ctx->redirect.data);
 	ngx_free(ctx->redirect_args.data);

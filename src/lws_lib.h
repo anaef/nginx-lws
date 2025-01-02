@@ -1,7 +1,7 @@
 /*
  * LWS library
  *
- * Copyright (C) 2023 Andre Naef
+ * Copyright (C) 2023,2025 Andre Naef
  */
 
 
@@ -34,9 +34,11 @@ typedef enum {
 } lws_lua_chunk_e;
 
 struct lws_lua_request_ctx_s {
-	lws_request_ctx_t  *ctx;         /* request context */
-	lws_lua_chunk_e     chunk;       /* current chunk */
-	unsigned            complete:1;  /* request is complete */
+	lws_request_ctx_t  *ctx;               /* request context */
+	lws_lua_chunk_e     chunk;             /* current chunk */
+	lws_lua_table_t    *response_headers;  /* response headers */
+	unsigned            complete:1;        /* request is complete */
+	unsigned			sealed:1;          /* response header is sealed */
 };
 
 struct lws_lua_table_s {

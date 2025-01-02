@@ -1,7 +1,7 @@
 /*
  * LWS module
  *
- * Copyright (C) 2023,2024 Andre Naef
+ * Copyright (C) 2023-2025 Andre Naef
  */
 
 
@@ -70,6 +70,7 @@ struct lws_loc_conf_s {
 	ngx_msec_t   state_timeout;            /* Lua state idle timeout; 0 = unlimited */
 	ngx_uint_t   error_response;           /* error response [json, html] */
 	ngx_flag_t   diagnostic;               /* include diagnostic w/ error response */
+	ngx_flag_t   streaming;                /* streaming enabled */
 	ngx_flag_t   monitor;                  /* monitor enabled */
 	ngx_array_t  variables;                /* variables */
 	ngx_uint_t   states_n;                 /* number of Lua states (active + inactive) */
@@ -94,6 +95,9 @@ struct lws_request_ctx_s {
 	lws_table_t         *response_headers;   /* HTTP response headers */
 	FILE                *response_body;      /* HTTP response body stream */
 	ngx_str_t            response_body_str;  /* HTTP response body string */
+	ngx_fd_t             streaming_pipe[2];  /* HTTP response streaming pipe */
+	ngx_connection_t    *streaming_conn;     /* HTTP response streaming connection */
+	ngx_int_t            streaming_rc;       /* HTTP response streaming code */
 	ngx_str_t            redirect;           /* NGINX internal redirect; @ prefix for name */
 	ngx_str_t            redirect_args;      /* NGINX internal redirect args */
 	ngx_str_t            diagnostic;         /* diagnostic response */

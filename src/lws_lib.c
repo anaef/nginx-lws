@@ -57,6 +57,7 @@ static int lws_lua_table_gc(lua_State *L);
 /* response */
 static int lws_lua_response_index(lua_State *L);
 static int lws_lua_response_newindex(lua_State *L);
+static int lws_lua_response_flush(lua_State *L);
 
 /* strict */
 static int lws_lua_strict_index(lua_State *L);
@@ -363,6 +364,13 @@ static int lws_lua_response_index (lua_State *L) {
 	luaL_checktype(L, 1, LUA_TTABLE);
 	key.data = (u_char *)luaL_checklstring(L, 2, &key.len);
 	switch (key.len) {
+	case 5:
+		if (ngx_strncmp(key.data, "flush", 5) == 0) {
+			lua_pushcfunction(L, lws_lua_response_flush);
+			return 1;
+		}
+		break;
+
 	case 6:
 		if (ngx_strncmp(key.data, "status", 6) == 0) {
 			lctx = lws_get_lua_request_ctx(L);
@@ -387,12 +395,55 @@ static int lws_lua_response_newindex (lua_State *L) {
 		if (ngx_strncmp(key.data, "status", 6) == 0) {
 			status = luaL_checkinteger(L, 3);
 			lctx = lws_get_lua_request_ctx(L);
+			if (lctx->sealed) {
+				return luaL_error(L, "response header sealed");
+			}
 			lctx->ctx->status = status;
 			return 0;
 		}
 		break;
 	}
 	lua_rawset(L, 1);
+	return 0;
+}
+
+static int lws_lua_response_flush (lua_State *L) {
+	long                   len;
+	ssize_t 	           size;
+	struct iovec           iov[2];
+	lws_request_ctx_t      *ctx;
+	lws_lua_request_ctx_t  *lctx;
+
+	lctx = lws_get_lua_request_ctx(L);
+	ctx = lctx->ctx;
+	if (ctx->redirect.len) {
+		return luaL_error(L, "response redirected");
+	}
+	if (ctx->streaming_pipe[1] == -1) {
+		return luaL_error(L, "response streaming unavailable");
+	}
+	if ((len = ftell(ctx->response_body)) == -1) {
+		return luaL_error(L, "failed to get response body size");
+	}
+	if (len > SSIZE_MAX - (ssize_t)sizeof(size_t)) {
+		return luaL_error(L, "response body too large");
+	}
+	lctx->sealed = 1;
+	lctx->response_headers->readonly = 1;
+	if (len > 0) {
+		size = len;
+		iov[0].iov_base = &size;
+		iov[0].iov_len = sizeof(size_t);
+		if (fflush(ctx->response_body) != 0) {
+			return luaL_error(L, "failed to flush response body");
+		}
+		iov[1].iov_base = ctx->response_body_str.data;
+		iov[1].iov_len = size;
+		if (writev(ctx->streaming_pipe[1], iov, 2) != (ssize_t)sizeof(size_t) + size) {
+			return luaL_error(L, "failed to write response");
+		}
+		rewind(ctx->response_body);
+	}
 	return 0;
 }
 
@@ -482,6 +533,9 @@ static int lws_redirect (lua_State *L) {
 	lctx = lws_get_lua_request_ctx(L);
 	if (lctx->chunk != LWS_LC_PRE && lctx->chunk != LWS_LC_MAIN) {
 		return luaL_error(L, "not allowed in %s chunk", lws_chunk_names[lctx->chunk]);
+	}
+	if (lctx->sealed) {
+		return luaL_error(L, "response header sealed");
 	}
 	redirect.data = (u_char *)luaL_checklstring(L, 1, &redirect.len);
 	luaL_argcheck(L, redirect.len > (redirect.data[0] != '@' ? 0 : 1), 1, "empty path or name");
@@ -774,9 +828,9 @@ static void lws_push_env (lws_lua_request_ctx_t *lctx) {
 	lua_createtable(L, 0, 2);
 	luaL_getmetatable(L, LWS_RESPONSE);
 	lua_setmetatable(L, -2);
-	lt = lws_create_lua_table(L);
-	lt->t = ctx->response_headers;
-	lt->external = 1;  /* see request above */
+	lctx->response_headers = lws_create_lua_table(L);
+	lctx->response_headers->t = ctx->response_headers;
+	lctx->response_headers->external = 1;  /* see request above */
 	lua_setfield(L, -2, "headers");
 	response_body = lws_create_file(L);
 	response_body->f = ctx->response_body;
