@@ -1,4 +1,4 @@
-lws_lua=lua5.3
+lws_lua=lua5.4
 ngx_addon_name=lws
 
 if test -n "$ngx_module_link"; then

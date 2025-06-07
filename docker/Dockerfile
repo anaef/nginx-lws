@@ -1,6 +1,6 @@
 from ubuntu:focal as base
 
-ENV LUA_VERSION=5.3
+ENV LUA_VERSION=5.4
 ENV NGINX_VERSION=1.18.0
 
 RUN apt-get update && \
