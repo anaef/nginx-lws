@@ -17,6 +17,7 @@ static lws_table_entry_t *lws_table_insert(lws_table_t *t, ngx_str_t *key, ngx_u
 static void lws_table_remove(lws_table_t *t, lws_table_entry_t *entry);
 
 
+#if SIZE_MAX > UINT32_MAX
 static size_t lws_table_sizes[] = {
 	3, 5, 7, 11, 13, 17, 23, 29, 41, 53, 67, 89, 127, 157, 211, 277, 373, 499, 659, 877, 1171,
 	1553, 2081, 2767, 3691, 4909, 6547, 8731, 11633, 15511, 20681, 27581, 36749, 49003, 65353,
@@ -34,7 +35,18 @@ static size_t lws_table_sizes[] = {
 	272513087380099
 };
 static int lws_table_sizes_n = 112;
-
+#else
+static size_t lws_table_sizes[] = {
+	3, 5, 7, 11, 13, 17, 23, 29, 41, 53, 67, 89, 127, 157, 211, 277, 373, 499, 659, 877, 1171,
+	1553, 2081, 2767, 3691, 4909, 6547, 8731, 11633, 15511, 20681, 27581, 36749, 49003, 65353,
+	87107, 116141, 154871, 206477, 275299, 367069, 489427, 652559, 870083, 1160111, 1546799,
+	2062391, 2749847, 3666461, 4888619, 6518173, 8690917, 11587841, 15450437, 20600597,
+	27467443, 36623261, 48831017, 65107997, 86810681, 115747549, 154330079, 205773427,
+	274364561, 365819417, 487759219, 650345651, 867127501, 1156170011, 1541560037, 2055413317,
+	2740551103, 3654068141
+};
+static int lws_table_sizes_n = 73;
+#endif
 
 lws_table_t *lws_table_create (size_t load, ngx_log_t *log) {
 	size_t        alloc;
@@ -249,20 +261,29 @@ static ngx_uint_t lws_table_hash (lws_table_t *t, ngx_str_t *key) {
 	ngx_uint_t  hash;
 
 	/* FNV-1a; source: http://www.isthe.com/chongo/tech/comp/fnv/index.html#FNV-1a */
-	hash = 14695981039346656037U;
+	#if SIZE_MAX > UINT32_MAX
+	#define _LWS_TABLE_HASH_OFFSET_BASIS 14695981039346656037U
+	#define _LWS_TABLE_HASH_PRIME 1099511628211
+	#else
+	#define _LWS_TABLE_HASH_OFFSET_BASIS 2166136261U
+	#define _LWS_TABLE_HASH_PRIME 16777619
+	#endif
+	hash = _LWS_TABLE_HASH_OFFSET_BASIS;
 	p = key->data + key->len;
 	if (t->ci) {
 		while (p > key->data) {
 			p--;
 			hash ^= ngx_tolower(*p);  /* no '--' due to macro multiple evaluation */
-			hash *= 1099511628211;
+			hash *= _LWS_TABLE_HASH_PRIME;
 		}
 	} else {
 		while (p > key->data) {
 			hash ^= *--p;
-			hash *= 1099511628211;
+			hash *= _LWS_TABLE_HASH_PRIME;
 		}
 	}
+	#undef _LWS_TABLE_HASH_OFFSET_BASIS
+	#undef _LWS_TABLE_HASH_PRIME
 	return hash;
 }
 

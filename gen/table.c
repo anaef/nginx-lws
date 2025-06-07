@@ -47,7 +47,7 @@ static size_t next_prime (size_t n) {
 	return p;
 }
 
-int main () {
+static void primes (size_t limit) {
 	int     n, line_len, prime_len;
 	char    buf[128];
 	size_t  size, prime, prime_prev;
@@ -56,7 +56,7 @@ int main () {
 	printf("static size_t lws_table_sizes[] = {\n");
 	line_len = 0;
 	prime_prev = 0;
-	for (size = 3; size < ((size_t)1 << 48); size += size / 3) {
+	for (size = 3; size < limit; size += size / 3) {
 		prime = next_prime(size);
 		if (prime == prime_prev) {
 			continue;
@@ -78,5 +78,13 @@ int main () {
 	}
 	printf("\n};\n");
 	printf("static int lws_table_sizes_n = %d;\n", n);
+}
+
+int main () {
+	printf("#if SIZE_MAX > UINT32_MAX\n");
+	primes((size_t)1 << 48);
+	printf("#else\n");
+	primes((size_t)1 << 32);
+	printf("#endif\n");
 	return EXIT_SUCCESS;
 }
