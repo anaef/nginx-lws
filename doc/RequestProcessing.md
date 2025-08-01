@@ -58,6 +58,7 @@ IP addresses are provided for IPv4 and IPv6 connections.
 | `status` | `integer` | HTTP response status (defaults to 200) |
 | `headers` | `table`-like | HTTP response headers (case-insensitive keys) |
 | `body` | `file` | HTTP response body (Lua file handle interface, write-only) |
+| `flush`| `function` | Flushes the current response body in HTTP streaming mode |
 
 
 ## Chunk Result
@@ -107,6 +108,14 @@ effect, such as `redirect`.
 The following figure illustrates the request processing sequence.
 
 ![Request processing sequence](images/RequestProcessingSequence.svg)
+
+
+## Response Streaming
+
+HTTP response streaming can be enabled with the `lws_streaming` [directive](Directives.md). If
+enabled, a (partial) response body written to `response.body` is streamed by calling the
+`response.flush` function. The function can be called repeatedly as new body content is written.
+Calling the function also *seals* the response, making its status and headers read-only.
 
 
 ## Lifecycle of Lua States

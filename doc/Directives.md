@@ -206,6 +206,14 @@ diagnostic information is not included.
 > attackers.
 
 
+### lws_streaming *streaming*
+
+Context: server, location
+
+Controls the availability of HTTP response streaming. The *streaming* value can take the values
+`on` or `off`. The default value for *streaming* is `off`.
+
+
 ### lws_monitor
 
 Context: location
