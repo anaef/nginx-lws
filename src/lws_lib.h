@@ -38,7 +38,7 @@ struct lws_lua_request_ctx_s {
 	lws_lua_chunk_e     chunk;             /* current chunk */
 	lws_lua_table_t    *response_headers;  /* response headers */
 	unsigned            complete:1;        /* request is complete */
-	unsigned			sealed:1;          /* response header is sealed */
+	unsigned            sealed:1;          /* response header is sealed */
 };
 
 struct lws_lua_table_s {
