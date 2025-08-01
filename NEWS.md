@@ -1,6 +1,12 @@
 # LWS Release Notes
 
 
+## Release 1.1.0
+
+- Add HTTP response streaming.
+- Add experimental 32-bit support.
+
+
 ## Release 1.0.0 (2024-12-30)
 
 - Documentation update.
