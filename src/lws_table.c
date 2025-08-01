@@ -138,7 +138,7 @@ int lws_table_set_timeout (lws_table_t *t, time_t timeout) {
 }
 
 int lws_table_set_cap (lws_table_t *t, size_t cap) {
-	if (t->count || t->cap < 1) {
+	if (t->count || cap < 1) {
 		return -1;
 	}
 	t->cap = cap;
