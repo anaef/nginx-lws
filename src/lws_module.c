@@ -30,6 +30,7 @@ static void lws_queue_handler(ngx_event_t *ev);
 static void lws_state_handler(lws_request_ctx_t *ctx);
 static void lws_thread_handler(void *data, ngx_log_t *log);
 static ssize_t lws_read_handler(void *cookie, char *buf, size_t size);
+static ngx_int_t lws_read_exact(int fd, void *buf, size_t size, ngx_log_t *log);
 static void lws_stream_handler(ngx_event_t *ev);
 static void lws_finalization_handler(ngx_event_t *ev);
 static ngx_int_t lws_set_response_header(lws_request_ctx_t *ctx);
@@ -856,6 +857,28 @@ static ssize_t lws_read_handler (void *cookie, char *buf, size_t size) {
 	return count;
 }
 
+static ngx_int_t lws_read_exact (int fd, void *buf, size_t size, ngx_log_t *log) {
+	size_t  bytes_read;
+	
+	bytes_read = 0;
+	while (bytes_read < size) {
+		ssize_t n = read(fd, (char*)buf + bytes_read, size - bytes_read);
+		if (n <= 0) {
+			if (n == 0) {
+				ngx_log_error(NGX_LOG_CRIT, log, 0, "[LWS] unexpected EOF reading from response streaming pipe");
+				return NGX_ERROR;
+			}
+			if (errno != EINTR) {
+				ngx_log_error(NGX_LOG_CRIT, log, errno, "[LWS] failed to read from response streaming pipe");
+				return NGX_ERROR;
+			}
+			continue;
+		}
+		bytes_read += n;
+	}
+	return NGX_OK;
+}
+
 static void lws_stream_handler (ngx_event_t *ev) {
 	size_t              size;
 	ngx_buf_t           *b;
@@ -891,19 +914,19 @@ static void lws_stream_handler (ngx_event_t *ev) {
 	}
 
 	/* read from pipe */
-	if (read(conn->fd, &size, sizeof(size_t)) != sizeof(size_t)) {
-		ngx_log_error(NGX_LOG_CRIT, ev->log, errno, "[LWS] failed to read size from response streaming pipe");
+	if (lws_read_exact(conn->fd, &size, sizeof(size_t), ev->log) != NGX_OK) {
 		ctx->streaming_rc = NGX_ERROR;
 		goto error;
 	}
+	
 	b = ngx_create_temp_buf(r->pool, size);
 	if (!b) {
 		ngx_log_error(NGX_LOG_CRIT, ev->log, 0, "[LWS] failed to allocate response streaming pipe buffer");
 		ctx->streaming_rc = NGX_ERROR;
 		goto error;
 	}
-	if (read(conn->fd, b->pos, size) != (ssize_t)size) {
-		ngx_log_error(NGX_LOG_CRIT, ev->log, errno, "[LWS] failed to read content from response streaming pipe");
+	
+	if (lws_read_exact(conn->fd, b->pos, size, ev->log) != NGX_OK) {
 		ctx->streaming_rc = NGX_ERROR;
 		goto error;
 	}
