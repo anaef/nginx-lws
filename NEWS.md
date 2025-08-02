@@ -5,6 +5,7 @@
 
 - Add HTTP response streaming.
 - Add experimental 32-bit support.
+- Change default Lua version to 5.4.
 - Fix table cap initialization resulting in unlimitted stat cache.
 
 

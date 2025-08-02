@@ -7,7 +7,7 @@ on compiling dynamic modules for NGINX if you are not familiar with the process.
 In brief:
 
 1. Clone this repository, i.e., nginx-lws.
-1. If you require a Lua version other than 5.3, edit the `config` file in the nginx-lws directory,
+1. If you require a Lua version other than 5.4, edit the `config` file in the nginx-lws directory,
 and change the `lws_lua` variable accordingly.
 1. Determine your NGINX version by typing `nginx -v`.
 1. Download the [NGINX source code](https://nginx.org/download/) with the identified version,
