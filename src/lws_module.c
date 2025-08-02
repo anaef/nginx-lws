@@ -943,8 +943,9 @@ static void lws_stream_handler (ngx_event_t *ev) {
 	return;
 
 	error:
-	ngx_close_connection(ctx->streaming_conn);
+	ngx_close_connection(ctx->streaming_conn);  /* closes the file descriptor */
 	ctx->streaming_conn = NULL;
+	ctx->streaming_pipe[0] = -1;  
 	close(ctx->streaming_pipe[1]);
 	ctx->streaming_pipe[1] = -1;
 }
@@ -1433,7 +1434,7 @@ static void lws_cleanup_request_ctx (void *data) {
 		free(ctx->response_body_str.data);
 	}
 	if (ctx->streaming_conn) {
-		ngx_close_connection(ctx->streaming_conn);
+		ngx_close_connection(ctx->streaming_conn);  /* closes the file descriptor */
 	} else if (ctx->streaming_pipe[0] != -1) {
 		close(ctx->streaming_pipe[0]);
 	}
