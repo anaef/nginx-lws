@@ -5,6 +5,7 @@
 
 - Add HTTP response streaming.
 - Add experimental 32-bit support.
+- Fix table cap initialization resulting in unlimitted stat cache.
 
 
 ## Release 1.0.0 (2024-12-30)
