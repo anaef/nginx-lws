@@ -29,15 +29,15 @@ The `GET` method returns a JSON document as follows:
 
 The following table describes the keys of the document.
 
-| Key | Type | Description |
-| --- | --- | --- |
-| `states_n` | `number` | Number of Lua states (active + inactive) |
-| `requests_n` | `number` | Number of queued requests |
-| `memory_used` | `number` | Memory used by Lua states, in bytes |
-| `request_count` | `number` | Total number of requests served |
-| `out_of_memory` | `number` | Monitor has run out of memory; `0` = no, `1` = yes |
-| `profiler` | `number` | Profiler state; `0` = disabled, `1` = CPU, `2` = wall |
-| `functions` | `array` | Profiled functions (see below) |
+| Key              | Type      | Description                                            |
+| ---------------- | --------- | ------------------------------------------------------ |
+| `states_n`       | `number`  | Number of Lua states (active + inactive)               |
+| `requests_n`     | `number`  | Number of queued requests                              |
+| `memory_used`    | `number`  | Memory used by Lua states, in bytes                    |
+| `request_count`  | `number`  | Total number of requests served                        |
+| `out_of_memory`  | `number`  | Monitor has run out of memory; `0` = no, `1` = yes     |
+| `profiler`       | `number`  | Profiler state; `0` = disabled, `1` = CPU, `2` = wall  |
+| `functions`      | `array`   | Profiled functions (see below)                         |
 
 > [!NOTE]
 > The term *memory* in the context of LWS and Lua states generally refers to the memory allocated
@@ -49,15 +49,15 @@ The following table describes the keys of the document.
 
 An array with the following values represents each profiled function.
 
-| Index | Type | Description |
-| --- | --- | --- |
-| 0 | `string` | Function key |
-| 1 | `number` | Number of calls |
-| 2 | `number` | Self-time, seconds |
-| 3 | `number` | Self-time, nanoseconds |
-| 4 | `number` | Total time, seconds |
-| 5 | `number` | Total time, nanoseconds |
-| 6 | `number` | Allocated memory, in bytes |
+| Index  | Type      | Description                 |
+| ------ | --------- | --------------------------- |
+| 0      | `string`  | Function key                |
+| 1      | `number`  | Number of calls             |
+| 2      | `number`  | Self-time, seconds          |
+| 3      | `number`  | Self-time, nanoseconds      |
+| 4      | `number`  | Total time, seconds         |
+| 5      | `number`  | Total time, nanoseconds     |
+| 6      | `number`  | Allocated memory, in bytes  |
 
 > [!NOTE]
 > Please take note of the following definitions and limitations as regards the LWS profiler.
@@ -97,10 +97,10 @@ The `POST` method modifies the state of the LWS monitor. The content type of the
 must be `application/x-www-form-urlencoded`. The following table describes the keys that can be
 modified.
 
-| Key | Description |
-| --- | --- |
-| `profiler` | Profiler state; `0` = disabled, `1` = CPU, `2` = wall |
-| `functions` | Profiled functions; `[]` to clear |
+| Key          | Description                                            |
+| ------------ | ------------------------------------------------------ |
+| `profiler`   | Profiler state; `0` = disabled, `1` = CPU, `2` = wall  |
+| `functions`  | Profiled functions; `[]` to clear                      |
 
 For the `profiler` key, valid transitions are from the disabled state to one of the enabled
 states and vice versa; transitions from one enabled state to another are invalid.

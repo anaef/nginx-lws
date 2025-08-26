@@ -58,9 +58,9 @@ server {
 ```
 
 > [!CAUTION]
-> Allowing unconditional control characters in the capture group of variables referenced in the
-> *main* value can lead to security vulnerabilities, such as the processing of relative paths with
-> `..` segments, allowing access to arbitrary files on the file system.
+> If a variable is referenced in the *main* value, ensure its capture group cannot contain
+> punctuation characters that could form relative path segments (e.g., `..`); otherwise, attackers
+> might traverse directories and access unintended files.
 
 For more information, please see the [request processing](RequestProcessing.md) documentation.
 

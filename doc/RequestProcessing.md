@@ -37,26 +37,26 @@ manage information pertinent to the HTTP request.
 
 ### `request` Value
 
-| Key | Type | Description |
-| --- | --- | --- |
-| `method` | `string` | HTTP request method |
-| `path` | `string` | HTTP request path |
-| `args` | `string` | HTTP request query parameters |
-| `headers` | `table`-like | HTTP request headers (case-insensitive keys, read-only) |
-| `body` | `file` | HTTP request body (Lua file handle interface, read-only) |
-| `path_info` | `string` | Path info, as defined with the `lws` directive |
-| `ip` | `string`, `nil` | Remote IP address of the connection |
+| Key          | Type             | Description                                               |
+| ------------ | ---------------- | --------------------------------------------------------- |
+| `method`     | `string`         | HTTP request method                                       |
+| `path`       | `string`         | HTTP request path                                         |
+| `args`       | `string`         | HTTP request query parameters                             |
+| `headers`    | `table`-like     | HTTP request headers (case-insensitive keys, read-only)   |
+| `body`       | `file`           | HTTP request body (Lua file handle interface, read-only)  |
+| `path_info`  | `string`         | Path info, as defined with the `lws` directive            |
+| `ip`         | `string`, `nil`  | Remote IP address of the connection                       |
 
 IP addresses are provided for IPv4 and IPv6 connections.
 
 
 ### `response` Value
 
-| Key | Type | Description |
-| --- | --- | --- |
-| `status` | `integer` | HTTP response status (defaults to 200) |
-| `headers` | `table`-like | HTTP response headers (case-insensitive keys) |
-| `body` | `file` | HTTP response body (Lua file handle interface, write-only) |
+| Key        | Type          | Description                                                 |
+| ---------- | ------------- | ----------------------------------------------------------- |
+| `status`   | `integer`     | HTTP response status (defaults to 200)                      |
+| `headers`  | `table`-like  | HTTP response headers (case-insensitive keys)               |
+| `body`     | `file`        | HTTP response body (Lua file handle interface, write-only)  |
 
 
 ## Chunk Result
