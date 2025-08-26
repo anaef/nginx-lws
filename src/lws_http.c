@@ -277,7 +277,7 @@ lws_http_status_t *lws_find_http_status (int code) {
 	int  lower, upper, mid;
 
 	lower = 0;
-	upper = lws_http_status_n;
+	upper = lws_http_status_n - 1;
 	while (lower <= upper) {
 		mid = (lower + upper) / 2;
 		if (lws_http_status[mid].code < code) {

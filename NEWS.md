@@ -1,4 +1,9 @@
-# LWS Release Notes
+# LWS for NGINX Release Notes
+
+
+## Release 1.1.1
+
+- Fix upper bound of HTTP response status code binary search.
 
 
 ## Release 1.1.0 (2025-08-03)
