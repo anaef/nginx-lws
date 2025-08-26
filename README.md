@@ -26,6 +26,12 @@ for controlling the profiler is also provided.
 streamlines the design of LWS. For other extension areas in NGINX (including rewriting, access,
 and filters), numerous highly configurable modules exist that address these functions.
 
+- **Mirror the request processing of [LWS for AWS Lambda](https://github.com/anaef/lambda-lws)**.
+The two projects are designed to be used together, such as with using the NGINX version for
+development and the AWS Lambda version for staging and production environments.
+
+*This project is not affiliated with, endorsed by, or sponsored by F5, Inc.*
+
 
 ## Discussion
 

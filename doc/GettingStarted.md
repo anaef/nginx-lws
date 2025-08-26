@@ -126,5 +126,5 @@ response.headers["Content-Type"] = "text/plain; charset=UTF-8"
 This Lua chunk instructs the web browser to display text similar to this:
 
 ```
-Hello, world, from Lua 5.3!
+Hello, world, from Lua 5.4!
 ```

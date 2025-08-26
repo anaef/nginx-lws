@@ -40,7 +40,6 @@ manage information pertinent to the HTTP request.
 | Key | Type | Description |
 | --- | --- | --- |
 | `method` | `string` | HTTP request method |
-| `uri` | `string` | HTTP request URI (includes path and query parameters) |
 | `path` | `string` | HTTP request path |
 | `args` | `string` | HTTP request query parameters |
 | `headers` | `table`-like | HTTP request headers (case-insensitive keys, read-only) |
@@ -58,7 +57,6 @@ IP addresses are provided for IPv4 and IPv6 connections.
 | `status` | `integer` | HTTP response status (defaults to 200) |
 | `headers` | `table`-like | HTTP response headers (case-insensitive keys) |
 | `body` | `file` | HTTP response body (Lua file handle interface, write-only) |
-| `flush`| `function` | Flushes the current response body in HTTP streaming mode |
 
 
 ## Chunk Result
@@ -110,12 +108,23 @@ The following figure illustrates the request processing sequence.
 ![Request processing sequence](images/RequestProcessingSequence.svg)
 
 
-## Response Streaming
+## HTTP Cookies
 
-HTTP response streaming can be enabled with the `lws_streaming` [directive](Directives.md). If
-enabled, a (partial) response body written to `response.body` is streamed by calling the
-`response.flush` function. The function can be called repeatedly as new body content is written.
-Calling the function also *seals* the response, making its status and headers read-only.
+The `request.headers` and `response.headers` tables provide access to HTTP request and response
+headers, respectively. Cookies sent with the request are folded into the `Cookie` request header,
+i.e., separated by commas if more than one cookie is present. To set cookies in the response, the
+`Set-Cookie` response header can be set to a string with the (folded) cookie value(s) to set. The
+module ensures the unfolding of folded cookies so that individual `Set-Cookie` headers are sent in
+the HTTP response.
+
+
+## HTTP Response Streaming
+
+HTTP response streaming can be enabled with the `lws_streaming` [directive](Directives.md). A
+(partial) response body written to `response.body` is streamed by calling the `response.body:flush`
+method. The method can be called repeatedly as new body content is written. Calling the method also
+*seals* the response, making its status and headers read-only. A positive integer result from the
+main chunk is ignored in streaming mode, and error responses are not sent.
 
 
 ## Lifecycle of Lua States

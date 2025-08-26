@@ -3,6 +3,8 @@
 
 ## Release 1.1.1
 
+- Documentation updates.
+- Deprecate request.uri value as it is a composite of the path and query parameters.
 - Deprecate response.flush function in favor of response.body:flush() method.
 - Fix upper bound of HTTP response status code binary search.
 

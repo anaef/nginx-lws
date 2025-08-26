@@ -57,6 +57,11 @@ server {
 }
 ```
 
+> [!CAUTION]
+> Allowing unconditional control characters in the capture group of variables referenced in the
+> *main* value can lead to security vulnerabilities, such as the processing of relative paths with
+> `..` segments, allowing access to arbitrary files on the file system.
+
 For more information, please see the [request processing](RequestProcessing.md) documentation.
 
 This directive is exclusive with the `lws_monitor` directive.
