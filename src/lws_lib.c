@@ -29,6 +29,7 @@ typedef struct {
 /* compatibility */
 static inline int lws_getfield(lua_State *L, int index, const char *key);
 static inline int lws_rawget(lua_State *L, int index);
+static inline int lws_getmetatable(lua_State *L, const char *name);
 #if LUA_VERSION_NUM < 502
 static lua_Integer lua_tointegerx(lua_State *L, int index, int *isnum);
 static void luaL_setmetatable(lua_State *L, const char *name);
@@ -65,6 +66,8 @@ static int lws_lua_strict_index(lua_State *L);
 /* file */
 static luaL_Stream *lws_create_file(lua_State *L);
 static int lws_close_file(lua_State *L);
+static int lws_file_flush_hook(lua_State *L);
+static int lws_hook_file(lua_State *L);
 
 /* functions */
 static int lws_log(lua_State *L);
@@ -107,6 +110,15 @@ static inline int lws_rawget (lua_State *L, int index) {
 	return lua_rawget(L, index);
 #else
 	lua_rawget(L, index);
+	return lua_type(L, -1);
+#endif
+}
+
+static inline int lws_getmetatable (lua_State *L, const char *name) {
+#if LUA_VERSION_NUM >= 503
+	return luaL_getmetatable(L, name);
+#else
+	luaL_getmetatable(L, name);
 	return lua_type(L, -1);
 #endif
 }
@@ -408,43 +420,16 @@ static int lws_lua_response_newindex (lua_State *L) {
 }
 
 static int lws_lua_response_flush (lua_State *L) {
-	long                   len;
-	ssize_t 	           size;
-	struct iovec           iov[2];
-	lws_request_ctx_t      *ctx;
+	luaL_Stream            *response_body;
 	lws_lua_request_ctx_t  *lctx;
 
+	lua_settop(L, 0);
 	lctx = lws_get_lua_request_ctx(L);
-	ctx = lctx->ctx;
-	if (ctx->redirect.len) {
-		return luaL_error(L, "response redirected");
-	}
-	if (ctx->streaming_pipe[1] == -1) {
-		return luaL_error(L, "response streaming unavailable");
-	}
-	if ((len = ftell(ctx->response_body)) == -1) {
-		return luaL_error(L, "failed to get response body size");
-	}
-	if (len > SSIZE_MAX - (ssize_t)sizeof(size_t)) {
-		return luaL_error(L, "response body too large");
-	}
-	lctx->sealed = 1;
-	lctx->response_headers->readonly = 1;
-	if (len > 0) {
-		size = len;
-		iov[0].iov_base = &size;
-		iov[0].iov_len = sizeof(size_t);
-		if (fflush(ctx->response_body) != 0) {
-			return luaL_error(L, "failed to flush response body");
-		}
-		iov[1].iov_base = ctx->response_body_str.data;
-		iov[1].iov_len = size;
-		if (writev(ctx->streaming_pipe[1], iov, 2) != (ssize_t)sizeof(size_t) + size) {
-			return luaL_error(L, "failed to write response");
-		}
-		rewind(ctx->response_body);
-	}
-	return 0;
+	lua_pushcfunction(L, lws_file_flush_hook);
+	response_body = lws_create_file(L);
+	response_body->f = lctx->ctx->response_body;
+	lua_call(L, 1, LUA_MULTRET);
+	return lua_gettop(L);
 }
 
 
@@ -484,6 +469,73 @@ static luaL_Stream *lws_create_file (lua_State *L) {
 static int lws_close_file (lua_State *L) {
 	lua_pushboolean(L, 1);  /* "success"; the actual FILE is managed externally */
 	return 1;
+}
+
+static int lws_file_flush_hook (lua_State *L) {
+	long                   len;
+	ssize_t                size;
+	luaL_Stream            *s;
+	struct iovec           iov[2];
+	lws_request_ctx_t      *ctx;
+	lws_lua_request_ctx_t  *lctx;
+
+	s = luaL_checkudata(L, 1, LUA_FILEHANDLE);
+	lctx = lws_get_lua_request_ctx(L);
+	if (s->f != lctx->ctx->response_body) {
+		goto prev;
+	}
+	ctx = lctx->ctx;
+	if (ctx->redirect.len) {
+		return luaL_error(L, "response redirected");
+	}
+	if (ctx->streaming_pipe[1] == -1) {
+		return luaL_error(L, "response streaming unavailable");
+	}
+	if ((len = ftell(ctx->response_body)) == -1) {
+		return luaL_error(L, "failed to get response body size");
+	}
+	if (len > SSIZE_MAX - (ssize_t)sizeof(size_t)) {
+		return luaL_error(L, "response body too large");
+	}
+	lctx->sealed = 1;
+	lctx->response_headers->readonly = 1;
+	if (len > 0) {
+		size = len;
+		iov[0].iov_base = &size;
+		iov[0].iov_len = sizeof(size);
+		if (fflush(ctx->response_body) != 0) {
+			return luaL_error(L, "failed to flush response body");
+		}
+		iov[1].iov_base = ctx->response_body_str.data;
+		iov[1].iov_len = size;
+		if (writev(ctx->streaming_pipe[1], iov, 2) != (ssize_t)sizeof(size) + size) {
+			return luaL_error(L, "failed to write response");
+		}
+		rewind(ctx->response_body);
+	}
+	return 0;
+
+	prev:
+	lua_pushvalue(L, lua_upvalueindex(1));
+	lua_insert(L, 1);
+	lua_call(L, lua_gettop(L) - 1, LUA_MULTRET);
+	return lua_gettop(L);
+}
+
+static int lws_hook_file (lua_State *L) {
+	if (lws_getmetatable(L, LUA_FILEHANDLE) != LUA_TTABLE) {
+		return luaL_error(L, "no file metatable");
+	}
+	if (lws_getfield(L, -1, "__index") != LUA_TTABLE) {
+		return luaL_error(L, "no file index table");
+	}
+	if (lws_getfield(L, -1, "flush") != LUA_TFUNCTION) {
+		return luaL_error(L, "no file flush function");
+	}
+	lua_pushcclosure(L, lws_file_flush_hook, 1);
+	lua_setfield(L, -2, "flush");
+	lua_pop(L, 2);
+	return 0;
 }
 
 
@@ -721,6 +773,9 @@ int lws_open_lws (lua_State *L) {
 	lua_pushcfunction(L, lws_lua_response_newindex);
 	lua_setfield(L, -2, "__newindex");
 	lua_pop(L, 1);
+
+	/* hook file */
+	lws_hook_file(L);
 
 #if LUA_VERSION_NUM < 502
 	/* file environment */

@@ -3,6 +3,7 @@
 
 ## Release 1.1.1
 
+- Deprecate response.flush function in favor of response.body:flush() method.
 - Fix upper bound of HTTP response status code binary search.
 
 
