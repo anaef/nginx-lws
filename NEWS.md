@@ -9,6 +9,7 @@
 - Fix upper bound of HTTP response status code binary search.
 - Fix use-after-free when probing deleted table entries.
 - Harden response header processing.
+- Filter Transfer-Encoding response header.
 - Add DevContainer.
 
 

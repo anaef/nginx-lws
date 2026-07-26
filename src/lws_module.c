@@ -1092,6 +1092,8 @@ static ngx_int_t lws_set_response_header (lws_request_ctx_t *ctx) {
 			continue;
 		} else if (key->len == 14 && lws_is_header("Content-Length")) {
 			continue;  /* content length is handled separately before */
+		} else if (key->len == 17 && lws_is_header("Transfer-Encoding")) {
+			continue;  /* transfer encoding is handled by NGINX */
 		}
 		h = ngx_list_push(&r->headers_out.headers);
 		if (!h) {
