@@ -1,0 +1,45 @@
+{
+  "name": "nginx-lws-dev",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": "..",
+    "args": {
+      "NGINX_VERSION": "1.24.0"
+    }
+  },
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/nginx-lws,type=bind,consistency=cached",
+  "workspaceFolder": "/workspaces/nginx-lws",
+  "remoteUser": "vscode",
+  "updateRemoteUserUID": true,
+  "init": true,
+  "overrideCommand": true,
+  "shutdownAction": "stopContainer",
+  "runArgs": [
+    "--name=nginx-lws-dev",
+    "--cap-add=SYS_PTRACE",
+    "--security-opt=seccomp=unconfined"
+  ],
+  "forwardPorts": [
+    8080
+  ],
+  "portsAttributes": {
+    "8080": {
+      "label": "LWS examples",
+      "onAutoForward": "notify"
+    }
+  },
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "postStartCommand": "lws-nginx start",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.cpptools",
+        "sumneko.lua"
+      ],
+      "settings": {
+        "C_Cpp.default.compilerPath": "/usr/bin/gcc",
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
+    }
+  }
+}

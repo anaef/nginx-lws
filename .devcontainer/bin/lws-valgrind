@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+source "${script_dir}/../lib/lws-common.sh"
+
+lws_prepare_runtime_dirs
+was_running=false
+valgrind_pid=""
+
+cleanup() {
+	set +e
+	if [[ -n "${valgrind_pid}" ]] && kill -0 "${valgrind_pid}" 2>/dev/null; then
+		kill -QUIT "${valgrind_pid}" 2>/dev/null
+		wait "${valgrind_pid}" 2>/dev/null
+	fi
+	if ${was_running}; then
+		"${script_dir}/lws-nginx" start
+	fi
+}
+trap cleanup EXIT
+
+stop_valgrind() {
+	if [[ -n "${valgrind_pid}" ]] && kill -0 "${valgrind_pid}" 2>/dev/null; then
+		echo
+		echo "Stopping NGINX gracefully so Valgrind can finish its report..."
+		kill -QUIT "${valgrind_pid}"
+	fi
+}
+trap stop_valgrind INT TERM
+
+if "${script_dir}/lws-nginx" status >/dev/null 2>&1; then
+	was_running=true
+fi
+
+"${script_dir}/lws-build" --no-restart
+if ${was_running}; then
+	"${script_dir}/lws-nginx" stop
+fi
+
+valgrind_log="${LWS_LOG_DIR}/valgrind.log"
+: > "${valgrind_log}"
+
+echo "Running NGINX under Valgrind on http://localhost:8080."
+echo "Exercise the site from another terminal, then press Ctrl-C here."
+echo "The completed Valgrind report will be displayed and retained at ${valgrind_log}."
+
+valgrind \
+	--error-exitcode=99 \
+	--errors-for-leak-kinds=definite,indirect,possible \
+	--leak-check=full \
+	--log-file="${valgrind_log}" \
+	--show-leak-kinds=all \
+	--suppressions="${script_dir}/../valgrind.supp" \
+	--track-fds=yes \
+	--track-origins=yes \
+	"${LWS_NORMAL_NGINX}" \
+	-p "${LWS_RUNTIME}/" \
+	-c "${LWS_NORMAL_CONF}" \
+	-g 'daemon off; master_process off;' &
+valgrind_pid=$!
+
+set +e
+while true; do
+	wait "${valgrind_pid}"
+	valgrind_result=$?
+	if ! kill -0 "${valgrind_pid}" 2>/dev/null; then
+		break
+	fi
+done
+set -e
+
+valgrind_pid=""
+cat "${valgrind_log}" >&2
+exit "${valgrind_result}"

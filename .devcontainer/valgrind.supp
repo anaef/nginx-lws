@@ -1,0 +1,45 @@
+{
+   nginx-single-process-environment
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   fun:ngx_alloc
+   fun:ngx_set_environment
+   fun:ngx_single_process_cycle
+   fun:main
+}
+
+{
+   nginx-pcre2-compile-context
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   fun:ngx_alloc
+   ...
+   fun:pcre2_compile_context_create_8
+   fun:ngx_regex_compile
+}
+
+{
+   nginx-single-process-event-state
+   Memcheck:Leak
+   match-leak-kinds: definite,indirect,possible
+   fun:malloc
+   fun:ngx_alloc
+   ...
+   fun:ngx_single_process_cycle
+   fun:main
+}
+
+{
+   nginx-single-process-accepted-connection-pool
+   Memcheck:Leak
+   match-leak-kinds: definite,indirect,possible
+   fun:posix_memalign
+   fun:ngx_memalign
+   fun:ngx_create_pool
+   fun:ngx_event_accept
+   ...
+   fun:ngx_single_process_cycle
+   fun:main
+}

@@ -1,0 +1,165 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+source "${script_dir}/../lib/lws-common.sh"
+
+read_pid() {
+	if [[ -r "${LWS_NORMAL_PID}" ]]; then
+		cat "${LWS_NORMAL_PID}"
+	fi
+}
+
+is_running() {
+	local pid
+	pid="$(read_pid)"
+	[[ "${pid}" =~ ^[0-9]+$ ]] || return 1
+	kill -0 "${pid}" 2>/dev/null || return 1
+	[[ "$(ps -p "${pid}" -o comm= 2>/dev/null | tr -d '[:space:]')" == "nginx" ]]
+}
+
+test_config() {
+	lws_prepare_runtime_dirs
+	"${LWS_NORMAL_NGINX}" -p "${LWS_RUNTIME}/" -c "${LWS_NORMAL_CONF}" -t
+}
+
+start_nginx() {
+	local attempt
+
+	lws_prepare_runtime_dirs
+	if is_running; then
+		echo "NGINX is already running with PID $(read_pid)."
+		return 0
+	fi
+
+	rm -f "${LWS_NORMAL_PID}"
+	test_config
+	"${LWS_NORMAL_NGINX}" -p "${LWS_RUNTIME}/" -c "${LWS_NORMAL_CONF}"
+
+	for attempt in {1..50}; do
+		if is_running; then
+			echo "NGINX started with PID $(read_pid) on http://localhost:8080."
+			return 0
+		fi
+		sleep 0.1
+	done
+
+	echo "NGINX did not start. Recent errors:" >&2
+	tail -n 40 "${LWS_LOG_DIR}/error.log" >&2 || true
+	return 1
+}
+
+stop_nginx() {
+	local attempt pid
+
+	if ! is_running; then
+		rm -f "${LWS_NORMAL_PID}"
+		echo "NGINX is not running."
+		return 0
+	fi
+
+	pid="$(read_pid)"
+	kill -QUIT "${pid}"
+	for attempt in {1..300}; do
+		if ! kill -0 "${pid}" 2>/dev/null; then
+			rm -f "${LWS_NORMAL_PID}"
+			echo "NGINX stopped gracefully."
+			return 0
+		fi
+		sleep 0.1
+	done
+
+	echo "NGINX did not stop within 30 seconds (PID ${pid})." >&2
+	return 1
+}
+
+reload_nginx() {
+	local pid
+	if ! is_running; then
+		echo "NGINX is not running." >&2
+		return 1
+	fi
+
+	test_config
+	pid="$(read_pid)"
+	kill -HUP "${pid}"
+	echo "NGINX configuration reloaded."
+}
+
+status_nginx() {
+	local pid
+	if ! is_running; then
+		echo "NGINX is stopped."
+		return 1
+	fi
+
+	pid="$(read_pid)"
+	ps -p "${pid}" -o pid=,ppid=,user=,etime=,command=
+}
+
+show_logs() {
+	lws_prepare_runtime_dirs
+	case "${1:-error}" in
+		error)
+			tail -F "${LWS_LOG_DIR}/error.log"
+			;;
+		access)
+			tail -F "${LWS_LOG_DIR}/access.log"
+			;;
+		all)
+			tail -F "${LWS_LOG_DIR}/error.log" "${LWS_LOG_DIR}/access.log"
+			;;
+		*)
+			echo "Usage: lws-nginx logs [error|access|all]" >&2
+			return 2
+			;;
+	esac
+}
+
+usage() {
+	cat <<'EOF'
+Usage: lws-nginx <command>
+
+Commands:
+  start                 Start the Ubuntu NGINX development runtime
+  stop                  Gracefully stop the NGINX master
+  restart               Gracefully replace the NGINX master
+  reload                Validate and reload configuration only
+  test                   Validate the development configuration
+  status                 Show the NGINX master process
+  logs [error|access|all]
+                        Follow development logs (default: error)
+EOF
+}
+
+case "${1:-}" in
+	start)
+		start_nginx
+		;;
+	stop)
+		stop_nginx
+		;;
+	restart)
+		stop_nginx
+		start_nginx
+		;;
+	reload)
+		reload_nginx
+		;;
+	test)
+		test_config
+		;;
+	status)
+		status_nginx
+		;;
+	logs)
+		show_logs "${2:-error}"
+		;;
+	-h|--help|help)
+		usage
+		;;
+	*)
+		usage >&2
+		exit 2
+		;;
+esac

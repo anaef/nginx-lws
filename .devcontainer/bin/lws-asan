@@ -1,0 +1,149 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+source "${script_dir}/../lib/lws-common.sh"
+
+requests="${1:-20000}"
+parallelism="${2:-12}"
+
+if [[ ! "${requests}" =~ ^[1-9][0-9]*$ ]] || [[ ! "${parallelism}" =~ ^[1-9][0-9]*$ ]]; then
+	echo "Usage: lws-asan [positive-request-count] [positive-parallelism]" >&2
+	exit 2
+fi
+
+lws_prepare_runtime_dirs
+mkdir -p \
+	"${LWS_NGINX_ASAN_PREFIX}/conf" \
+	"${LWS_NGINX_ASAN_PREFIX}/logs" \
+	"${LWS_NGINX_ASAN_PREFIX}/temp/client_body" \
+	"${LWS_NGINX_ASAN_PREFIX}/temp/fastcgi" \
+	"${LWS_NGINX_ASAN_PREFIX}/temp/proxy" \
+	"${LWS_NGINX_ASAN_PREFIX}/temp/scgi" \
+	"${LWS_NGINX_ASAN_PREFIX}/temp/uwsgi"
+
+echo "Configuring the ASan NGINX ${NGINX_VERSION} build..."
+(
+	cd "${LWS_NGINX_SOURCE}"
+	./configure \
+		--builddir="${LWS_NGINX_ASAN_BUILD}" \
+		--prefix="${LWS_NGINX_ASAN_PREFIX}" \
+		--with-cc-opt="-fsanitize=address -fno-omit-frame-pointer -DNGX_DEBUG_PALLOC=1" \
+		--with-ld-opt="-fsanitize=address" \
+		--with-compat \
+		--with-threads \
+		--with-debug \
+		--add-dynamic-module="${LWS_WORKSPACE}"
+	make -f "${LWS_NGINX_ASAN_BUILD}/Makefile" -j"$(nproc)"
+	make -f "${LWS_NGINX_ASAN_BUILD}/Makefile" install
+)
+
+install -m 0644 "${LWS_ASAN_CONF_SOURCE}" "${LWS_NGINX_ASAN_PREFIX}/conf/test.conf"
+
+asan_options="${ASAN_OPTIONS:-detect_odr_violation=0}"
+asan_test_options="${asan_options}:detect_leaks=0"
+lsan_options="${LSAN_OPTIONS:+${LSAN_OPTIONS}:}suppressions=${script_dir}/../asan.supp"
+asan_log="${LWS_NGINX_ASAN_PREFIX}/logs/asan.log"
+error_log="${LWS_NGINX_ASAN_PREFIX}/logs/error.log"
+access_log="${LWS_NGINX_ASAN_PREFIX}/logs/access.log"
+asan_nginx="${LWS_NGINX_ASAN_PREFIX}/sbin/nginx"
+server_pid=""
+restart_normal=false
+
+cleanup() {
+	set +e
+	if [[ -n "${server_pid}" ]] && kill -0 "${server_pid}" 2>/dev/null; then
+		kill -QUIT "${server_pid}" 2>/dev/null
+		wait "${server_pid}" 2>/dev/null
+	fi
+	if ${restart_normal}; then
+		"${script_dir}/lws-nginx" start
+	fi
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+# NGINX's short-lived configuration checker leaves configuration-pool
+# allocations for process teardown. Keep LeakSanitizer focused on the real
+# server lifecycle below, where graceful shutdown exercises LWS cleanup.
+ASAN_OPTIONS="${asan_test_options}" "${asan_nginx}" \
+	-p "${LWS_NGINX_ASAN_PREFIX}/" -c conf/test.conf -t
+
+if "${script_dir}/lws-nginx" status >/dev/null 2>&1; then
+	restart_normal=true
+	"${script_dir}/lws-nginx" stop
+fi
+
+: > "${asan_log}"
+: > "${error_log}"
+: > "${access_log}"
+
+echo "Starting ASan NGINX on http://localhost:8080..."
+ASAN_OPTIONS="${asan_options}" LSAN_OPTIONS="${lsan_options}" "${asan_nginx}" \
+	-p "${LWS_NGINX_ASAN_PREFIX}/" -c conf/test.conf \
+	> "${asan_log}" 2>&1 &
+server_pid=$!
+
+ready=false
+for attempt in {1..100}; do
+	if curl --fail --silent --show-error \
+		"http://127.0.0.1:8080/services/hello" >/dev/null 2>&1; then
+		ready=true
+		break
+	fi
+	if ! kill -0 "${server_pid}" 2>/dev/null; then
+		break
+	fi
+	sleep 0.1
+done
+
+if ! ${ready}; then
+	echo "ASan NGINX did not become ready." >&2
+	tail -n 80 "${asan_log}" "${error_log}" >&2 || true
+	exit 1
+fi
+
+echo "Sending ${requests} requests with parallelism ${parallelism}..."
+load_result=0
+if ! seq 1 "${requests}" | xargs -P "${parallelism}" -I '{}' \
+	curl --fail --silent --show-error --output /dev/null \
+	"http://127.0.0.1:8080/services/request"; then
+	load_result=1
+fi
+
+echo "Waiting 11 seconds for the 10-second Lua-state idle timeout..."
+sleep 11
+
+kill -QUIT "${server_pid}"
+set +e
+wait "${server_pid}"
+nginx_result=$?
+set -e
+server_pid=""
+
+result=${load_result}
+if [[ ${nginx_result} -ne 0 ]]; then
+	echo "ASan NGINX exited with status ${nginx_result}." >&2
+	result=1
+fi
+
+if grep -E -q 'ERROR: (AddressSanitizer|LeakSanitizer)|SUMMARY: (AddressSanitizer|LeakSanitizer)' \
+	"${asan_log}" "${error_log}"; then
+	echo "AddressSanitizer reported an error." >&2
+	result=1
+fi
+
+if [[ ${result} -ne 0 ]]; then
+	echo "ASan log: ${asan_log}" >&2
+	echo "NGINX error log: ${error_log}" >&2
+	exit "${result}"
+fi
+
+if ${restart_normal}; then
+	"${script_dir}/lws-nginx" start
+	restart_normal=false
+fi
+
+echo "ASan stress test passed."
+echo "Logs are available under ${LWS_NGINX_ASAN_PREFIX}/logs."

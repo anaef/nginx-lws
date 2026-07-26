@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+source "${script_dir}/../lib/lws-common.sh"
+
+restart=true
+case "${1:-}" in
+	"")
+		;;
+	--no-restart)
+		restart=false
+		;;
+	-h|--help)
+		echo "Usage: lws-build [--no-restart]"
+		exit 0
+		;;
+	*)
+		echo "Usage: lws-build [--no-restart]" >&2
+		exit 2
+		;;
+esac
+
+lws_prepare_runtime_dirs
+
+runtime_version="$("${LWS_NORMAL_NGINX}" -v 2>&1)"
+if [[ "${runtime_version}" != *"nginx/${NGINX_VERSION}"* ]]; then
+	echo "Expected nginx/${NGINX_VERSION}, found ${runtime_version}." >&2
+	exit 1
+fi
+
+echo "Configuring the NGINX ${NGINX_VERSION} module build..."
+(
+	cd "${LWS_NGINX_SOURCE}"
+	./configure \
+		--builddir="${LWS_NGINX_BUILD}" \
+		--with-cc-opt="-fno-omit-frame-pointer" \
+		--with-compat \
+		--with-threads \
+		--with-debug \
+		--add-dynamic-module="${LWS_WORKSPACE}"
+	make -f "${LWS_NGINX_BUILD}/Makefile" -j"$(nproc)" modules
+)
+
+built_module="${LWS_NGINX_BUILD}/lws_module.so"
+if [[ ! -f "${built_module}" ]]; then
+	echo "The module build did not produce ${built_module}." >&2
+	exit 1
+fi
+
+target="${LWS_NORMAL_MODULE}"
+temporary="${target}.new.$$"
+backup="${target}.previous.$$"
+had_previous=false
+
+cleanup() {
+	rm -f "${temporary}" "${backup}"
+}
+trap cleanup EXIT
+
+install -m 0644 "${built_module}" "${temporary}"
+if [[ -f "${target}" ]]; then
+	cp -p "${target}" "${backup}"
+	had_previous=true
+fi
+mv -f "${temporary}" "${target}"
+
+rollback() {
+	if ${had_previous}; then
+		mv -f "${backup}" "${target}"
+	else
+		rm -f "${target}"
+	fi
+}
+
+if ! "${script_dir}/lws-nginx" test; then
+	echo "The new module failed configuration validation; restoring the previous module." >&2
+	rollback
+	exit 1
+fi
+
+if ${restart}; then
+	if ! "${script_dir}/lws-nginx" restart; then
+		echo "The new module failed to start; restoring the previous module." >&2
+		rollback
+		"${script_dir}/lws-nginx" start || true
+		exit 1
+	fi
+else
+	echo "Module installed at ${target}; NGINX was not restarted."
+fi
+
+rm -f "${backup}"
+echo "LWS module build completed successfully."
