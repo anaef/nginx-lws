@@ -8,6 +8,7 @@
 - Deprecate response.flush function in favor of response.body:flush() method.
 - Fix upper bound of HTTP response status code binary search.
 - Fix use-after-free when probing deleted table entries.
+- Harden request header processing.
 - Harden response header processing.
 - Filter Transfer-Encoding response header.
 - Add DevContainer.

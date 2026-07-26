@@ -1,7 +1,7 @@
 /*
  * LWS module
  *
- * Copyright (C) 2023-2025 Andre Naef
+ * Copyright (C) 2023-2026 Andre Naef
  */
 
 
@@ -23,7 +23,6 @@ static char *lws_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 static char *lws_error_response(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 
 static lws_file_status_e lws_get_file_status(ngx_http_request_t *t, ngx_str_t *filename);
-static int lws_set_request_header(lws_table_t *t, ngx_http_request_t *r, ngx_table_elt_t *header);
 static ngx_int_t lws_handler(ngx_http_request_t *r);
 static void lws_body_handler(ngx_http_request_t *r);
 static void lws_queue_handler(ngx_event_t *ev);
@@ -548,45 +547,16 @@ static lws_file_status_e lws_get_file_status (ngx_http_request_t *r, ngx_str_t *
 	return fs;
 }
 
-static int lws_set_request_header (lws_table_t *t, ngx_http_request_t *r, ngx_table_elt_t *header) {
-	size_t      len;
-	u_char     *p;
-	ngx_log_t  *log;
-	ngx_str_t  *existing, *value;
-
-	log = r->connection->log;
-	existing = lws_table_get(t, &header->key);
-	if (!existing) {
-		value = &header->value;
-	} else {
-		len = existing->len + 2 + header->value.len;
-		value = ngx_palloc(r->pool, sizeof(ngx_str_t) + len);
-		if (!value) {
-			ngx_log_error(NGX_LOG_CRIT, log, 0, "[LWS] failed to allocate header");
-			return -1;
-		}
-		value->len = len;
-		value->data = (u_char *)value + sizeof(ngx_str_t);
-		p = ngx_cpymem(value->data, existing->data, existing->len);
-		p = lws_cpylit(p, ", ");
-		ngx_memcpy(p, header->value.data, header->value.len);
-	}
-	if (lws_table_set(t, &header->key, value) != 0) {
-		ngx_log_error(NGX_LOG_CRIT, log, 0, "[LWS] failed to set header");
-		return -1;
-	}
-	return 0;
-}
-
 static ngx_int_t lws_handler (ngx_http_request_t *r) {
 	ngx_int_t                   rc;
 	ngx_log_t                  *log;
 	ngx_str_t                   main;
-	ngx_str_t                  *value;
+	ngx_str_t                  *key, *value;
 	ngx_uint_t                  i;
 	ngx_list_part_t            *part;
 	ngx_table_elt_t            *headers;
 	lws_loc_conf_t             *llcf;
+	lws_request_header_t       *request_header;
 	lws_variable_t             *variables;
 	lws_request_ctx_t          *ctx;;
 	ngx_pool_cleanup_t         *cln;
@@ -664,15 +634,55 @@ static ngx_int_t lws_handler (ngx_http_request_t *r) {
 		return NGX_HTTP_INTERNAL_SERVER_ERROR;
 	}
 	lws_table_set_ci(ctx->request_headers, 1);
-	part = &r->headers_in.headers.part;
-	while (part) {
+	for (part = &r->headers_in.headers.part; part; part = part->next) {
 		headers = part->elts;
 		for (i = 0; i < part->nelts; i++) {
-			if (lws_set_request_header(ctx->request_headers, r, &headers[i]) != 0) {
+			request_header = lws_table_get(ctx->request_headers, &headers[i].key);
+			if (!request_header) {
+				request_header = ngx_palloc(r->pool, sizeof(lws_request_header_t));
+				if (!request_header) {
+					ngx_log_error(NGX_LOG_CRIT, log, 0, "[LWS] failed to allocate header");
+					return NGX_HTTP_INTERNAL_SERVER_ERROR;
+				}
+				request_header->value = headers[i].value;
+				request_header->last = NULL;
+				request_header->count = 1;
+				if (lws_table_set(ctx->request_headers, &headers[i].key, &request_header->value)
+						!= 0) {
+					ngx_log_error(NGX_LOG_CRIT, log, 0, "[LWS] failed to set header");
+					return NGX_HTTP_INTERNAL_SERVER_ERROR;
+				}
+			} else {
+				request_header->value.len += 2 + headers[i].value.len;
+				request_header->count++;
+			}
+		}
+	}
+	key = NULL;
+	while (lws_table_next(ctx->request_headers, key, &key, (void**)&request_header) == 0) {
+		if (request_header->count > 1) {
+			request_header->value.data = ngx_palloc(r->pool, request_header->value.len);
+			if (!request_header->value.data) {
+				ngx_log_error(NGX_LOG_CRIT, log, 0, "[LWS] failed to allocate header");
 				return NGX_HTTP_INTERNAL_SERVER_ERROR;
 			}
 		}
-		part = part->next;
+	}
+	for (part = &r->headers_in.headers.part; part; part = part->next) {
+		headers = part->elts;
+		for (i = 0; i < part->nelts; i++) {
+			request_header = lws_table_get(ctx->request_headers, &headers[i].key);
+			if (request_header->count == 1) {
+				continue;
+			}
+			if (request_header->last) {
+				request_header->last = lws_cpylit(request_header->last, ", ");
+			} else {
+				request_header->last = request_header->value.data;
+			}
+			request_header->last = ngx_cpymem(request_header->last, headers[i].value.data,
+					headers[i].value.len);
+		}
 	}
 
 	/* prepare response headers */

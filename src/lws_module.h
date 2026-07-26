@@ -1,7 +1,7 @@
 /*
  * LWS module
  *
- * Copyright (C) 2023-2025 Andre Naef
+ * Copyright (C) 2023-2026 Andre Naef
  */
 
 
@@ -23,6 +23,7 @@
 typedef struct lws_main_conf_s lws_main_conf_t;
 typedef struct lws_loc_conf_s lws_loc_conf_t;
 typedef struct lws_request_ctx_s lws_request_ctx_t;
+typedef struct lws_request_header_s lws_request_header_t;
 typedef struct lws_variable_s lws_variable_t;
 
 
@@ -78,6 +79,12 @@ struct lws_loc_conf_s {
 	ngx_uint_t   requests_n;               /* number of queued requests */
 	ngx_queue_t  requests;                 /* queued requests */
 	ngx_event_t  qev;                      /* queue event */
+};
+
+struct lws_request_header_s {
+	ngx_str_t   value;  /* header value */
+	u_char     *last;   /* write position */
+	ngx_uint_t  count;  /* value count */
 };
 
 struct lws_request_ctx_s {
