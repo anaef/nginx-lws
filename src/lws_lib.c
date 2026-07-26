@@ -294,8 +294,10 @@ static int lws_lua_table_index (lua_State *L) {
 }
 
 static int lws_lua_table_newindex (lua_State *L) {
-	lws_lua_table_t  *lt;
+	size_t            i;
+	u_char            ch;
 	ngx_str_t         key, value, *dup;
+	lws_lua_table_t  *lt;
 
 	lt = luaL_checkudata(L, 1, LWS_TABLE);
 	if (lt->readonly) {
@@ -303,6 +305,41 @@ static int lws_lua_table_newindex (lua_State *L) {
 	}
 	key.data = (u_char *)luaL_checklstring(L, 2, &key.len);
 	value.data = (u_char *)luaL_checklstring(L, 3, &value.len);
+	if (!key.len) {
+		return luaL_error(L, "bad response header name");
+	}
+	for (i = 0; i < key.len; i++) {
+		ch = key.data[i];
+		if ((ch >= '0' && ch <= '9') || (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z')) {
+			continue;
+		}
+		switch (ch) {
+		case '!':
+		case '#':
+		case '$':
+		case '%':
+		case '&':
+		case '\'':
+		case '*':
+		case '+':
+		case '-':
+		case '.':
+		case '^':
+		case '_':
+		case '`':
+		case '|':
+		case '~':
+			continue;
+		default:
+			return luaL_error(L, "bad response header name");
+		}
+	}
+	for (i = 0; i < value.len; i++) {
+		ch = value.data[i];
+		if ((ch < 0x20 && ch != '\t') || ch == 0x7f) {
+			return luaL_error(L, "bad response header value");
+		}
+	}
 	dup = ngx_alloc(sizeof(ngx_str_t) + value.len, lt->t->log);
 	if (!dup) {
 		return luaL_error(L, "failed to allocate string");
