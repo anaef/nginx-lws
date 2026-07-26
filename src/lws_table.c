@@ -1,7 +1,7 @@
 /*
  * LWS table
  *
- * Copyright (C) 2023 Andre Naef
+ * Copyright (C) 2023-2026 Andre Naef
  */
 
 
@@ -357,8 +357,8 @@ static lws_table_entry_t *lws_table_find (lws_table_t *t, ngx_str_t *key, ngx_ui
 	q = hash % (t->alloc - 2) + 1;
 	entry = &t->entries[h];
 	while (entry->state != LWS_TES_UNUSED) {
-		if (entry->hash == hash && entry->key.len == key->len && (t->ci
-				? ngx_strncasecmp(entry->key.data, key->data, key->len)
+		if (entry->state == LWS_TES_SET && entry->hash == hash && entry->key.len == key->len
+				&& (t->ci ? ngx_strncasecmp(entry->key.data, key->data, key->len)
 				: ngx_strncmp(entry->key.data, key->data, key->len)) == 0) {
 			return entry;
 		}

@@ -7,6 +7,7 @@
 - Deprecate request.uri value as it is a composite of the path and query parameters.
 - Deprecate response.flush function in favor of response.body:flush() method.
 - Fix upper bound of HTTP response status code binary search.
+- Fix use-after-free when probing deleted table entries.
 - Add DevContainer.
 
 
