@@ -17,6 +17,8 @@
 #define LWS_THREAD_POOL_NAME_DEFAULT    "default"
 #define LWS_STAT_CACHE_CAP_DEFAULT      1024
 #define LWS_STAT_CACHE_TIMEOUT_DEFAULT  30
+#define LWS_STATES_MAX_DEFAULT          32
+#define LWS_REQUESTS_MAX_DEFAULT        256
 #define lws_cpylit(p, lit)              ngx_cpymem(p, lit, sizeof(lit) - 1)
 
 

@@ -369,8 +369,8 @@ static char *lws_merge_loc_conf (ngx_conf_t *cf, void *parent, void *child) {
 	ngx_conf_merge_str_value(conf->post, prev->post, "");
 	ngx_conf_merge_str_value(conf->path, prev->path, "");
 	ngx_conf_merge_str_value(conf->cpath, prev->cpath, "");
-	ngx_conf_merge_size_value(conf->states_max, prev->states_max, 0);
-	ngx_conf_merge_size_value(conf->requests_max, prev->requests_max, 0);
+	ngx_conf_merge_size_value(conf->states_max, prev->states_max, LWS_STATES_MAX_DEFAULT);
+	ngx_conf_merge_size_value(conf->requests_max, prev->requests_max, LWS_REQUESTS_MAX_DEFAULT);
 	ngx_conf_merge_size_value(conf->state_memory_max, prev->state_memory_max, 0);
 	ngx_conf_merge_size_value(conf->state_gc, prev->state_gc, 0);
 	ngx_conf_merge_value(conf->state_requests_max, prev->state_requests_max, 0);

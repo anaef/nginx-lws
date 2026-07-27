@@ -12,6 +12,7 @@
 - Harden response header processing.
 - Filter Transfer-Encoding response header.
 - Redesign and harden HTTP response streaming.
+- Harden Lua state and request queue defaults.
 - Add DevContainer.
 
 

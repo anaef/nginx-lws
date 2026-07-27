@@ -113,12 +113,12 @@ Lua C path.
 Context: server, location
 
 Sets the maximum number of Lua states per worker process and location. If more concurrent requests
-arrive than *max_states*, the requests are queued until a Lua state becomes available. A value of
-`0`, the default, turns off this logic, making the number of Lua states unrestricted. The queue
-accepts up to *max_requests* requests. A 503 Service Unavailable status is returned if the queue
-overflows. A value of `0`, the default, turns off this logic, making the queue unrestricted. You
-can use the `k` and `m` suffixes with *max_states* and *max_requests* to set multiples of 1024 or
-1024², respectively.
+arrive than *max_states*, the requests are queued until a Lua state becomes available. The default
+*max_states* is `32`. A value of `0` turns off this logic, making the number of Lua states
+unrestricted. The queue accepts up to *max_requests* requests. A 503 Service Unavailable status is
+returned if the queue overflows. The default *max_requests* is `256`. A value of `0` turns off this
+logic, making the queue unrestricted. You can use the `k` and `m` suffixes with *max_states* and
+*max_requests* to set multiples of 1024 or 1024², respectively.
 
 
 ### lws_max_memory *max_memory*
