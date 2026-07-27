@@ -25,6 +25,7 @@ server {
 		lws_path "+/var/www/lws-examples/modules/?.lua;/var/www/lws-examples/modules/?/init.lua";
 		lws_error_response json diagnostic;
 		lws_max_requests 1;
+		lws_streaming on;
 	}
 
 	location /internal/ {
@@ -63,6 +64,7 @@ specified path is appended to the default Lua path.
 - `lws_error_response`, which enables JSON error responses including diagnostic information.
 - `lws_max_requests`, which causes Lua states to be closed after each request. This is useful
 during local development to pick up code changes.
+- `lws_streaming`, which enables HTTP response streaming.
 
 For more information, please refer to the [directives](Directives.md) documentation.
 

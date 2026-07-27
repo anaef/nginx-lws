@@ -10,6 +10,9 @@
 #include <lws_http.h>
 
 
+#define LWS_STREAMING_READS_MAX  16
+
+
 static void *lws_create_main_conf(ngx_conf_t *cf);
 static char *lws_init_main_conf(ngx_conf_t *cf, void *main);
 static void lws_cleanup_main_conf(void *data);
@@ -29,8 +32,8 @@ static void lws_queue_handler(ngx_event_t *ev);
 static void lws_state_handler(lws_request_ctx_t *ctx);
 static void lws_thread_handler(void *data, ngx_log_t *log);
 static ssize_t lws_read_handler(void *cookie, char *buf, size_t size);
-static ngx_int_t lws_read_exact(int fd, void *buf, size_t size, ngx_log_t *log);
 static void lws_stream_handler(ngx_event_t *ev);
+static void lws_stream_write_handler(ngx_http_request_t *r);
 static void lws_finalization_handler(ngx_event_t *ev);
 static ngx_int_t lws_set_response_header(lws_request_ctx_t *ctx);
 static void lws_send_error_response(lws_request_ctx_t *ctx, ngx_int_t rc);
@@ -705,18 +708,25 @@ static ngx_int_t lws_handler (ngx_http_request_t *r) {
 	}
 	if (llcf->streaming) {
 		if (pipe(ctx->streaming_pipe) != 0) {
-			ngx_log_error(NGX_LOG_CRIT, log, errno, "[LWS] failed to create response streaming pipe");
+			ngx_log_error(NGX_LOG_CRIT, log, errno,
+					"[LWS] failed to create response streaming pipe");
+			return NGX_HTTP_INTERNAL_SERVER_ERROR;
+		}
+		if (ngx_nonblocking(ctx->streaming_pipe[0]) == -1) {
+			ngx_log_error(NGX_LOG_CRIT, log, errno,
+					"[LWS] failed to make response streaming pipe nonblocking");
 			return NGX_HTTP_INTERNAL_SERVER_ERROR;
 		}
 		ctx->streaming_conn = ngx_get_connection(ctx->streaming_pipe[0], log);
 		if (!ctx->streaming_conn) {
-			ngx_log_error(NGX_LOG_CRIT, log, 0, "[LWS] failed to get response streaming connection");
+			ngx_log_error(NGX_LOG_CRIT, log, 0,
+					"[LWS] failed to get response streaming connection");
 			return NGX_HTTP_INTERNAL_SERVER_ERROR;
 		}
 		ctx->streaming_conn->data = ctx;
 		ctx->streaming_conn->read->log = log;
 		ctx->streaming_conn->read->handler = lws_stream_handler;
-		if (ngx_add_event(ctx->streaming_conn->read, NGX_READ_EVENT, 0) != NGX_OK) {
+		if (ngx_handle_read_event(ctx->streaming_conn->read, 0) != NGX_OK) {
 			ngx_log_error(NGX_LOG_CRIT, log, 0, "[LWS] failed to add response streaming event");
 			return NGX_HTTP_INTERNAL_SERVER_ERROR;
 		}
@@ -867,100 +877,241 @@ static ssize_t lws_read_handler (void *cookie, char *buf, size_t size) {
 	return count;
 }
 
-static ngx_int_t lws_read_exact (int fd, void *buf, size_t size, ngx_log_t *log) {
-	size_t  bytes_read;
-	
-	bytes_read = 0;
-	while (bytes_read < size) {
-		ssize_t n = read(fd, (char*)buf + bytes_read, size - bytes_read);
-		if (n <= 0) {
-			if (n == 0) {
-				ngx_log_error(NGX_LOG_CRIT, log, 0, "[LWS] unexpected EOF reading from response streaming pipe");
-				return NGX_ERROR;
-			}
-			if (errno != EINTR) {
-				ngx_log_error(NGX_LOG_CRIT, log, errno, "[LWS] failed to read from response streaming pipe");
-				return NGX_ERROR;
-			}
-			continue;
-		}
-		bytes_read += n;
-	}
-	return NGX_OK;
-}
-
 static void lws_stream_handler (ngx_event_t *ev) {
-	size_t              size;
-	ngx_buf_t           *b;
-	ngx_int_t            rc;
-	ngx_chain_t          out;
-	ngx_connection_t    *conn;
-	lws_request_ctx_t   *ctx;
-	ngx_http_request_t  *r;
+	ssize_t                   n;
+	ngx_buf_t                 *b;
+	ngx_int_t                  rc;
+	ngx_uint_t                 reads;
+	ngx_chain_t               *out;
+	ngx_event_t               *wev;
+	ngx_connection_t          *c, *conn;
+	lws_request_ctx_t         *ctx;
+	ngx_http_request_t        *r;
+	ngx_http_core_loc_conf_t  *clcf;
 
-	/* send header as needed */
+	/* get request */
 	conn = ev->data;
 	ctx = conn->data;
 	r = ctx->r;
-	if (!r->header_sent) {
-		if (r == r->main && (r->method == NGX_HTTP_HEAD
-				|| r->headers_out.status == NGX_HTTP_NO_CONTENT
-				|| r->headers_out.status == NGX_HTTP_NOT_MODIFIED)) {
-			/* intent to stream response, but filter modules would flag as header-only */
-			ngx_log_error(NGX_LOG_WARN, ev->log, 0, "[LWS] unable to stream response");
-			r->header_only = 1;
-		}
-		if (lws_set_response_header(ctx) != NGX_OK) {
-			ctx->streaming_rc = NGX_HTTP_INTERNAL_SERVER_ERROR;
+	c = r->connection;
+	wev = c->write;
+	clcf = ngx_http_get_module_loc_conf(r, ngx_http_core_module);
+
+	/* flush pending output */
+	if (r->write_event_handler == lws_stream_write_handler) {
+		if (wev->timedout) {
+			ngx_log_error(NGX_LOG_INFO, c->log, NGX_ETIMEDOUT, "[LWS] client timed out");
+			c->timedout = 1;
+			ctx->streaming_rc = NGX_HTTP_REQUEST_TIME_OUT;
 			goto error;
 		}
-		r->headers_out.status = ctx->status;
-		r->disable_not_modified = 1;
-		rc = ngx_http_send_header(r);
-		if (rc == NGX_ERROR || rc > NGX_OK || r->header_only) {
-			ctx->streaming_rc = rc;
-			goto error;
+		if (!wev->delayed) {
+			out = NULL;
+			rc = ngx_http_output_filter(r, NULL);
+			if (rc == NGX_ERROR) {
+				ctx->streaming_rc = NGX_ERROR;
+				goto error;
+			}
+			ngx_chain_update_chains(r->pool, &ctx->streaming_free, &ctx->streaming_busy, &out,
+					(ngx_buf_tag_t)&lws_module);
+			if (!(rc == NGX_AGAIN || ctx->streaming_busy || r->buffered || r->postponed
+					|| (r == r->main && c->buffered))) {
+				if (wev->timer_set) {
+					ngx_del_timer(wev);
+				}
+				r->write_event_handler = ngx_http_request_empty_handler;
+				ev->ready = 0;
+				if (ngx_handle_read_event(ev, 0) != NGX_OK) {
+					ngx_log_error(NGX_LOG_CRIT, ev->log, 0,
+							"[LWS] failed to resume response streaming event");
+					ctx->streaming_rc = NGX_ERROR;
+					goto error;
+				}
+				return;
+			}
 		}
+		goto blocked;
 	}
 
 	/* read from pipe */
-	if (lws_read_exact(conn->fd, &size, sizeof(size_t), ev->log) != NGX_OK) {
-		ctx->streaming_rc = NGX_ERROR;
-		goto error;
-	}
-	
-	b = ngx_create_temp_buf(r->pool, size);
-	if (!b) {
-		ngx_log_error(NGX_LOG_CRIT, ev->log, 0, "[LWS] failed to allocate response streaming pipe buffer");
-		ctx->streaming_rc = NGX_ERROR;
-		goto error;
-	}
-	
-	if (lws_read_exact(conn->fd, b->pos, size, ev->log) != NGX_OK) {
-		ctx->streaming_rc = NGX_ERROR;
-		goto error;
-	}
-	b->last = b->pos + size;
-	b->last_in_chain = 1;
-	b->flush = 1;
+	reads = 0;
+	while (1) {
+		if (ctx->streaming_busy) {
+			goto blocked;
+		}
+		out = ngx_chain_get_free_buf(r->pool, &ctx->streaming_free);
+		if (!out) {
+			ngx_log_error(NGX_LOG_CRIT, ev->log, 0,
+					"[LWS] failed to allocate response streaming buffer");
+			ctx->streaming_rc = NGX_ERROR;
+			goto error;
+		}
+		b = out->buf;
+		if (!b->start) {
+			b->start = ngx_palloc(r->pool, ngx_pagesize);
+			if (!b->start) {
+				ngx_log_error(NGX_LOG_CRIT, ev->log, 0,
+						"[LWS] failed to allocate response streaming buffer");
+				ctx->streaming_rc = NGX_ERROR;
+				goto error;
+			}
+			b->end = b->start + ngx_pagesize;
+			b->pos = b->start;
+			b->last = b->start;
+			b->temporary = 1;
+			b->recycled = 1;
+			b->tag = (ngx_buf_tag_t)&lws_module;
+		}
+		do {
+			n = read(conn->fd, b->start, ngx_pagesize);
+		} while (n == -1 && errno == EINTR);
+		if (n == 0) {
+			out->next = ctx->streaming_free;
+			ctx->streaming_free = out;
+			ev->eof = 1;
+			ngx_close_connection(ctx->streaming_conn);
+			ctx->streaming_conn = NULL;
+			ctx->streaming_pipe[0] = -1;
+			if (!r->header_sent) {
+				ngx_log_error(NGX_LOG_CRIT, r->connection->log, 0,
+						"[LWS] response streaming pipe closed before response was sent");
+				ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+				return;
+			}
+			rc = r == r->main ? ngx_http_send_special(r, NGX_HTTP_LAST | NGX_HTTP_FLUSH)
+					: NGX_OK;
+			ngx_http_finalize_request(r, rc);
+			return;
+		}
+		if (n == -1) {
+			out->next = ctx->streaming_free;
+			ctx->streaming_free = out;
+			if (errno == EAGAIN) {
+				ev->ready = 0;
+				if (ngx_handle_read_event(ev, 0) != NGX_OK) {
+					ngx_log_error(NGX_LOG_CRIT, ev->log, 0,
+							"[LWS] failed to rearm response streaming event");
+					ctx->streaming_rc = NGX_ERROR;
+					goto error;
+				}
+				return;
+			}
+			ngx_log_error(NGX_LOG_CRIT, ev->log, errno,
+					"[LWS] failed to read from response streaming pipe");
+			ctx->streaming_rc = NGX_ERROR;
+			goto error;
+		}
 
-	/* send */
-	out.buf = b;
-	out.next = NULL;
-	if ((ctx->streaming_rc = ngx_http_output_filter(r, &out)) == NGX_ERROR) {
+		/* send header as needed */
+		if (!r->header_sent) {
+			if (r == r->main && (r->method == NGX_HTTP_HEAD
+					|| r->headers_out.status == NGX_HTTP_NO_CONTENT
+					|| r->headers_out.status == NGX_HTTP_NOT_MODIFIED)) {
+				/* intent to stream response, but filter modules would flag as header-only */
+				ngx_log_error(NGX_LOG_WARN, ev->log, 0, "[LWS] unable to stream response");
+				r->header_only = 1;
+			}
+			if (lws_set_response_header(ctx) != NGX_OK) {
+				ctx->streaming_rc = NGX_HTTP_INTERNAL_SERVER_ERROR;
+				goto error;
+			}
+			r->headers_out.status = ctx->status;
+			r->disable_not_modified = 1;
+			rc = ngx_http_send_header(r);
+			if (rc == NGX_ERROR || rc > NGX_OK || r->header_only) {
+				ctx->streaming_rc = rc;
+				goto error;
+			}
+		}
+
+		/* send */
+		b->pos = b->start;
+		b->last = b->start + n;
+		b->last_in_chain = 1;
+		b->flush = 1;
+		out->next = NULL;
+		rc = ngx_http_output_filter(r, out);
+		if (rc == NGX_ERROR) {
+			ctx->streaming_rc = NGX_ERROR;
+			goto error;
+		}
+		ngx_chain_update_chains(r->pool, &ctx->streaming_free, &ctx->streaming_busy, &out,
+				(ngx_buf_tag_t)&lws_module);
+		if (rc == NGX_AGAIN || ctx->streaming_busy || r->buffered || r->postponed
+				|| (r == r->main && c->buffered)) {
+			goto blocked;
+		}
+		reads++;
+		if (reads == LWS_STREAMING_READS_MAX) {
+			if (ev->active && ngx_del_event(ev, NGX_READ_EVENT, 0) != NGX_OK) {
+				ngx_log_error(NGX_LOG_CRIT, ev->log, 0,
+						"[LWS] failed to remove response streaming event");
+				ctx->streaming_rc = NGX_ERROR;
+				goto error;
+			}
+			ev->ready = 0;
+			if (ngx_handle_read_event(ev, 0) != NGX_OK) {
+				ngx_log_error(NGX_LOG_CRIT, ev->log, 0,
+						"[LWS] failed to rearm response streaming event");
+				ctx->streaming_rc = NGX_ERROR;
+				goto error;
+			}
+			return;
+		}
+	}
+
+	/* wait for client */
+	blocked:
+	if (ev->active && ngx_del_event(ev, NGX_READ_EVENT, 0) != NGX_OK) {
+		ngx_log_error(NGX_LOG_CRIT, ev->log, 0,
+				"[LWS] failed to pause response streaming event");
+		ctx->streaming_rc = NGX_ERROR;
+		goto error;
+	}
+	ev->ready = 0;
+	r->write_event_handler = lws_stream_write_handler;
+	if (wev->ready && wev->delayed) {
+		return;
+	}
+	if (!wev->delayed) {
+		ngx_add_timer(wev, clcf->send_timeout);
+	}
+	if (ngx_handle_write_event(wev, clcf->send_lowat) != NGX_OK) {
+		ngx_log_error(NGX_LOG_CRIT, ev->log, 0,
+				"[LWS] failed to add response streaming write event");
+		ctx->streaming_rc = NGX_ERROR;
 		goto error;
 	}
 	return;
 
+	/* abort streaming */
 	error:
 	ngx_close_connection(ctx->streaming_conn);  /* closes the file descriptor */
 	ctx->streaming_conn = NULL;
-	ctx->streaming_pipe[0] = -1;  
-	close(ctx->streaming_pipe[1]);
-	ctx->streaming_pipe[1] = -1;
+	ctx->streaming_pipe[0] = -1;
+	if (r->write_event_handler == lws_stream_write_handler) {
+		if (c->write->timer_set) {
+			ngx_del_timer(c->write);
+		}
+		r->write_event_handler = ngx_http_request_empty_handler;
+	}
+	if (ctx->streaming_pipe[1] == -1) {
+		ngx_http_finalize_request(r, ctx->streaming_rc);
+	}
+}
+
+static void lws_stream_write_handler (ngx_http_request_t *r) {
+	lws_request_ctx_t  *ctx;
+
+	/* get request */
+	ctx = ngx_http_get_module_ctx(r, lws_module);
+	if (ctx->streaming_conn) {
+		lws_stream_handler(ctx->streaming_conn->read);
+	}
 }
 
 static void lws_finalization_handler (ngx_event_t *ev) {
+	int                 available;
 	ngx_buf_t           *b;
 	ngx_int_t            rc;
 	ngx_log_t           *log;
@@ -985,14 +1136,43 @@ static void lws_finalization_handler (ngx_event_t *ev) {
 
 	/* finalize streaming response */
 	log = r->connection->log;
-	if (r->header_sent || ctx->streaming_rc != NGX_OK) {
-		if (ctx->rc < 0) {
-			ngx_log_error(NGX_LOG_WARN, log, 0, "[LWS] ignoring Lua error in response streaming mode");
+	if (ctx->streaming_pipe[1] != -1) {
+		/* signal EOF after queued streaming data */
+		if (close(ctx->streaming_pipe[1]) != 0) {
+			ngx_log_error(NGX_LOG_CRIT, log, errno,
+					"[LWS] failed to close response streaming pipe");
 		}
-		if (!(ctx->streaming_rc == NGX_ERROR || ctx->streaming_rc > NGX_OK || r->header_only) && r == r->main) {
+		ctx->streaming_pipe[1] = -1;
+	}
+	if (ctx->streaming_conn && !r->header_sent && ctx->streaming_rc == NGX_OK) {
+		/* response uncommitted and streaming error-free -> check whether streaming was used */
+		if (ngx_socket_nread(ctx->streaming_pipe[0], &available) == -1) {
+			ngx_log_error(NGX_LOG_CRIT, log, errno,
+					"[LWS] failed to inspect response streaming pipe");
+			ctx->streaming_rc = NGX_ERROR;
+		}
+		if (ctx->streaming_rc != NGX_OK || available == 0) {
+			/* pipe uninspectable or streaming unused -> disable streaming event finalization */
+			ngx_close_connection(ctx->streaming_conn);
+			ctx->streaming_conn = NULL;
+			ctx->streaming_pipe[0] = -1;
+		}
+	}
+	if (r->header_sent || ctx->streaming_conn || ctx->streaming_rc != NGX_OK) {
+		/* streaming finalization selected -> handle committed, pending, or failed response */
+		if (ctx->rc < 0) {
+			ngx_log_error(NGX_LOG_WARN, log, 0,
+					"[LWS] ignoring Lua error in response streaming mode");
+		}
+		if (ctx->streaming_conn && ctx->streaming_rc == NGX_OK && !r->header_only) {
+			return;  /* streaming completion pending in event handler */
+		}
+		if (!(ctx->streaming_rc == NGX_ERROR || ctx->streaming_rc > NGX_OK || r->header_only)
+				&& r == r->main) {
+			/* main streaming body complete -> send final marker */
 			rc = ngx_http_send_special(r, NGX_HTTP_LAST | NGX_HTTP_FLUSH);
 		} else {
-			rc = ctx->streaming_rc;
+			rc = ctx->streaming_rc;  /* error, header-only, or subrequest */
 		}
 		ngx_http_finalize_request(r, rc);
 		return;

@@ -105,6 +105,8 @@ struct lws_request_ctx_s {
 	ngx_fd_t             streaming_pipe[2];  /* HTTP response streaming pipe */
 	ngx_connection_t    *streaming_conn;     /* HTTP response streaming connection */
 	ngx_int_t            streaming_rc;       /* HTTP response streaming code */
+	ngx_chain_t         *streaming_free;     /* free HTTP response streaming buffers */
+	ngx_chain_t         *streaming_busy;     /* busy HTTP response streaming buffers */
 	ngx_str_t            redirect;           /* NGINX internal redirect; @ prefix for name */
 	ngx_str_t            redirect_args;      /* NGINX internal redirect args */
 	ngx_str_t            diagnostic;         /* diagnostic response */

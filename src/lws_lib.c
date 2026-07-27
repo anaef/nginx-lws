@@ -1,7 +1,7 @@
 /*
  * LWS library
  *
- * Copyright (C) 2023 Andre Naef
+ * Copyright (C) 2023-2026 Andre Naef
  */
 
 
@@ -510,9 +510,9 @@ static int lws_close_file (lua_State *L) {
 
 static int lws_file_flush_hook (lua_State *L) {
 	long                   len;
-	ssize_t                size;
+	size_t                 size, written;
+	ssize_t                n;
 	luaL_Stream            *s;
-	struct iovec           iov[2];
 	lws_request_ctx_t      *ctx;
 	lws_lua_request_ctx_t  *lctx;
 
@@ -531,21 +531,26 @@ static int lws_file_flush_hook (lua_State *L) {
 	if ((len = ftell(ctx->response_body)) == -1) {
 		return luaL_error(L, "failed to get response body size");
 	}
-	if (len > SSIZE_MAX - (ssize_t)sizeof(size_t)) {
+	if (len > SSIZE_MAX) {
 		return luaL_error(L, "response body too large");
 	}
 	lctx->sealed = 1;
 	lctx->response_headers->readonly = 1;
 	if (len > 0) {
 		size = len;
-		iov[0].iov_base = &size;
-		iov[0].iov_len = sizeof(size);
 		if (fflush(ctx->response_body) != 0) {
 			return luaL_error(L, "failed to flush response body");
 		}
-		iov[1].iov_base = ctx->response_body_str.data;
-		iov[1].iov_len = size;
-		if (writev(ctx->streaming_pipe[1], iov, 2) != (ssize_t)sizeof(size) + size) {
+		for (written = 0; written < size; ) {
+			n = write(ctx->streaming_pipe[1], ctx->response_body_str.data + written,
+					size - written);
+			if (n > 0) {
+				written += n;
+				continue;
+			}
+			if (n == -1 && errno == EINTR) {
+				continue;
+			}
 			return luaL_error(L, "failed to write response");
 		}
 		rewind(ctx->response_body);
