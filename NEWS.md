@@ -14,6 +14,7 @@
 - Redesign and harden HTTP response streaming.
 - Harden Lua state and request queue defaults.
 - Switch Docker environments to Ubuntu 26.04 and use its NGINX source package.
+- Add compatibility with Lua 5.5.
 - Add DevContainer.
 
 

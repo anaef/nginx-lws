@@ -1,7 +1,7 @@
 /*
  * LWS state
  *
- * Copyright (C) 2023,2024 Andre Naef
+ * Copyright (C) 2023-2026 Andre Naef
  */
 
 
@@ -195,9 +195,17 @@ static lws_state_t *lws_create_state (lws_request_ctx_t *ctx) {
 	/* create Lua state */
 	if (llcf->state_memory_max > 0) {
 		state->memory_max = llcf->state_memory_max;
+#if LUA_VERSION_NUM >= 505
+		state->L = lua_newstate(lws_alloc_checked, state, luaL_makeseed(NULL));
+#else
 		state->L = lua_newstate(lws_alloc_checked, state);
+#endif
 	} else {
+#if LUA_VERSION_NUM >= 505
+		state->L = lua_newstate(lws_alloc_unchecked, NULL, luaL_makeseed(NULL));
+#else
 		state->L = lua_newstate(lws_alloc_unchecked, NULL);
+#endif
 	}
 	if (!state->L) {
 		ngx_log_error(NGX_LOG_CRIT, log, 0, "[LWS] failed to create Lua state");

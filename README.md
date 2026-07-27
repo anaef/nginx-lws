@@ -40,7 +40,7 @@ Lua web services to block instead of using an event-based, non-blocking architec
 
 While [LuaJIT](https://luajit.org/) is undoubtedly an amazing feat of engineering with impressive
 performance, it remains based on Lua 5.1 with select extensions. The latest PUC-Lua release is
-5.4. PUC-Lua has added new language features over the years, including 64-bit integers, bit
+5.5. PUC-Lua has added new language features over the years, including 64-bit integers, bit
 operators, and variable attributes, which are not directly supported in LuaJIT. Perhaps more
 worryingly, writing "fast" LuaJIT code promotes using language idioms that are amenable to its
 optimization while eschewing language features that are "slow".[^1] It is not ideal if a JIT
@@ -81,9 +81,9 @@ Please browse the extensive documentation in the [doc](doc) folder.
 
 LWS has been tested with the following software versions:
 
-* NGINX 1.18.0 and 1.24.0
-* Lua 5.1, 5.2, 5.3, and 5.4
-* Ubuntu 20.04.6 LTS and 22.04.3 LTS
+* NGINX 1.24.0 and 1.28.3
+* Lua 5.1, 5.2, 5.3, 5.4, and 5.5
+* Ubuntu 24.04 LTS and 26.04 LTS
 
 Your mileage may vary with other software versions.
 
