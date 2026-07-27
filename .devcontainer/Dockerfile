@@ -1,12 +1,13 @@
-FROM mcr.microsoft.com/devcontainers/base:1-ubuntu-24.04
+FROM mcr.microsoft.com/devcontainers/base:3-ubuntu26.04
 
-ARG NGINX_VERSION=1.24.0
-ARG NGINX_SHA256=77a2541637b92a621e3ee76776c8b7b40cf6d707e69ba53a940283e30ff2f55d
+ARG NGINX_VERSION=1.28.3
+ARG NGINX_PACKAGE_VERSION=1.28.3-2ubuntu1.8
 ARG DEBIAN_FRONTEND=noninteractive
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-RUN apt-get update \
+RUN sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/ubuntu.sources \
+    && apt-get update \
     && apt-get install -y --no-install-recommends \
         build-essential \
         ca-certificates \
@@ -15,12 +16,20 @@ RUN apt-get update \
         git \
         jq \
         less \
+        liblua5.1-0-dev \
+        liblua5.2-dev \
+        liblua5.3-dev \
         liblua5.4-dev \
+        liblua5.5-dev \
         libpcre2-dev \
         locales \
         lsof \
+        lua5.1 \
+        lua5.2 \
+        lua5.3 \
         lua5.4 \
-        nginx \
+        lua5.5 \
+        nginx=${NGINX_PACKAGE_VERSION} \
         pkg-config \
         procps \
         strace \
@@ -28,15 +37,14 @@ RUN apt-get update \
         valgrind \
         vim \
         zlib1g-dev \
+    && source_directory="$(mktemp -d)" \
+    && cd "${source_directory}" \
+    && apt-get source "nginx=${NGINX_PACKAGE_VERSION}" \
+    && mv "nginx-${NGINX_VERSION}" "/opt/nginx-${NGINX_VERSION}" \
+    && cd / \
+    && rm -rf "${source_directory}" \
     && locale-gen en_US.UTF-8 \
     && rm -rf /var/lib/apt/lists/*
-
-RUN curl --fail --location --silent --show-error \
-        --output "/tmp/nginx-${NGINX_VERSION}.tar.gz" \
-        "https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz" \
-    && echo "${NGINX_SHA256}  /tmp/nginx-${NGINX_VERSION}.tar.gz" | sha256sum --check --strict \
-    && tar --extract --gzip --file "/tmp/nginx-${NGINX_VERSION}.tar.gz" --directory /opt \
-    && rm "/tmp/nginx-${NGINX_VERSION}.tar.gz"
 
 ENV LANG=en_US.UTF-8 \
     LANGUAGE=en_US:en \

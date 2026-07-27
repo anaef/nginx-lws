@@ -6,7 +6,7 @@ uid="$(id -u)"
 gid="$(id -g)"
 
 managed_dirs=(
-	"${LWS_NGINX_SOURCE:-/opt/nginx-${NGINX_VERSION:-1.24.0}}"
+	"${LWS_NGINX_SOURCE:-/opt/nginx-${NGINX_VERSION:-1.28.3}}"
 	"${LWS_NGINX_BUILD:-/opt/nginx-build/normal}"
 	"${LWS_NGINX_ASAN_BUILD:-/opt/nginx-build/asan}"
 	"${LWS_NGINX_ASAN_PREFIX:-/opt/nginx}"

@@ -1,6 +1,7 @@
 # NGINX LWS DevContainer
 
-The DevContainer uses Ubuntu 24.04, NGINX 1.24.0, Lua 5.4, and GCC. The repository is mounted at
+The DevContainer uses Ubuntu 26.04, NGINX 1.28.3, Lua 5.4, and GCC. Lua 5.1 through 5.5 are
+installed for compatibility testing, with Lua 5.4 used by default. The repository is mounted at
 `/workspaces/nginx-lws`; all NGINX sources, builds, installations, runtime state, and logs are
 disposable container data.
 
@@ -15,7 +16,7 @@ The examples site is forwarded to [http://localhost:8080](http://localhost:8080)
 | Path | Purpose |
 | --- | --- |
 | `/workspaces/nginx-lws` | Host-mounted LWS source |
-| `/opt/nginx-1.24.0` | Pinned upstream NGINX source |
+| `/opt/nginx-1.28.3` | Ubuntu NGINX source matching the installed package |
 | `/opt/nginx-build/normal` | Normal dynamic-module build output |
 | `/opt/nginx-lws` | Normal development module installation |
 | `/var/log/nginx-lws` | Normal development and Valgrind logs |
@@ -24,7 +25,7 @@ The examples site is forwarded to [http://localhost:8080](http://localhost:8080)
 | `/opt/nginx` | Complete private AddressSanitizer NGINX installation and logs |
 
 No named or persistent volumes are used. Reopening or restarting the existing container preserves
-its build trees; rebuilding the DevContainer recreates them from the pinned source.
+its build trees; rebuilding the DevContainer recreates them from the matching Ubuntu source.
 
 ## Normal development
 
@@ -85,7 +86,7 @@ lws-asan 50000 16
 
 ASan, access, and NGINX error logs are retained under `/opt/nginx/logs`.
 
-LeakSanitizer remains enabled for the server lifecycle. The test suppresses only NGINX 1.24.0's
+LeakSanitizer remains enabled for the server lifecycle. The test suppresses only NGINX 1.28.3's
 known PCRE2 compile-context allocation from regex-location setup; LWS allocations are not
 suppressed.
 
@@ -102,5 +103,5 @@ NGINX shutdown so Valgrind can complete its report, then restores the normal ser
 
 The completed Valgrind report is displayed in the terminal and written to
 `/var/log/nginx-lws/valgrind.log`.
-The helper suppresses NGINX 1.24.0's known single-process event-loop, accepted-connection,
+The helper suppresses NGINX 1.28.3's known single-process event-loop, accepted-connection,
 environment, and PCRE2 teardown allocations; it does not suppress LWS or Lua allocation stacks.

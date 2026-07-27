@@ -1,3 +1,3 @@
-# NGINX 1.24.0 keeps one PCRE2 compile context per regex location until process
+# NGINX 1.28.3 keeps one PCRE2 compile context per regex location until process
 # teardown. NGX_DEBUG_PALLOC makes that core allocation visible to LeakSanitizer.
 leak:ngx_regex_malloc

@@ -1,7 +1,8 @@
-from ubuntu:focal as base
+FROM ubuntu:26.04 AS base
 
 ENV LUA_VERSION=5.4
-ENV NGINX_VERSION=1.18.0
+ENV NGINX_VERSION=1.28.3
+ENV NGINX_PACKAGE_VERSION=1.28.3-2ubuntu1.8
 
 RUN apt-get update && \
     apt-get install -y \
@@ -20,24 +21,28 @@ RUN apt-get update && \
     apt-get install -y \
     lua${LUA_VERSION} \
     liblua${LUA_VERSION}-dev \
-    nginx=${NGINX_VERSION}-0ubuntu1.4 \
-    curl
+    nginx=${NGINX_PACKAGE_VERSION}
 
 
 #####################################################
 
-from base as build
+FROM base AS build
 
-RUN apt-get update && \
+RUN sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/ubuntu.sources && \
+    apt-get update && \
     apt-get install -y \
+    build-essential \
     zlib1g-dev \
-    libpcre3-dev \
-    make
+    libpcre2-dev
 
 RUN mkdir nginx-lws
 
-RUN curl -LO https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz
-RUN tar -zxvf nginx-${NGINX_VERSION}.tar.gz
+RUN source_directory="$(mktemp -d)" && \
+    cd "${source_directory}" && \
+    apt-get source "nginx=${NGINX_PACKAGE_VERSION}" && \
+    mv "nginx-${NGINX_VERSION}" / && \
+    cd / && \
+    rm -rf "${source_directory}"
 
 COPY ./ nginx-lws/
 
@@ -47,7 +52,7 @@ RUN make modules
 
 #####################################################
 
-from base as runtime
+FROM base AS runtime
 
 COPY --from=build \
   ./nginx-${NGINX_VERSION}/objs/lws_module.so \

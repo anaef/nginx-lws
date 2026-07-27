@@ -4,7 +4,8 @@
     "dockerfile": "Dockerfile",
     "context": "..",
     "args": {
-      "NGINX_VERSION": "1.24.0"
+      "NGINX_VERSION": "1.28.3",
+      "NGINX_PACKAGE_VERSION": "1.28.3-2ubuntu1.8"
     }
   },
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/nginx-lws,type=bind,consistency=cached",

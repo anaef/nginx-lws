@@ -71,7 +71,7 @@ For more information, please refer to the [directives](Directives.md) documentat
 ## Running the Examples Website With Docker
 
 The Docker image is designed for easy use, providing users with a straightforward command
-to quickly test and explore LWS. It runs on an Ubuntu 20.04 (Focal Fossa) image.
+to quickly test and explore LWS. It runs on an Ubuntu 26.04 LTS image.
 
 > [!IMPORTANT]
 > The following steps require Docker 20.10 or newer.

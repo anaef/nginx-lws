@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 LWS_WORKSPACE="${LWS_WORKSPACE:-/workspaces/nginx-lws}"
-NGINX_VERSION="${NGINX_VERSION:-1.24.0}"
+NGINX_VERSION="${NGINX_VERSION:-1.28.3}"
 LWS_NGINX_SOURCE="${LWS_NGINX_SOURCE:-/opt/nginx-${NGINX_VERSION}}"
 LWS_NGINX_BUILD="${LWS_NGINX_BUILD:-/opt/nginx-build/normal}"
 LWS_NGINX_ASAN_BUILD="${LWS_NGINX_ASAN_BUILD:-/opt/nginx-build/asan}"

@@ -10,8 +10,14 @@ In brief:
 1. If you require a Lua version other than 5.4, edit the `config` file in the nginx-lws directory,
 and change the `lws_lua` variable accordingly.
 1. Determine your NGINX version by typing `nginx -v`.
-1. Download the [NGINX source code](https://nginx.org/download/) with the identified version,
-and unpack it into a sibling folder of the nginx-lws directory.
+1. Obtain the NGINX source code corresponding to your installed NGINX:
+   - If you built NGINX from source, download the identified version of the
+   [NGINX source code](https://nginx.org/download/) and unpack it into a sibling folder of the
+   nginx-lws directory.
+   - If you installed NGINX using a distribution package, obtain the matching source package as
+   described by your distribution. For example, after enabling source repositories on Ubuntu, run
+   `apt-get source "nginx=$(dpkg-query -W -f='${source:Version}' nginx)"` in the parent directory
+   of nginx-lws.
 1. In the NGINX directory, run
 `./configure --with-compat --with-threads --add-dynamic-module=../nginx-lws`. If debug logging is
 required, add `--with-debug`.
