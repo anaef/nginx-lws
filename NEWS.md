@@ -1,7 +1,7 @@
 # LWS for NGINX Release Notes
 
 
-## Release 1.1.1
+## Release 1.2.0 (2026-07-28)
 
 - Documentation updates.
 - Deprecate request.uri value as it is a composite of the path and query parameters.
