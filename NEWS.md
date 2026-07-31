@@ -5,6 +5,7 @@
 
 - Add security posture.
 - Fix table corruption on duplicate-key allocation failure.
+- Harden table option handling.
 
 
 ## Release 1.2.0 (2026-07-28)

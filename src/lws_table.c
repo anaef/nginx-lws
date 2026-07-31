@@ -108,7 +108,7 @@ int lws_table_set_dup (lws_table_t *t, int dup) {
 	if (t->count) {
 		return -1;
 	}
-	t->dup = dup;
+	t->dup = !!dup;
 	return 0;
 }
 
@@ -116,7 +116,7 @@ int lws_table_set_free (lws_table_t *t, int free) {
 	if (t->count) {
 		return -1;
 	}
-	t->free = free;
+	t->free = !!free;
 	return 0;
 }
 
@@ -124,7 +124,7 @@ int lws_table_set_ci (lws_table_t *t, int ci) {
 	if (t->count) {
 		return -1;
 	}
-	t->ci = ci;
+	t->ci = !!ci;
 	return 0;
 }
 
