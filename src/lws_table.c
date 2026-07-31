@@ -170,6 +170,7 @@ void *lws_table_get (lws_table_t *t, ngx_str_t *key) {
 int lws_table_set (lws_table_t *t, ngx_str_t *key, void *value) {
 	ngx_uint_t          hash;
 	ngx_queue_t        *q;
+	ngx_str_t           entry_key;
 	lws_table_entry_t  *entry, *evict;
 
 	hash = lws_table_hash(t, key);
@@ -201,17 +202,18 @@ int lws_table_set (lws_table_t *t, ngx_str_t *key, void *value) {
 			}
 
 			/* new entry */
-			entry = lws_table_insert(t, key, hash);
 			if (t->dup) {
-				entry->key.data = ngx_alloc(key->len, t->log);
-				if (!entry->key.data) {
+				entry_key.data = ngx_alloc(key->len, t->log);
+				if (!entry_key.data) {
 					return -1;
 				}
-				ngx_memcpy(entry->key.data, key->data, key->len);
-				entry->key.len = key->len;
+				ngx_memcpy(entry_key.data, key->data, key->len);
+				entry_key.len = key->len;
 			} else {
-				entry->key = *key;
+				entry_key = *key;
 			}
+			entry = lws_table_insert(t, key, hash);
+			entry->key = entry_key;
 			entry->value = value;
 			entry->hash = hash;
 			entry->state = LWS_TES_SET;

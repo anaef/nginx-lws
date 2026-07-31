@@ -4,6 +4,7 @@
 ## Release 1.2.1
 
 - Add security posture.
+- Fix table corruption on duplicate-key allocation failure.
 
 
 ## Release 1.2.0 (2026-07-28)
