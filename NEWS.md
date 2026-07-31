@@ -1,6 +1,11 @@
 # LWS for NGINX Release Notes
 
 
+## Release 1.2.1
+
+- Add security posture.
+
+
 ## Release 1.2.0 (2026-07-28)
 
 - Documentation updates.
