@@ -87,6 +87,7 @@ static int lws_pairs(lua_State *L);
 /* run */
 static void lws_push_env(lws_lua_request_ctx_t *lctx);
 static int lws_call(lws_lua_request_ctx_t *lctx, ngx_str_t *filename, lws_lua_chunk_e chunk);
+static void lws_clear_env(lua_State *L, ngx_str_t *filename);
 
 
 static const char *lws_chunk_names[] = {"init", "pre", "main", "post"};
@@ -1020,6 +1021,25 @@ static int lws_call (lws_lua_request_ctx_t *lctx, ngx_str_t *filename, lws_lua_c
 	return result;
 }
 
+static void lws_clear_env (lua_State *L, ngx_str_t *filename) {
+	/* get cached chunk */
+	lua_pushlstring(L, (const char *)filename->data, filename->len);
+	if (lws_rawget(L, 2) != LUA_TFUNCTION) {  /* [ctx, chunks, env, value] */
+		lua_pop(L, 1);  /* [ctx, chunks, env] */
+		return;
+	}
+
+	/* reset environment */
+#if LUA_VERSION_NUM >= 502
+	lua_rawgeti(L, LUA_REGISTRYINDEX, LUA_RIDX_GLOBALS);
+	lua_setupvalue(L, -2, 1);
+#else
+	lua_pushvalue(L, LUA_GLOBALSINDEX);
+	lua_setfenv(L, -2);
+#endif  /* [ctx, chunks, env, function] */
+	lua_pop(L, 1);  /* [ctx, chunks, env] */
+}
+
 int lws_run (lua_State *L) {
 	int                     result;
 	lws_request_ctx_t      *ctx;
@@ -1074,6 +1094,15 @@ int lws_run (lua_State *L) {
 	post:
 	if (ctx->state->llcf->post.len) {
 		(void)lws_call(lctx, &ctx->state->llcf->post, LWS_LC_POST);
+	}
+	if (ctx->state->llcf->pre.len) {
+		lws_clear_env(L, &ctx->state->llcf->pre);
+	}
+	if (!lctx->complete) {
+		lws_clear_env(L, &ctx->main);
+	}
+	if (ctx->state->llcf->post.len) {
+		lws_clear_env(L, &ctx->state->llcf->post);
 	}
 
 	/* stop profiler */
