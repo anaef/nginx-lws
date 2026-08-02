@@ -41,11 +41,13 @@ marking the request as complete.
 Marks the Lua state to be closed. After the request is finalized, the Lua state is closed.
 
 
-## lws.parseargs (args)
+## lws.parseargs (args [, max_fields])
 
 Parses the request query parameters in *args* and returns them as a table. For repeated keys,
 only the final value is provided. This function also parses request bodies with a content type of
-`application/x-www-form-urlencoded`, i.e., HTML form submissions with the `POST` method.
+`application/x-www-form-urlencoded`, i.e., HTML form submissions with the `POST` method. The
+optional positive integer *max_fields* sets the maximum number of ampersand-separated fields and
+defaults to 255; exceeding this limit generates a Lua error.
 
 
 ## lws.pairs (args)

@@ -6,6 +6,7 @@
 
 
 #include <lws_lib.h>
+#include <limits.h>
 #include <lauxlib.h>
 #include <lualib.h>
 #include <lws_profiler.h>
@@ -17,6 +18,9 @@
 #define luaL_loadfilex(L, filename, mode)   luaL_loadfile(L, filename)
 #define luaL_testudata(L, index, name)      lws_testudata(L, index, name)
 #endif
+
+
+#define LWS_PARSEARGS_MAX_FIELDS_DEFAULT  255
 
 
 #if LUA_VERSION_NUM < 502
@@ -672,14 +676,18 @@ static int lws_setclose (lua_State *L) {
 }
 
 static int lws_parseargs (lua_State *L) {
-	int          nrec, state;
+	int          max_fields, nrec, state;
 	size_t       n;
 	u_char      *start, *pos, *last, *u_start, *u_pos;
 	ngx_str_t    args;
+	lua_Integer  limit;
 	luaL_Buffer  B;
 
 	/* check arguments */
 	args.data = (u_char *)luaL_checklstring(L, 1, &args.len);
+	limit = luaL_optinteger(L, 2, LWS_PARSEARGS_MAX_FIELDS_DEFAULT);
+	luaL_argcheck(L, limit > 0 && limit <= INT_MAX, 2, "out of range");
+	max_fields = (int)limit;
 	pos = args.data;
 	last = args.data + args.len;
 	if (pos == last) {
@@ -691,6 +699,9 @@ static int lws_parseargs (lua_State *L) {
 	nrec = 1;
 	while (pos < last) {
 		if (*pos++ == '&') {
+			if (nrec == max_fields) {
+				return luaL_error(L, "too many fields");
+			}
 			nrec++;
 		}
 	}
