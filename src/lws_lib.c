@@ -225,6 +225,12 @@ static void lws_unescape_url (u_char **dst, u_char **src, size_t n) {
 			break;
 		}
 	}
+	if (state == 1) {
+		*d++ = '%';
+	} else if (state == 2) {
+		*d++ = '%';
+		*d++ = *(s - 1);
+	}
 	*dst = d;
 	*src = s;
 }
@@ -695,7 +701,7 @@ static int lws_parseargs (lua_State *L) {
 	pos = args.data;
 	while (1) {
 		start = pos;
-		while (pos < last && *pos != '=' && *pos != '&') {
+		while (pos < last && *pos != '&' && (state != 0 || *pos != '=')) {
 			pos++;
 		}
 		n = pos - start;

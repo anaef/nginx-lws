@@ -6,6 +6,7 @@
 - Add security posture.
 - Fix table corruption on duplicate-key allocation failure.
 - Harden table option handling.
+- Fix lws.parseargs handling of additional equals signs and incomplete percent escapes.
 
 
 ## Release 1.2.0 (2026-07-28)
