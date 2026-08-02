@@ -10,6 +10,7 @@
 - Harden query argument parsing with a configurable field limit defaulting to 255.
 - Clear request environments from cached Lua chunks after execution.
 - Fix Set-Cookie unfolding with Expires attributes.
+- Document post-request access to request-bound values as undefined.
 
 
 ## Release 1.2.0 (2026-07-28)

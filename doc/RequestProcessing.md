@@ -135,7 +135,8 @@ handle subsequent requests after a request is finalized.
 > [!CAUTION]
 > Developers must be careful not to leak information among requests, such as through the global
 > environment or the Lua registry. Any request-specific state should be constrained to the request
-> environment and local variables.
+> environment and local variables. Moreover, the behavior of accessing request-bound values after
+> the request has been finalized is undefined.
 
 Lua states read the Lua chunks from the file system only once. The resulting functions are then
 cached. This is a performance optimization.
