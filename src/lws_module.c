@@ -1264,8 +1264,8 @@ static void lws_finalization_handler (ngx_event_t *ev) {
 }
 
 static ngx_int_t lws_set_response_header (lws_request_ctx_t *ctx) {
-	int                  unfold;
-	u_char              *vstart, *vend, *vpos;
+	int                  expires, unfold;
+	u_char              *vattr, *vstart, *vend, *vpos;
 	ngx_str_t           *key, *value;
 	ngx_table_elt_t     *h;
 	ngx_http_request_t  *r;
@@ -1353,8 +1353,24 @@ static ngx_int_t lws_set_response_header (lws_request_ctx_t *ctx) {
 			vstart = value->data;
 			vend = value->data + value->len;
 			while (1) {
+				expires = 0;
 				vpos = vstart;
-				while (vpos < vend && *vpos != ',') {
+				while (vpos < vend) {
+					if (*vpos == ';') {
+						vattr = vpos + 1;
+						while (vattr < vend && (*vattr == ' ' || *vattr == '\t')) {
+							vattr++;
+						}
+						expires = (size_t)(vend - vattr) >= sizeof("Expires=") - 1
+								&& ngx_strncasecmp(vattr, (u_char *)"Expires=", sizeof("Expires=")
+								- 1) == 0;
+					} else if (*vpos == ',') {
+						if (expires) {
+							expires = 0;
+						} else {
+							break;
+						}
+					}
 					vpos++;
 				}
 				h->key = *key;

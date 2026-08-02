@@ -9,6 +9,7 @@
 - Fix lws.parseargs handling of additional equals signs and incomplete percent escapes.
 - Harden query argument parsing with a configurable field limit defaulting to 255.
 - Clear request environments from cached Lua chunks after execution.
+- Fix Set-Cookie unfolding with Expires attributes.
 
 
 ## Release 1.2.0 (2026-07-28)
