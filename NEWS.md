@@ -1,16 +1,16 @@
 # LWS for NGINX Release Notes
 
 
-## Release 1.2.1
+## Release 1.2.1 (2026-08-03)
 
 - Add security posture.
-- Fix table corruption on duplicate-key allocation failure.
-- Harden table option handling.
-- Fix lws.parseargs handling of additional equals signs and incomplete percent escapes.
-- Harden query argument parsing with a configurable field limit defaulting to 255.
 - Clear request environments from cached Lua chunks after execution.
-- Fix Set-Cookie unfolding with Expires attributes.
 - Document post-request access to request-bound values as undefined.
+- Fix table corruption on duplicate-key allocation failure.
+- Fix lws.parseargs handling of additional equals signs and incomplete percent escapes.
+- Fix Set-Cookie unfolding with Expires attributes.
+- Harden table option handling.
+- Harden query argument parsing with a configurable field limit defaulting to 255.
 
 
 ## Release 1.2.0 (2026-07-28)
