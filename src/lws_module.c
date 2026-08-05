@@ -24,6 +24,7 @@ static char *lws(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 static char *lws_max_states(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 static char *lws_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 static char *lws_error_response(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
+static ngx_int_t lws_init_process(ngx_cycle_t *cycle);
 
 static lws_file_status_e lws_get_file_status(ngx_http_request_t *t, ngx_str_t *filename);
 static ngx_int_t lws_handler(ngx_http_request_t *r);
@@ -221,7 +222,7 @@ ngx_module_t lws_module = {
 	NGX_HTTP_MODULE,
 	NULL,                  /* init master */
 	NULL,                  /* init module */
-	NULL,                  /* init process */
+	lws_init_process,      /* init process */
 	NULL,                  /* init thread */
 	NULL,                  /* exit thread */
 	NULL,                  /* exit process */
@@ -519,6 +520,16 @@ static char *lws_error_response (ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 		}
 	}
 	return NGX_CONF_OK;
+}
+
+static ngx_int_t lws_init_process (ngx_cycle_t *cycle) {
+	if (ngx_process != NGX_PROCESS_WORKER && ngx_process != NGX_PROCESS_SINGLE) {
+		return NGX_OK;
+	}
+	if (lws_table_init_hash(cycle->log) != 0) {
+		return NGX_ERROR;
+	}
+	return NGX_OK;
 }
 
 

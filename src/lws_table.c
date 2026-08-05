@@ -8,6 +8,9 @@
 #include <lws_table.h>
 
 
+#define LWS_TABLE_RANDOM_DEVICE  "/dev/urandom"
+
+
 static ngx_uint_t lws_table_hash(lws_table_t *t, ngx_str_t *key);
 static size_t lws_table_size(lws_table_t *t, size_t size);
 static size_t lws_table_load(lws_table_t *t, size_t alloc);
@@ -16,6 +19,12 @@ static lws_table_entry_t *lws_table_find(lws_table_t *t, ngx_str_t *key, ngx_uin
 static lws_table_entry_t *lws_table_insert(lws_table_t *t, ngx_str_t *key, ngx_uint_t hash);
 static void lws_table_remove(lws_table_t *t, lws_table_entry_t *entry);
 
+
+#if SIZE_MAX > UINT32_MAX
+static ngx_uint_t lws_table_hash_seed = 14695981039346656037U;  /* FNV-1a offset basis */
+#else
+static ngx_uint_t lws_table_hash_seed = 2166136261U;  /* FNV-1a offset basis */
+#endif
 
 #if SIZE_MAX > UINT32_MAX
 static size_t lws_table_sizes[] = {
@@ -47,6 +56,33 @@ static size_t lws_table_sizes[] = {
 };
 static int lws_table_sizes_n = 73;
 #endif
+
+
+int lws_table_init_hash (ngx_log_t *log) {
+	ssize_t     n;
+	ngx_fd_t    fd;
+	ngx_uint_t  seed;
+
+	fd = ngx_open_file((u_char *)LWS_TABLE_RANDOM_DEVICE, NGX_FILE_RDONLY, NGX_FILE_OPEN, 0);
+	if (fd == NGX_INVALID_FILE) {
+		ngx_log_error(NGX_LOG_ERR, log, ngx_errno, "[LWS] failed to open " LWS_TABLE_RANDOM_DEVICE);
+		return -1;
+	}
+	n = ngx_read_fd(fd, &seed, sizeof(seed));
+	if (n != (ssize_t)sizeof(seed)) {
+		ngx_log_error(NGX_LOG_ERR, log, n == -1 ? ngx_errno : 0, "[LWS] failed to read "
+				LWS_TABLE_RANDOM_DEVICE);
+		ngx_close_file(fd);
+		return -1;
+	}
+	if (ngx_close_file(fd) == NGX_FILE_ERROR) {
+		ngx_log_error(NGX_LOG_ERR, log, ngx_errno, "[LWS] failed to close "
+				LWS_TABLE_RANDOM_DEVICE);
+		return -1;
+	}
+	lws_table_hash_seed = seed;
+	return 0;
+}
 
 lws_table_t *lws_table_create (size_t load, ngx_log_t *log) {
 	size_t        alloc;
@@ -264,13 +300,11 @@ static ngx_uint_t lws_table_hash (lws_table_t *t, ngx_str_t *key) {
 
 	/* FNV-1a; source: http://www.isthe.com/chongo/tech/comp/fnv/index.html#FNV-1a */
 	#if SIZE_MAX > UINT32_MAX
-	#define _LWS_TABLE_HASH_OFFSET_BASIS 14695981039346656037U
 	#define _LWS_TABLE_HASH_PRIME 1099511628211
 	#else
-	#define _LWS_TABLE_HASH_OFFSET_BASIS 2166136261U
 	#define _LWS_TABLE_HASH_PRIME 16777619
 	#endif
-	hash = _LWS_TABLE_HASH_OFFSET_BASIS;
+	hash = lws_table_hash_seed;
 	p = key->data + key->len;
 	if (t->ci) {
 		while (p > key->data) {
@@ -284,7 +318,6 @@ static ngx_uint_t lws_table_hash (lws_table_t *t, ngx_str_t *key) {
 			hash *= _LWS_TABLE_HASH_PRIME;
 		}
 	}
-	#undef _LWS_TABLE_HASH_OFFSET_BASIS
 	#undef _LWS_TABLE_HASH_PRIME
 	return hash;
 }

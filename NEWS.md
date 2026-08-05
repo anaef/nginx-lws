@@ -1,6 +1,11 @@
 # LWS for NGINX Release Notes
 
 
+## Release 1.2.2
+
+- Harden table with random hash seed.
+
+
 ## Release 1.2.1 (2026-08-03)
 
 - Add security posture.
